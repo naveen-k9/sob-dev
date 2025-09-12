@@ -17,7 +17,7 @@ import { Stack, router, useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, CreditCard, Wallet, MapPin, Tag, Check, CheckCircle, XCircle } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import db from '@/db';
-
+import RazorpayCheckout from 'react-native-razorpay';
 export default function CheckoutScreen() {
   const { user, isGuest, updateUser } = useAuth();
   const { subscriptionData } = useLocalSearchParams();
@@ -191,58 +191,7 @@ export default function CheckoutScreen() {
     }
   };
 
-  const createRazorpayOrderAndOpenCheckout = async (amount: number, description: string) => {
-    try {
-      const envBase = process.env.EXPO_PUBLIC_RORK_API_BASE_URL as string | undefined;
-      const base = envBase && envBase.length > 0
-        ? envBase
-        : (typeof window !== 'undefined' && (window as any).location?.origin ? (window as any).location.origin : undefined);
 
-      if (!base) {
-        console.log('[Razorpay] Missing base URL. EXPO_PUBLIC_RORK_API_BASE_URL not set and window.location.origin unavailable');
-        Alert.alert('Config error', 'API base URL not configured');
-        return null;
-      }
-
-      const customer = {
-        name: user?.name ?? 'Customer',
-        email: user?.email ?? undefined,
-        contact: user?.phone ?? undefined,
-      } as { name: string; email?: string; contact?: string };
-
-      const orderResp = await fetch(`${base}/create-order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, currency: 'INR', receipt: `rcpt_${Date.now()}`, notes: { description } }),
-      });
-
-      if (!orderResp.ok) {
-        const t = await orderResp.text();
-        console.log('[Razorpay] order create failed', orderResp.status, t);
-        try {
-          const json = JSON.parse(t);
-          Alert.alert('Payment error', json?.error ? String(json.error) : 'Unable to start Razorpay checkout');
-        } catch {
-          Alert.alert('Payment error', 'Unable to start Razorpay checkout');
-        }
-        return null;
-      }
-
-      const order = (await orderResp.json()) as { id?: string; amount?: number };
-      if (!order?.id) {
-        Alert.alert('Payment error', 'Invalid order response from server');
-        return null;
-      }
-
-      const checkoutUrl = `${base}/checkout?orderId=${encodeURIComponent(order.id)}&amount=${encodeURIComponent(String(order.amount ?? Math.round(amount * 100)))}&name=${encodeURIComponent(customer.name)}&description=${encodeURIComponent(description)}&email=${encodeURIComponent(customer.email ?? '')}&contact=${encodeURIComponent(customer.contact ?? '')}&themeColor=${encodeURIComponent('#FF6B35')}`;
-
-      return checkoutUrl;
-    } catch (e) {
-      console.log('[Razorpay] order create exception', e);
-      Alert.alert('Payment error', 'Something went wrong while initializing payment.');
-      return null;
-    }
-  };
 
   const handlePlaceOrder = async () => {
     if (isGuest) {
@@ -329,10 +278,51 @@ export default function CheckoutScreen() {
     }
 
     // Non-zero payment: create Razorpay order then open checkout bridge
-    const checkoutUrl = await createRazorpayOrderAndOpenCheckout(orderSummary.payableAmount, `Subscription payment for ${subscriptionDetails?.meal?.name ?? 'Meal'}`);
-    if (checkoutUrl) {
-      router.push({ pathname: '/webview', params: { url: checkoutUrl, title: 'Complete Payment' } });
+    const description = 'Credits towards consultation';
+    const payload = {
+      amount: Math.round(orderSummary.payableAmount * 100),
+      currency: 'INR',
+      receipt: `rcpt_${Date.now()}`,
+      notes: { description },
+    };
+    const orderResp = await fetch('http://localhost:5000/create-order', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!orderResp.ok) {
+      alert('Failed to create Razorpay order');
+      return;
     }
+    const orderData = await orderResp.json();
+    const options = {
+      description,
+      image: 'https://i.imgur.com/3g7nmJC.jpg',
+      currency: 'INR',
+      key: 'rzp_test_RFSonKoJy6tEEL', // Use your public Razorpay key here
+      amount: `${orderSummary.payableAmount * 100}`,
+      name: 'Acme Corp',
+      order_id: orderData.id, // Use the order_id from backend
+      prefill: {
+        email: 'gaurav.kumar@example.com',
+        contact: '+919876543210',
+        name: 'Gaurav Kumar'
+      },
+      theme: { color: '#53a20e' }
+    };
+
+    console.log('Razorpay options:', options);
+    RazorpayCheckout.open(options)
+      .then((data: { razorpay_payment_id: string }) => {
+        alert(`Success: ${data.razorpay_payment_id}`);
+      })
+      .catch((error: any) => {
+        console.log('Razorpay error:', error);
+        alert(`Error: ${error.code} | ${error.description}`);
+      });
 
   };
 
@@ -666,11 +656,12 @@ export default function CheckoutScreen() {
             You save ₹{orderSummary.discount + orderSummary.promoDiscount + orderSummary.trialDiscount}
           </Text>
         </View>
-        <TouchableOpacity style={styles.placeOrderButton} onPress={handlePlaceOrder}>
+        <TouchableOpacity style={styles.placeOrderButton} onPress={handlePlaceOrder}> 
           <Text style={styles.placeOrderButtonText}>
             {isGuest ? 'Login & Place Order' : orderSummary.payableAmount === 0 ? 'Activate Now' : 'Pay Now'}
           </Text>
         </TouchableOpacity>
+        
       </View>
 
       {/* Payment Modal */}

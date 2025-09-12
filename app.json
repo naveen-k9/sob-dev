@@ -30,13 +30,19 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.meal-subscription-service",
+      "edgeToEdge": true,
+      "package": "com.k9planmytour.mealsubscriptionservice",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION"
+        "ACCESS_BACKGROUND_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
     "web": {
@@ -63,17 +69,17 @@
       "typedRoutes": true
     },
     "updates": {
-      "enabled": true,
-      "url": "<UNKNOWN>",
-      "requestHeaders": {},
-      "checkAutomatically": "ALWAYS",
-      "fallbackToCacheTimeout": 0,
-      "useEmbeddedUpdate": true,
-      "codeSigningCertificate": "<UNKNOWN>",
-      "codeSigningMetadata": "<UNKNOWN>",
-      "assetPatternsToBeBundled": [],
-      "disableAntiBrickingMeasures": false
+      "enabled": true
+      
     },
-    "runtimeVersion": "<UNKNOWN>"
+    "runtimeVersion": "<UNKNOWN>",
+    "extra": {
+      "router": {
+        "origin": "https://sameoldbox.com/"
+      },
+      "eas": {
+        "projectId": "9d051d59-792c-4f9c-a90d-cff0f5fd15c9"
+      }
+    }
   }
 }
