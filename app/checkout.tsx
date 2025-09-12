@@ -285,13 +285,16 @@ export default function CheckoutScreen() {
       receipt: `rcpt_${Date.now()}`,
       notes: { description },
     };
-    const orderResp = await fetch('http://localhost:5000/create-order', {
+
+    console.log('Creating Razorpay order with payload:', payload);
+    const orderResp = await fetch('https://sameoldbox.com/wp-json/razorpay/v1/create-order', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     });
+    console.log('Created Razorpay order :', orderResp);
 
     if (!orderResp.ok) {
       alert('Failed to create Razorpay order');

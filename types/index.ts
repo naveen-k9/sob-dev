@@ -30,38 +30,32 @@ export interface Polygon {
   name: string;
   completed: boolean;
 }
+
 export interface Address {
   id: string;
+  userId: string;
+  type: 'home' | 'work' | 'other';
+  label: string;
   name: string;
-  phoneNumber: string;
-  addressText: string;
+  phone: string;
+  addressLine: string;
+  street: string;
+  city: string;
+  state: string;
+  pincode: string;
+  landmark?: string;
   coordinates: {
     latitude: number;
     longitude: number;
   };
+  isDefault: boolean;
+  deliveryInstructions?: string;
+
+  phoneNumber: string;
+  addressText: string;
   createdAt: Date;
-}
-// export interface Address {
-//   id: string;
-//   userId: string;
-//   type: 'home' | 'work' | 'other';
-//   label: string;
-//   name: string;
-//   phone: string;
-//   addressLine: string;
-//   street: string;
-//   city: string;
-//   state: string;
-//   pincode: string;
-//   landmark?: string;
-//   coordinates: {
-//     latitude: number;
-//     longitude: number;
-//   };
-//   isDefault: boolean;
-//   deliveryInstructions?: string;
  
-// }
+}
 export interface MapRegion {
   latitude: number;
   longitude: number;
