@@ -57,6 +57,7 @@ import { seedIfEmpty } from '@/services/firebase';
 import { Subscription, User, AppSettings, KitchenStaff, DeliveryPerson, UserRole } from '@/types';
 import PromotionalAdmin from '@/components/PromotionalAdmin';
 import RoleSelector from '@/components/RoleSelector';
+import PolygonMap from '@/components/PolygonMap';
 
 interface DashboardCard {
   id: string;
@@ -695,6 +696,7 @@ export default function AdminDashboard() {
       onPress: () => router.push('/admin/manual-subscription' as any),
       group: 'Primary',
     },
+    
     {
       id: '5',
       title: 'Users Management',
@@ -838,6 +840,15 @@ export default function AdminDashboard() {
       color: '#0EA5E9',
       onPress: () => router.push('/admin/subscriptions' as any),
       group: 'Primary',
+    },
+     {
+      id: '21',
+      title: 'Polygon Location',
+      description: 'Add serviceable locations',
+      icon: MapPin,
+      color: '#F59E0B',
+      onPress: () =>router.push('/admin/polygon-locations' as any),
+      group: 'Operations',
     },
   ];
 
@@ -2228,12 +2239,14 @@ export default function AdminDashboard() {
                 />
               </View>
 
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 style={styles.saveButton}
                 onPress={() => console.log('Map selection feature - would open polygon selector')}
               >
                 <Text style={styles.saveButtonText}>Select Area on Map</Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
+
+              {/* <PolygonMap /> */}
 
               <TouchableOpacity
                 style={[styles.saveButton, { backgroundColor: '#10B981', marginTop: 10 }]}
