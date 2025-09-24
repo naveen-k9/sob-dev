@@ -362,13 +362,10 @@ export default function CheckoutScreen() {
 
         setTimeout(() => {
           setShowPaymentModal(false);
-          router.push('/(tabs)');
+          router.replace('/(tabs)');
         }, 2000);
         setPaymentStatus('success');
-        setTimeout(() => {
-          setShowPaymentModal(false);
-          router.push('/(tabs)');
-        }, 2000);
+       
       }, 1500);
       return;
     }
@@ -407,7 +404,7 @@ export default function CheckoutScreen() {
       currency: 'INR',
       key: 'rzp_test_RFSonKoJy6tEEL', // Use your public Razorpay key here
       amount: `${orderSummary.payableAmount * 100}`,
-      name: 'Acme Corp',
+      name: 'SOB',
       order_id: orderData.id, // Use the order_id from backend
       prefill: {
         email: 'gaurav.kumar@example.com',
@@ -419,8 +416,67 @@ export default function CheckoutScreen() {
 
     console.log('Razorpay options:', options);
     RazorpayCheckout.open(options)
-      .then((data: { razorpay_payment_id: string }) => {
-        alert(`Success: ${data.razorpay_payment_id}`);
+      .then(async (data: { razorpay_payment_id: string }) => {
+        // alert(`Success: ${data.razorpay_payment_id}`);
+        // Always close payment modal and overlays
+        setShowPaymentModal(false);
+        // ...existing code...
+        if (user?.id && orderSummary.walletAppliedAmount > 0) {
+          try {
+            await db.addWalletTransaction({
+              userId: user.id,
+              type: 'debit',
+              amount: orderSummary.walletAppliedAmount,
+              description: 'Subscription payment (wallet applied)',
+              referenceId: `sub-${Date.now()}`,
+            });
+            await updateUser({ walletBalance: Math.max(0, walletBalance - orderSummary.walletAppliedAmount) });
+          } catch (e) {
+            console.log('Wallet debit failed', e);
+          }
+        }
+
+        // Save subscription to database
+        const startDate = new Date(subscriptionDetails.startDate);
+        const endDate = computeEndDate(startDate, subscriptionDetails.plan.duration, weekendExclusion);
+
+        const subscription = {
+          userId: user?.id || 'guest',
+          mealId: subscriptionDetails.meal.id,
+          planId: subscriptionDetails.plan.id,
+          startDate: startDate,
+          endDate: endDate,
+          deliveryTime: subscriptionDetails.timeSlot.time,
+          deliveryTimeSlot: subscriptionDetails.timeSlot.time,
+          weekendExclusion: weekendExclusion,
+          status: 'active' as const,
+          totalAmount: orderSummary.finalAmount,
+          paidAmount: orderSummary.finalAmount,
+          remainingDeliveries: subscriptionDetails.plan.duration,
+          totalDeliveries: subscriptionDetails.plan.duration,
+          addressId: selectedAddress?.id || 'default',
+          addOns: (subscriptionDetails.addOns ?? []).map((addon: any) => addon.id),
+          additionalAddOns: {},
+          specialInstructions: deliveryInstructions,
+        };
+
+        try {
+          await db.createSubscription(subscription);
+          console.log('Subscription created successfully');
+        } catch (error) {
+          console.error('Error creating subscription:', error);
+        }
+
+        // Force navigation reset to orders tab
+        if (router.dismiss) {
+          router.dismiss(); // If using expo-router v3+, this will close the modal/screen
+        }
+        setTimeout(() => {
+          router.replace('/(tabs)');
+          setTimeout(() => {
+            router.replace('/(tabs)/orders');
+          }, 100);
+        }, 100);
       })
       .catch((error: any) => {
         console.log('Razorpay error:', error);
