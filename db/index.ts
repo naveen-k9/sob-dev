@@ -4,7 +4,7 @@ import {
   Banner, Testimonial, Offer, WalletTransaction, DeliveryPerson,
   KitchenStaff, ServiceableLocation, Notification, FAQ, SupportTicket,
   CorporateCateringRequest, NutritionistContact, CartItem, UserRole,
-  AppSettings, ReferralReward, StreakReward, UserStreak, SupportMessage
+  AppSettings, ReferralReward, StreakReward, UserStreak, SupportMessage, TimeSlot
 } from '@/types';
 import { fetchUsers as fbFetchUsers, createUser as fbCreateUser, updateUser as fbUpdateUser, fetchSubscriptions as fbFetchSubscriptions, createSubscription as fbCreateSubscription, updateSubscriptionDoc as fbUpdateSubscription } from '@/services/firebase';
 
@@ -39,6 +39,7 @@ class Database {
       await this.setItem('banners', this.getInitialBanners());
       await this.setItem('testimonials', this.getInitialTestimonials());
       await this.setItem('offers', this.getInitialOffers());
+      await this.setItem('timeSlots', this.getInitialTimeSlots());
       await this.setItem('serviceableLocations', this.getInitialServiceableLocations());
       await this.setItem('deliveryPersons', this.getInitialDeliveryPersons());
       await this.setItem('kitchenStaff', this.getInitialKitchenStaff());
@@ -196,19 +197,90 @@ class Database {
     return categories.find(cat => cat.id === id) || null;
   }
 
+  // Time slots methods
+  async getTimeSlots(): Promise<TimeSlot[]> {
+    return await this.getItem('timeSlots') || [];
+  }
+
+  async createTimeSlot(data: { time: string; label?: string; isActive?: boolean }): Promise<TimeSlot> {
+    const slots = await this.getTimeSlots();
+    const newSlot: TimeSlot = {
+      id: Date.now().toString(),
+      time: data.time,
+      label: data.label,
+      isActive: data.isActive ?? true,
+    };
+    slots.push(newSlot);
+    await this.setItem('timeSlots', slots);
+    return newSlot;
+  }
+
+  async updateTimeSlot(id: string, updates: Partial<Omit<TimeSlot, 'id'>>): Promise<TimeSlot | null> {
+    const slots = await this.getTimeSlots();
+    const idx = slots.findIndex(s => s.id === id);
+    if (idx === -1) return null;
+    slots[idx] = { ...slots[idx], ...updates } as TimeSlot;
+    await this.setItem('timeSlots', slots);
+    return slots[idx];
+  }
+
+  async toggleTimeSlotActive(id: string): Promise<TimeSlot | null> {
+    const slots = await this.getTimeSlots();
+    const idx = slots.findIndex(s => s.id === id);
+    if (idx === -1) return null;
+    slots[idx].isActive = !(slots[idx].isActive ?? true);
+    await this.setItem('timeSlots', slots);
+    return slots[idx];
+  }
+
+  async assignTimeSlotsToMeal(mealId: string, slotIds: string[]): Promise<Meal | null> {
+    const meals = await this.getMeals();
+    const idx = meals.findIndex(m => m.id === mealId);
+    if (idx === -1) return null;
+    meals[idx].availableTimeSlotIds = slotIds;
+    await this.setItem('meals', meals);
+    return meals[idx];
+  }
+
   // Meal methods
   async getMeals(): Promise<Meal[]> {
-    return await this.getItem('meals') || [];
+    const stored: Meal[] = await this.getItem('meals') || [];
+    try {
+      const { featuredMeals, extraMeals } = await import('@/constants/data');
+      const combined: Meal[] = [...stored];
+      const seen = new Set(combined.map(m => m.id));
+      [...(featuredMeals || []), ...(extraMeals || [])].forEach((m) => {
+        if (m && typeof m.id === 'string' && !seen.has(m.id)) {
+          combined.push(m);
+          seen.add(m.id);
+        }
+      });
+      return combined;
+    } catch (e) {
+      console.log('[db] merging constant meals failed, returning stored only', e);
+      return stored;
+    }
   }
 
   async getMealById(id: string): Promise<Meal | null> {
     const meals = await this.getMeals();
-    return meals.find(meal => meal.id === id) || null;
+    const found = meals.find(meal => meal.id === id) || null;
+    if (found) return found;
+    try {
+      const { featuredMeals, extraMeals } = await import('@/constants/data');
+      const fallback = [...(featuredMeals || []), ...(extraMeals || [])].find(m => m.id === id) || null;
+      return fallback;
+    } catch (e) {
+      console.log('[db] getMealById fallback failed', e);
+      return null;
+    }
   }
 
   async getMealsByCategory(categoryId: string): Promise<Meal[]> {
     const meals = await this.getMeals();
-    return meals.filter(meal => meal.categoryId === categoryId && meal.isActive && !meal.isDraft);
+    return meals.filter(meal => (
+      meal.categoryId === categoryId || (Array.isArray(meal.categoryIds) && meal.categoryIds.includes(categoryId))
+    ) && meal.isActive && !meal.isDraft);
   }
 
   async getFeaturedMeals(): Promise<Meal[]> {
@@ -974,7 +1046,7 @@ class Database {
     }
   }
 
-  async addCategory(categoryData: { name: string; description: string; image?: string }): Promise<Category> {
+  async addCategory(categoryData: { name: string; description: string; image?: string; group?: Category['group'] }): Promise<Category> {
     const categories = await this.getCategories();
     const newCategory: Category = {
       id: Date.now().toString(),
@@ -983,6 +1055,7 @@ class Database {
       image: categoryData.image || 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
       isActive: true,
       sortOrder: categories.length + 1,
+      group: categoryData.group,
     };
     categories.push(newCategory);
     await this.setItem('categories', categories);
@@ -995,6 +1068,7 @@ class Database {
     price: number;
     originalPrice?: number;
     categoryId?: string;
+    categoryIds?: string[];
     isVeg?: boolean;
     hasEgg?: boolean;
     image?: string;
@@ -1004,6 +1078,9 @@ class Database {
     preparationTime?: number;
     tags?: string[];
     nutritionInfo?: { calories: number; protein: number; carbs: number; fat: number; fiber: number };
+    isBasicThali?: boolean;
+    variantPricing?: { veg?: number; nonveg?: number };
+    allowDaySelection?: boolean;
   }): Promise<Meal> {
     const meals = await this.getMeals();
     const defaultImage = 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600';
@@ -1013,6 +1090,7 @@ class Database {
       description: mealData.description,
       images: [mealData.image || defaultImage],
       categoryId: mealData.categoryId || '1',
+      categoryIds: mealData.categoryIds ?? (mealData.categoryId ? [mealData.categoryId] : ['1']),
       price: mealData.price,
       originalPrice: mealData.originalPrice,
       isVeg: mealData.isVeg ?? true,
@@ -1033,6 +1111,9 @@ class Database {
       reviewCount: 0,
       preparationTime: mealData.preparationTime ?? 20,
       tags: mealData.tags || ['Healthy'],
+      isBasicThali: mealData.isBasicThali ?? false,
+      variantPricing: mealData.variantPricing,
+      allowDaySelection: mealData.allowDaySelection ?? false,
     };
     meals.push(newMeal);
     await this.setItem('meals', meals);
@@ -1485,6 +1566,7 @@ class Database {
         description: 'Healthy and delicious lunch meals',
         isActive: true,
         sortOrder: 1,
+        group: 'meal-time',
       },
       {
         id: '2',
@@ -1493,6 +1575,7 @@ class Database {
         description: 'Nutritious dinner options',
         isActive: true,
         sortOrder: 2,
+        group: 'meal-time',
       },
       {
         id: '3',
@@ -1501,6 +1584,7 @@ class Database {
         description: 'High protein meals for fitness enthusiasts',
         isActive: true,
         sortOrder: 3,
+        group: 'collection',
       },
       {
         id: '4',
@@ -1509,6 +1593,7 @@ class Database {
         description: 'Start your day with healthy breakfast',
         isActive: true,
         sortOrder: 4,
+        group: 'meal-time',
       },
     ];
   }
@@ -1541,6 +1626,7 @@ class Database {
         reviewCount: 128,
         preparationTime: 25,
         tags: ['High Protein', 'Gluten Free'],
+        availableTimeSlotIds: ['1','2'],
       },
       {
         id: '2',
@@ -1568,6 +1654,7 @@ class Database {
         reviewCount: 95,
         preparationTime: 20,
         tags: ['Vegetarian', 'High Protein'],
+        availableTimeSlotIds: ['1','2','3'],
       },
       {
         id: '3',
@@ -1595,6 +1682,7 @@ class Database {
         reviewCount: 156,
         preparationTime: 30,
         tags: ['Omega-3', 'High Protein'],
+        availableTimeSlotIds: ['3','4'],
       },
       {
         id: '4',
@@ -1621,6 +1709,7 @@ class Database {
         reviewCount: 87,
         preparationTime: 15,
         tags: ['Vegan', 'High Fiber'],
+        availableTimeSlotIds: ['1'],
       },
     ];
   }
@@ -1797,6 +1886,15 @@ class Database {
         usedCount: 0,
         offerType: 'cashback',
       },
+    ];
+  }
+
+  private getInitialTimeSlots(): TimeSlot[] {
+    return [
+      { id: '1', time: '12:00 PM - 1:00 PM', label: 'Lunch Time', isActive: true },
+      { id: '2', time: '1:00 PM - 2:00 PM', label: 'Afternoon', isActive: true },
+      { id: '3', time: '7:00 PM - 8:00 PM', label: 'Dinner Time', isActive: true },
+      { id: '4', time: '8:00 PM - 9:00 PM', label: 'Late Dinner', isActive: true },
     ];
   }
 

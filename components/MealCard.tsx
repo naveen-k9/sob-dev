@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -8,23 +8,65 @@ import {
 } from 'react-native';
 import { Star, Leaf } from 'lucide-react-native';
 import { Meal } from '@/types';
+import { Colors } from '@/constants/colors';
+import { router } from 'expo-router';
 
 interface MealCardProps {
   meal: Meal;
   onPress: () => void;
+  onTryNow?: (meal: Meal) => void;
+  onSubscribe?: (meal: Meal) => void;
 }
 
-export default function MealCard({ meal, onPress }: MealCardProps) {
+export default function MealCard({ meal, onPress, onTryNow, onSubscribe }: MealCardProps) {
+  const handleTryNow = useCallback(() => {
+    console.log('[MealCard] Try Now pressed', { mealId: meal.id });
+    if (onTryNow) {
+      onTryNow(meal);
+      return;
+    }
+    try {
+      router.push({
+        pathname: `/meal/${meal.id}`,
+        params: { mode: 'trial', planId: '1' },
+      });
+    } catch (e) {
+      console.error('[MealCard] Navigation error (Try Now):', e);
+    }
+  }, [meal, onTryNow]);
+
+  const handleSubscribe = useCallback(() => {
+    console.log('[MealCard] Subscribe pressed', { mealId: meal.id });
+    if (onSubscribe) {
+      onSubscribe(meal);
+      return;
+    }
+    try {
+      router.push({
+        pathname: `/meal/${meal.id}`,
+        params: { mode: 'subscribe', planId: '2' },
+      });
+    } catch (e) {
+      console.error('[MealCard] Navigation error (Subscribe):', e);
+    }
+  }, [meal, onSubscribe]);
+
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress}>
-      <Image source={{ uri: meal.image }} style={styles.image} />
+    <TouchableOpacity
+      style={styles.container}
+      onPress={onPress}
+      testID={`meal-card-${meal.id}`}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${meal.name}`}
+    >
+      <Image source={{ uri: meal.images?.[0] ?? '' }} style={styles.image} />
       
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.name} numberOfLines={1}>
             {meal.name}
           </Text>
-          {meal.isVeg && <Leaf size={16} color="#4CAF50" />}
+          {meal.isVeg && <Leaf size={16} color={Colors.accent} />}
         </View>
         
         <Text style={styles.description} numberOfLines={2}>
@@ -32,7 +74,7 @@ export default function MealCard({ meal, onPress }: MealCardProps) {
         </Text>
         
         <View style={styles.rating}>
-          <Star size={14} color="#FFB800" fill="#FFB800" />
+          <Star size={14} color={Colors.primary} fill={Colors.primary} />
           <Text style={styles.ratingText}>
             {meal.rating} ({meal.reviewCount})
           </Text>
@@ -47,10 +89,33 @@ export default function MealCard({ meal, onPress }: MealCardProps) {
         </View>
         
         <View style={styles.priceContainer}>
-          <Text style={styles.price}>₹{meal.price}</Text>
+          <Text style={styles.startingFrom}>Starting from</Text>
+          <Text style={styles.price}> ₹{meal.price}</Text>
           {meal.originalPrice && (
             <Text style={styles.originalPrice}>₹{meal.originalPrice}</Text>
           )}
+        </View>
+
+        <View style={styles.ctaRow}>
+          <TouchableOpacity
+            style={styles.tryNowBtn}
+            onPress={handleTryNow}
+            testID={`try-now-${meal.id}`}
+            accessibilityRole="button"
+            accessibilityLabel={`Try ${meal.name} now`}
+          >
+            <Text style={styles.tryNowText}>Try Now</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.subscribeBtn}
+            onPress={handleSubscribe}
+            testID={`subscribe-${meal.id}`}
+            accessibilityRole="button"
+            accessibilityLabel={`Subscribe to ${meal.name}`}
+          >
+            <Text style={styles.subscribeText}>Subscribe</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </TouchableOpacity>
@@ -59,7 +124,7 @@ export default function MealCard({ meal, onPress }: MealCardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.surface,
     borderRadius: 12,
     marginRight: 16,
     width: 280,
@@ -91,12 +156,12 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.text,
     flex: 1,
   },
   description: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.mutedText,
     lineHeight: 20,
     marginBottom: 8,
   },
@@ -107,7 +172,7 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 12,
-    color: '#666',
+    color: Colors.mutedText,
     marginLeft: 4,
   },
   tags: {
@@ -115,7 +180,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tag: {
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#F3F4F6',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -123,22 +188,60 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontSize: 10,
-    color: '#666',
+    color: Colors.mutedText,
     fontWeight: '500',
   },
   priceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  startingFrom: {
+    fontSize: 12,
+    color: Colors.mutedText,
+    marginRight: 4,
+  },
   price: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FF6B35',
+    color: Colors.primary,
   },
   originalPrice: {
     fontSize: 14,
-    color: '#999',
+    color: Colors.mutedText,
     textDecorationLine: 'line-through',
     marginLeft: 8,
+  },
+  ctaRow: {
+    flexDirection: 'row',
+    gap: 12 as unknown as number,
+    marginTop: 12,
+  },
+  tryNowBtn: {
+    flex: 1,
+    backgroundColor: Colors.primary,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tryNowText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  subscribeBtn: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subscribeText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

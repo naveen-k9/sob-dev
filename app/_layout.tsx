@@ -11,13 +11,18 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import OTAUpdater from "@/components/OTAUpdater";
 import { seedIfEmpty } from "@/services/firebase";
 import { StyleSheet } from "react-native";
+import * as SystemUI from "expo-system-ui";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
+const APP_BG = '#FFFFFF' as const;
+const ACCENT = '#48489B' as const;
+
 const styles = StyleSheet.create({
-  flex1: { flex: 1 },
+  flex1: { flex: 1, backgroundColor: APP_BG },
+  headerTitle: { color: ACCENT },
 });
 
 function RootLayoutNav() {
@@ -54,10 +59,15 @@ function RootLayoutNav() {
   }, [user, isGuest, isLoading, hasRedirected]);
 
   return (
-    <Stack screenOptions={{ 
-      headerBackTitle: "Back",
-      contentStyle: { paddingTop: 44 } // Add space at top for camera/status bar
-    }}>
+    <Stack
+      screenOptions={{
+        headerBackTitle: 'Back',
+        contentStyle: { backgroundColor: ACCENT },
+        headerStyle: { backgroundColor: APP_BG },
+        headerTintColor: APP_BG,
+        headerTitleStyle: styles.headerTitle,
+      }}
+    >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="auth/login" options={{ headerShown: false }} />
       <Stack.Screen name="auth/role-selection" options={{ headerShown: false }} />
@@ -79,7 +89,7 @@ function RootLayoutNav() {
       <Stack.Screen name="nutritionist" options={{ headerShown: false }} />
       <Stack.Screen name="notifications" options={{ headerShown: false }} />
       <Stack.Screen name="acknowledgment/[orderId]" options={{ title: 'Delivery Acknowledgment' }} />
-      <Stack.Screen name="modal" options={{ presentation: "modal" }} />
+      <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
     </Stack>
   );
 }
@@ -89,6 +99,18 @@ export default function RootLayout() {
 
   useEffect(() => {
     SplashScreen.hideAsync();
+  }, []);
+
+  useEffect(() => {
+    const applySystemUI = async () => {
+      try {
+        console.log('[SystemUI] Setting transparent status bar background');
+        await SystemUI.setBackgroundColorAsync('transparent');
+      } catch (e) {
+        console.log('[SystemUI] Failed to set background color', e);
+      }
+    };
+    applySystemUI();
   }, []);
 
   useEffect(() => {

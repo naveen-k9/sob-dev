@@ -1,36 +1,35 @@
 import { Tabs } from "expo-router";
+import { StyleSheet } from 'react-native';
 import { Home, Grid3X3, ShoppingBag, User, Settings, ChefHat, Truck, BarChart3, Gift } from "lucide-react-native";
 import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Colors } from "@/constants/colors";
+
+const styles = StyleSheet.create({
+  scene: { backgroundColor: '#FFFFFF' },
+  tabBar: { backgroundColor: '#FFFFFF', borderTopWidth: 0, height: 81, paddingTop: 8, paddingBottom: 18 },
+  tabLabel: { fontSize: 12, fontWeight: '500' as const },
+});
 
 export default function TabLayout() {
   const { user, isAdmin, isKitchen, isDelivery } = useAuth();
 
   const getTabColor = () => {
-    if (isAdmin()) return '#8B5CF6';
-    if (isKitchen()) return '#10B981';
-    if (isDelivery()) return '#3B82F6';
-    return '#FF6B35';
+    if (isAdmin()) return Colors.primary;
+    if (isKitchen()) return Colors.primary;
+    if (isDelivery()) return Colors.primary;
+    return Colors.primary;
   };
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: getTabColor(),
-        tabBarInactiveTintColor: '#999',
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: 'white',
-          borderTopWidth: 1,
-          borderTopColor: '#F0F0F0',
-          paddingTop: 8,
-          paddingBottom: 8,
-          height: 60,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-        },
+        sceneStyle: styles.scene,
+        tabBarStyle: styles.tabBar,
+        tabBarActiveTintColor: Colors.accent,
+        tabBarInactiveTintColor: '#A3D397',
+        tabBarLabelStyle: styles.tabLabel,
       }}
     >
       <Tabs.Screen
@@ -46,20 +45,11 @@ export default function TabLayout() {
         }}
       />
       
-      {!isKitchen() && !isDelivery() && (
-        <Tabs.Screen
-          name="categories"
-          options={{
-            title: isAdmin() ? "Menu" : "Categories",
-            tabBarIcon: ({ color, size }) => <Grid3X3 color={color} size={size} />,
-          }}
-        />
-      )}
       
       <Tabs.Screen
         name="orders"
         options={{
-          title: "Orders",
+          title: "Subscriptions",
           tabBarIcon: ({ color, size }) => <ShoppingBag color={color} size={size} />,
         }}
       />

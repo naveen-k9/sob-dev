@@ -1,44 +1,59 @@
 import React from 'react';
-import { TouchableOpacity, Image, Text, StyleSheet } from 'react-native';
+import { TouchableOpacity, Image, Text, StyleSheet, View } from 'react-native';
 import { Category } from '@/types';
+import { Colors } from '@/constants/colors';
 
 interface CategoryCardProps {
   category: Category;
   onPress: () => void;
+  isActive?: boolean;
 }
 
-export default function CategoryCard({ category, onPress }: CategoryCardProps) {
+export default function CategoryCard({ category, onPress, isActive = false }: CategoryCardProps) {
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress}>
-      <Image source={{ uri: category.image }} style={styles.image} />
-      <Text style={styles.name}>{category.name}</Text>
-      <Text style={styles.description}>{category.description}</Text>
+    <TouchableOpacity style={[styles.container, isActive && styles.activeContainer]} onPress={onPress} testID={`cat-${category.id}`}>
+      <View style={[styles.imageWrap, isActive && styles.imageWrapActive]}>
+        <Image source={{ uri: category.image }} style={styles.image} />
+      </View>
+      <Text style={[styles.name, isActive && styles.nameActive]} numberOfLines={1}>{category.name}</Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    width: 120,
-    marginRight: 16,
+    width: 110,
+    marginRight: 12,
     alignItems: 'center',
+  },
+  activeContainer: {
+    transform: [{ scale: 1.02 }],
+  },
+  imageWrap: {
+    padding: 4,
+    borderRadius: 44,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    backgroundColor: Colors.surface,
+    marginBottom: 6,
+  },
+  imageWrapActive: {
+    borderColor: Colors.primary,
+    backgroundColor: '#F5F7FF',
   },
   image: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    marginBottom: 8,
   },
   name: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.text,
     textAlign: 'center',
-    marginBottom: 2,
   },
-  description: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
+  nameActive: {
+    color: Colors.primary,
+    fontWeight: '700',
   },
 });

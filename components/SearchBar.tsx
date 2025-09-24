@@ -6,6 +6,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Search, SlidersHorizontal } from 'lucide-react-native';
+import { Colors } from '@/constants/colors';
 
 interface SearchBarProps {
   value: string;
@@ -23,17 +24,17 @@ export default function SearchBar({
   return (
     <View style={styles.container}>
       <View style={styles.searchContainer}>
-        <Search size={20} color="#666" style={styles.searchIcon} />
+        <Search size={20} color={Colors.mutedText} style={styles.searchIcon} />
         <TextInput
           style={styles.input}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="#999"
+          placeholderTextColor={Colors.mutedText}
         />
       </View>
       <TouchableOpacity style={styles.filterButton} onPress={onFilterPress}>
-        <SlidersHorizontal size={20} color="#FF6B35" />
+        <SlidersHorizontal size={20} color={Colors.primary} />
       </TouchableOpacity>
     </View>
   );
@@ -50,7 +51,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: Colors.surface,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -70,10 +71,10 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    color: Colors.text,
   },
   filterButton: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 12,
     shadowColor: '#000',

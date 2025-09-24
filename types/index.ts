@@ -54,13 +54,10 @@ export interface Address {
   phoneNumber: string;
   addressText: string;
   createdAt: Date;
- 
-}
-export interface MapRegion {
-  latitude: number;
-  longitude: number;
-  latitudeDelta: number;
-  longitudeDelta: number;
+  updatedAt: Date;
+  notes?: string;
+  extra?: any;
+
 }
 export interface Category {
   id: string;
@@ -69,6 +66,14 @@ export interface Category {
   description: string;
   isActive: boolean;
   sortOrder: number;
+  group?: 'meal-time' | 'collection';
+}
+
+export interface TimeSlot {
+  id: string;
+  time: string;
+  label?: string;
+  isActive?: boolean;
 }
 
 export interface Meal {
@@ -77,6 +82,7 @@ export interface Meal {
   description: string;
   images: string[];
   categoryId: string;
+  categoryIds?: string[];
   price: number;
   originalPrice?: number;
   isVeg: boolean;
@@ -97,6 +103,10 @@ export interface Meal {
   reviewCount: number;
   preparationTime: number;
   tags: string[];
+  isBasicThali?: boolean;
+  variantPricing?: { veg?: number; nonveg?: number };
+  allowDaySelection?: boolean;
+  availableTimeSlotIds?: string[];
 }
 
 export interface AddOn {
@@ -230,6 +240,7 @@ export interface Offer {
   discount?: string;
   code?: string;
   validUntil?: string;
+  benefitType?: 'meal' | 'amount';
 }
 
 export interface WalletTransaction {
@@ -377,15 +388,6 @@ export interface SubscriptionPlan {
   popular?: boolean;
 }
 
-export interface LocationState {
-  selectedLocation: ServiceableLocation | null;
-  userLocation: {
-    latitude: number;
-    longitude: number;
-  } | null;
-  isLocationServiceable: boolean;
-}
-
 export interface AppSettings {
   deliveryRadius: number;
   minOrderAmount: number;
@@ -428,4 +430,34 @@ export interface UserStreak {
   longestStreak: number;
   lastOrderDate: Date;
   streakRewards: StreakReward[];
+}
+export interface LocationState {
+  selectedLocation: ServiceableLocation | null;
+  userLocation: {
+    latitude: number;
+    longitude: number;
+  } | null;
+  isLocationServiceable: boolean;
+}
+
+export interface MapRegion {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
+}
+
+export interface AppSettings {
+  deliveryRadius: number;
+  minOrderAmount: number;
+  deliveryFee: number;
+  freeDeliveryAbove: number;
+  orderCutoffTime: string;
+  skipCutoffTime: string;
+  addOnCutoffTime: string;
+  kitchenStartTime: string;
+  deliveryStartTime: string;
+  supportPhone: string;
+  supportEmail: string;
+  whatsappNumber: string;
 }

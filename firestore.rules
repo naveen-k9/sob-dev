@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+    function getUser(uid) { return get(/databases/$(database)/documents/users/$(uid)); }
+    function isAdmin() { return isSignedIn() && getUser(request.auth.uid).data.role == 'admin'; }
+    function isKitchen() { return isSignedIn() && getUser(request.auth.uid).data.role == 'kitchen'; }
+    function isDelivery() { return isSignedIn() && getUser(request.auth.uid).data.role == 'delivery'; }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.id == userId
+        && (isAdmin() || request.resource.data.role == 'customer');
+
+      allow update: if isSignedIn() && request.auth.uid == userId
+        && !(request.resource.data.diff(resource.data).changedKeys().hasAny([
+          'role', 'walletBalance', 'referralCode', 'referredBy', 'createdAt', 'isActive', 'isGuest',
+          'currentStreak', 'longestStreak', 'totalReferrals', 'referralEarnings', 'id', 'email'
+        ]))
+        || isAdmin();
+
+      allow delete: if isAdmin();
+    }
+
+    match /banners/{docId} {
+      allow get, list: if resource.data.isActive == true || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /categories/{docId} {
+      allow get, list: if resource.data.isActive == true || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /meals/{docId} {
+      allow get, list: if (resource.data.isActive == true && resource.data.isDraft != true) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /addons/{docId} {
+      allow get, list: if resource.data.isActive == true || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /testimonials/{docId} {
+      allow get, list: if resource.data.isActive == true || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /subscriptions/{subId} {
+      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /supportTickets/{ticketId} {
+      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /support/{ticketId} {
+      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,61 +15,94 @@ import {
 import { Stack, router, useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Heart, Share, Plus, Minus, Star, Calendar, Clock, X, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Meal, AddOn, SubscriptionPlan } from '@/types';
+import { Meal, AddOn, SubscriptionPlan, TimeSlot } from '@/types';
 import db from '@/db';
-import { addOns, subscriptionPlans, deliveryTimeSlots } from '@/constants/data';
+import { addOns, subscriptionPlans } from '@/constants/data';
+
+type WeekType = 'mon-fri' | 'mon-sat';
+ type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
 
 export default function MealDetailScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, mode, planId } = useLocalSearchParams();
   const [meal, setMeal] = useState<Meal | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedMealType, setSelectedMealType] = useState<'veg' | 'nonveg' | 'egg'>('veg');
+  const [selectedMealType, setSelectedMealType] = useState<'veg' | 'nonveg' | 'egg' | 'both'>('veg');
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [showAddOnsDrawer, setShowAddOnsDrawer] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>(subscriptionPlans[1]);
   const [isTrialMode, setIsTrialMode] = useState(false);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState(deliveryTimeSlots[0]);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
   const [weekendExclusion, setWeekendExclusion] = useState<'saturdays' | 'sundays' | 'both'>('both');
   const [startDate, setStartDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const routerInstance = useRouter();
   const [canGoBack, setCanGoBack] = useState(false);
+  const [weekType, setWeekType] = useState<WeekType>('mon-fri');
+  const [addonMealFilter, setAddonMealFilter] = useState<'veg' | 'nonveg' | 'both'>('both');
+  const [selectedAddOnDays, setSelectedAddOnDays] = useState<Record<string, DayKey[]>>({});
+  const [thaliDayMap, setThaliDayMap] = useState<Record<DayKey, 'veg' | 'nonveg'>>({} as Record<DayKey, 'veg' | 'nonveg'>);
+  const [productDays, setProductDays] = useState<DayKey[]>([]);
+
+  const [allTimeSlots, setAllTimeSlots] = useState<TimeSlot[]>([]);
 
   React.useEffect(() => {
     setCanGoBack(routerInstance.canGoBack());
   }, []);
 
   useEffect(() => {
-    const loadMeal = async () => {
+    const load = async () => {
       try {
+        const slots = await db.getTimeSlots();
+        const active = (slots || []).filter(s => s.isActive !== false);
+        setAllTimeSlots(active);
         if (typeof id === 'string') {
           const mealData = await db.getMealById(id);
           if (mealData) {
             setMeal(mealData);
-            setSelectedMealType(mealData.isVeg ? 'veg' : mealData.hasEgg ? 'egg' : 'nonveg');
+            setSelectedMealType(mealData.isBasicThali ? 'veg' : mealData.isVeg ? 'veg' : mealData.hasEgg ? 'egg' : 'nonveg');
+            const ids = mealData.availableTimeSlotIds && mealData.availableTimeSlotIds.length > 0
+              ? mealData.availableTimeSlotIds
+              : active.map(s => s.id);
+            const first = active.find(s => ids.includes(s.id)) ?? active[0] ?? null;
+            setSelectedTimeSlot(first ?? null);
           }
         }
       } catch (error) {
-        console.error('Error loading meal:', error);
+        console.error('Error loading meal or timeslots:', error);
       } finally {
         setLoading(false);
       }
     };
-    
-    loadMeal();
+    load();
   }, [id]);
 
   // Update selected plan when trial mode changes
   useEffect(() => {
     const availablePlans = getAvailablePlans();
     if (availablePlans.length > 0) {
-      // If current selected plan is not available in the new mode, select the first available plan
       const isCurrentPlanAvailable = availablePlans.some(plan => plan.id === selectedPlan.id);
       if (!isCurrentPlanAvailable) {
         setSelectedPlan(availablePlans[0]);
       }
     }
   }, [isTrialMode]);
+
+  // Apply deep-link params from MealCard: mode=trial|subscribe and planId
+  useEffect(() => {
+    if (typeof mode === 'string' || typeof planId === 'string') {
+      console.log('[MealDetail] Incoming params', { mode, planId });
+      if (mode === 'trial') {
+        setIsTrialMode(true);
+        const twoDay = subscriptionPlans.find(p => p.duration === 2) ?? subscriptionPlans[0];
+        setSelectedPlan(twoDay);
+      } else if (mode === 'subscribe') {
+        setIsTrialMode(false);
+        const basic = subscriptionPlans.find(p => p.id === (typeof planId === 'string' ? planId : '2')) ?? subscriptionPlans[1] ?? subscriptionPlans[0];
+        setSelectedPlan(basic);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, planId]);
 
   const getAvailablePlans = () => {
     if (isTrialMode) {
@@ -81,24 +114,119 @@ export default function MealDetailScreen() {
     }
   };
 
-  const handleAddOnToggle = (addOnId: string) => {
-    setSelectedAddOns(prev => 
-      prev.includes(addOnId) 
-        ? prev.filter(id => id !== addOnId)
-        : [...prev, addOnId]
-    );
-  };
+  const handleAddOnToggle = useCallback((addOnId: string) => {
+    setSelectedAddOns(prev => {
+      const exists = prev.includes(addOnId);
+      const next = exists ? prev.filter(id => id !== addOnId) : [...prev, addOnId];
+      if (!exists) {
+        setSelectedAddOnDays(d => ({ ...d, [addOnId]: d[addOnId] ?? [] }));
+      }
+      return next;
+    });
+  }, []);
+
+  const availableDays: { key: DayKey; label: string; short: string }[] = useMemo(() => {
+    const base: { key: DayKey; label: string; short: string }[] = [
+      { key: 'mon', label: 'Monday', short: 'M' },
+      { key: 'tue', label: 'Tuesday', short: 'T' },
+      { key: 'wed', label: 'Wednesday', short: 'W' },
+      { key: 'thu', label: 'Thursday', short: 'T' },
+      { key: 'fri', label: 'Friday', short: 'F' },
+      { key: 'sat', label: 'Saturday', short: 'S' },
+    ];
+    return weekType === 'mon-fri' ? base.slice(0, 5) : base;
+  }, [weekType]);
+
+  useEffect(() => {
+    if (availableDays.length > 0) {
+      setThaliDayMap(prev => {
+        const next: Record<DayKey, 'veg' | 'nonveg'> = { ...prev } as Record<DayKey, 'veg' | 'nonveg'>;
+        availableDays.forEach((d, idx) => {
+          if (!next[d.key]) {
+            next[d.key] = idx % 2 === 0 ? 'veg' : 'nonveg';
+          }
+        });
+        // Remove days not in availableDays
+        const allowedKeys = availableDays.map(d => d.key);
+        (Object.keys(next) as DayKey[]).forEach(k => {
+          if (!allowedKeys.includes(k)) delete next[k];
+        });
+        return { ...next };
+      });
+      setProductDays(prev => prev.filter(d => availableDays.some(ad => ad.key === d)));
+    }
+  }, [availableDays.length]);
+
+  const toggleAddOnDay = useCallback((addOnId: string, day: DayKey) => {
+    setSelectedAddOnDays(prev => {
+      const current = prev[addOnId] ?? [];
+      const has = current.includes(day);
+      const next = has ? current.filter(d => d !== day) : [...current, day];
+      return { ...prev, [addOnId]: next };
+    });
+  }, []);
+
+  const filteredAddOns: AddOn[] = useMemo(() => {
+    if (addonMealFilter === 'veg') return addOns.filter(a => a.isVeg !== false);
+    if (addonMealFilter === 'nonveg') return addOns.filter(a => a.isVeg === false);
+    return addOns;
+  }, [addonMealFilter]);
 
 
+
+  const variantPrice = useMemo<number>(() => {
+    if (!meal) return 0;
+    if (meal.variantPricing) {
+      const vegP = meal.variantPricing.veg ?? meal.price;
+      const nonVegP = meal.variantPricing.nonveg ?? vegP;
+      if (selectedMealType === 'veg') return vegP;
+      if (selectedMealType === 'nonveg') return nonVegP;
+      if (selectedMealType === 'both') return vegP;
+    }
+    return meal?.price ?? 0;
+  }, [meal, selectedMealType]);
 
   const calculateTotalPrice = () => {
     if (!meal) return 0;
+    const daysPerWeek = weekType === 'mon-fri' ? 5 : 6;
+    const weeks = Math.ceil(selectedPlan.duration / daysPerWeek);
+
+    let thaliDelta = 0;
+    if (meal.isBasicThali && meal.variantPricing) {
+      const vegPrice = meal.variantPricing.veg ?? meal.price;
+      const nonVegPrice = meal.variantPricing.nonveg ?? vegPrice;
+      const perDayDelta = nonVegPrice - vegPrice;
+      if (selectedMealType === 'nonveg') {
+        thaliDelta = perDayDelta * selectedPlan.duration;
+      } else if (selectedMealType === 'both') {
+        const daysPerWk = availableDays.length;
+        const weeksCount = Math.ceil(selectedPlan.duration / daysPerWk);
+        const nonVegDaysPerWeek = availableDays.reduce((n, d) => n + (thaliDayMap[d.key] === 'nonveg' ? 1 : 0), 0);
+        const totalMarkedDays = weeksCount * nonVegDaysPerWeek;
+        const capped = Math.min(selectedPlan.duration, totalMarkedDays);
+        thaliDelta = perDayDelta * capped;
+      }
+    }
+
+    let productDayTotal = 0;
+    if (meal.allowDaySelection) {
+      const daysSel = productDays.length === 0 ? availableDays.length : productDays.length;
+      const weeksCount = Math.ceil(selectedPlan.duration / (weekType === 'mon-fri' ? 5 : 6));
+      productDayTotal = meal.price * daysSel * weeksCount;
+    }
+
     const addOnTotal = selectedAddOns.reduce((total, addOnId) => {
       const addOn = addOns.find(a => a.id === addOnId);
-      return total + (addOn ? addOn.price : 0);
+      if (!addOn) return total;
+      const selectedDaysCount = (selectedAddOnDays[addOnId]?.length ?? 0);
+      const totalDaysForAddon = selectedDaysCount === 0
+        ? selectedPlan.duration
+        : Math.min(selectedPlan.duration, weeks * selectedDaysCount);
+      return total + addOn.price * totalDaysForAddon;
     }, 0);
-    const planPrice = isTrialMode ? selectedPlan.discountedPrice * 0.5 : selectedPlan.discountedPrice;
-    return planPrice + (addOnTotal * selectedPlan.duration);
+
+    const vegBasePlan = isTrialMode ? selectedPlan.discountedPrice * 0.5 : selectedPlan.discountedPrice;
+    return vegBasePlan + thaliDelta + addOnTotal + productDayTotal;
   };
 
   const handleProceed = () => {
@@ -111,7 +239,7 @@ export default function MealDetailScreen() {
       plan: selectedPlan,
       addOns: selectedAddOns,
       mealType: selectedMealType,
-      timeSlot: selectedTimeSlot,
+      timeSlot: selectedTimeSlot ?? undefined,
       excludeWeekends,
       weekendExclusion,
       startDate,
@@ -124,6 +252,8 @@ export default function MealDetailScreen() {
       params: { subscriptionData: JSON.stringify(subscriptionData) }
     });
   };
+
+
 
   if (loading) {
     return (
@@ -144,6 +274,8 @@ export default function MealDetailScreen() {
       </SafeAreaView>
     );
   }
+
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -177,7 +309,6 @@ export default function MealDetailScreen() {
       />
 
       <ScrollView style={styles.scrollView}>
-        {/* Hero Image */}
         <View style={styles.imageContainer}>
           <Image source={{ uri: meal.images[0] }} style={styles.mealImage} />
           <LinearGradient
@@ -186,9 +317,7 @@ export default function MealDetailScreen() {
           />
         </View>
 
-        {/* Content */}
         <View style={styles.content}>
-          {/* Basic Info */}
           <View style={styles.basicInfo}>
             <View style={styles.titleRow}>
               <Text style={styles.mealName}>{meal.name}</Text>
@@ -202,7 +331,7 @@ export default function MealDetailScreen() {
             <Text style={styles.description}>{meal.description}</Text>
             
             <View style={styles.priceRow}>
-              <Text style={styles.price}>₹{meal.price}</Text>
+              <Text style={styles.price}>₹{variantPrice}</Text>
               {meal.originalPrice && (
                 <Text style={styles.originalPrice}>₹{meal.originalPrice}</Text>
               )}
@@ -212,6 +341,16 @@ export default function MealDetailScreen() {
                 {!meal.isVeg && !meal.hasEgg && <Text style={styles.nonVegTag}>🔴 NON-VEG</Text>}
               </View>
             </View>
+            {meal.variantPricing && (
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                <View style={styles.variantPill}>
+                  <Text style={styles.variantPillText}>Veg ₹{meal.variantPricing.veg ?? meal.price}</Text>
+                </View>
+                <View style={styles.variantPill}>
+                  <Text style={styles.variantPillText}>Non-Veg ₹{meal.variantPricing.nonveg ?? (meal.variantPricing.veg ?? meal.price)}</Text>
+                </View>
+              </View>
+            )}
           </View>
 
           {/* Nutrition Info */}
@@ -247,12 +386,24 @@ export default function MealDetailScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Select Meal Type</Text>
             <View style={styles.mealTypeContainer}>
-              {meal.isVeg && (
+              <TouchableOpacity
+                style={[styles.mealTypeButton, selectedMealType === 'veg' && styles.selectedMealType]}
+                onPress={() => setSelectedMealType('veg')}
+              >
+                <Text style={styles.mealTypeText}>🟢 Veg</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.mealTypeButton, selectedMealType === 'nonveg' && styles.selectedMealType]}
+                onPress={() => setSelectedMealType('nonveg')}
+              >
+                <Text style={styles.mealTypeText}>🔴 Non-Veg</Text>
+              </TouchableOpacity>
+              {meal.isBasicThali && (
                 <TouchableOpacity
-                  style={[styles.mealTypeButton, selectedMealType === 'veg' && styles.selectedMealType]}
-                  onPress={() => setSelectedMealType('veg')}
+                  style={[styles.mealTypeButton, selectedMealType === 'both' && styles.selectedMealType]}
+                  onPress={() => setSelectedMealType('both')}
                 >
-                  <Text style={styles.mealTypeText}>🟢 Vegetarian</Text>
+                  <Text style={styles.mealTypeText}>🟢🔴 Both (customize)</Text>
                 </TouchableOpacity>
               )}
               {meal.hasEgg && (
@@ -263,15 +414,28 @@ export default function MealDetailScreen() {
                   <Text style={styles.mealTypeText}>🟡 With Egg</Text>
                 </TouchableOpacity>
               )}
-              {!meal.isVeg && (
-                <TouchableOpacity
-                  style={[styles.mealTypeButton, selectedMealType === 'nonveg' && styles.selectedMealType]}
-                  onPress={() => setSelectedMealType('nonveg')}
-                >
-                  <Text style={styles.mealTypeText}>🔴 Non-Vegetarian</Text>
-                </TouchableOpacity>
-              )}
             </View>
+            {meal.isBasicThali && selectedMealType === 'both' && (
+              <View style={{ marginTop: 12 }}>
+                <Text style={styles.daySelectorLabel}>Set Veg/Non-Veg for week</Text>
+                <View style={styles.daysRow}>
+                  {availableDays.map(d => {
+                    const mode = thaliDayMap[d.key] ?? 'veg';
+                    const isNonVeg = mode === 'nonveg';
+                    return (
+                      <TouchableOpacity
+                        key={d.key}
+                        style={[styles.dayChip, isNonVeg && styles.dayChipActive]}
+                        onPress={() => setThaliDayMap(m => ({ ...m, [d.key]: m[d.key] === 'nonveg' ? 'veg' : 'nonveg' }))}
+                      >
+                        <Text style={[styles.dayChipText, isNonVeg && styles.dayChipTextActive]}>{d.short} {isNonVeg ? 'NV' : 'V'}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text style={styles.applyAllDaysNote}>Default is alternate days. Tap to toggle a day's type.</Text>
+              </View>
+            )}
           </View>
 
           {/* Plan Selection */}
@@ -283,6 +447,7 @@ export default function MealDetailScreen() {
                 return (
                   <TouchableOpacity
                     key={plan.id}
+                    testID={`plan-${plan.id}`}
                     style={[styles.planCard, isSelected && styles.selectedPlan]}
                     onPress={() => setSelectedPlan(plan)}
                   >
@@ -298,6 +463,47 @@ export default function MealDetailScreen() {
                       <Text style={styles.planOriginalPrice}>₹{plan.originalPrice}</Text>
                     </View>
                     <Text style={styles.planDescription}>{plan.description}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Week Type Selection */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Week Type</Text>
+            <View style={styles.weekTypeRow}>
+              {([['mon-fri','Mon-Fri'], ['mon-sat','Mon-Sat']] as const).map(([val,label]) => {
+                const isSelected = weekType === val;
+                return (
+                  <TouchableOpacity
+                    key={val}
+                    testID={`week-type-${val}`}
+                    style={[styles.weekTypeButton, isSelected && styles.weekTypeSelected]}
+                    onPress={() => setWeekType(val)}
+                  >
+                    <Text style={[styles.weekTypeText, isSelected && styles.weekTypeTextSelected]}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Add-on Meal Type Filter */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Addon Type</Text>
+            <View style={styles.mealTypeContainer}>
+              {(['veg','nonveg','both'] as const).map(opt => {
+                const isSelected = addonMealFilter === opt;
+                const label = opt === 'veg' ? 'Veg' : opt === 'nonveg' ? 'Non-Veg' : 'Both';
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    testID={`addon-filter-${opt}`}
+                    style={[styles.mealTypeButton, isSelected && styles.selectedMealType]}
+                    onPress={() => setAddonMealFilter(opt)}
+                  >
+                    <Text style={styles.mealTypeText}>{label}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -344,14 +550,36 @@ export default function MealDetailScreen() {
                 )}
               </View>
             )}
+            {meal.allowDaySelection && (
+              <View style={{ marginTop: 12 }}>
+                <Text style={styles.sectionTitle}>Select Days for this item</Text>
+                <View style={styles.daysRow}>
+                  {availableDays.map(d => {
+                    const active = productDays.includes(d.key);
+                    return (
+                      <TouchableOpacity
+                        key={`product-${d.key}`}
+                        style={[styles.dayChip, active && styles.dayChipActive]}
+                        onPress={() => setProductDays(prev => active ? prev.filter(x => x !== d.key) : [...prev, d.key])}
+                      >
+                        <Text style={[styles.dayChipText, active && styles.dayChipTextActive]}>{d.short}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {productDays.length === 0 && (
+                  <Text style={styles.applyAllDaysNote}>No day selected → applies to all working days</Text>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Delivery Time Slot */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Delivery Time</Text>
             <View style={styles.timeSlotContainer}>
-              {deliveryTimeSlots.map((slot) => {
-                const isSelected = selectedTimeSlot.id === slot.id;
+              {(allTimeSlots.filter(s => !meal.availableTimeSlotIds || meal.availableTimeSlotIds.length === 0 || meal.availableTimeSlotIds.includes(s.id))).map((slot) => {
+                const isSelected = selectedTimeSlot?.id === slot.id;
                 return (
                   <TouchableOpacity
                     key={slot.id}
@@ -423,7 +651,7 @@ export default function MealDetailScreen() {
             <Text style={styles.trialDiscount}>50% Trial Discount Applied</Text>
           )}
         </View>
-        <TouchableOpacity style={styles.proceedButton} onPress={handleProceed}>
+        <TouchableOpacity testID="proceed-to-checkout" style={styles.proceedButton} onPress={handleProceed}>
           <Text style={styles.proceedButtonText}>Proceed to Checkout</Text>
         </TouchableOpacity>
       </View>
@@ -568,6 +796,7 @@ export default function MealDetailScreen() {
         visible={showAddOnsDrawer}
         animationType="slide"
         presentationStyle="pageSheet"
+        onRequestClose={() => setShowAddOnsDrawer(false)}
       >
         <SafeAreaView style={styles.drawerContainer}>
           <View style={styles.drawerHeader}>
@@ -581,26 +810,53 @@ export default function MealDetailScreen() {
           </View>
           
           <ScrollView style={styles.drawerContent}>
-            {addOns.map((addOn) => {
+            {filteredAddOns.map((addOn) => {
               const isSelected = selectedAddOns.includes(addOn.id);
+              const days = selectedAddOnDays[addOn.id] ?? [];
               return (
-                <TouchableOpacity
-                  key={addOn.id}
-                  style={[styles.drawerAddOnCard, isSelected && styles.selectedDrawerAddOn]}
-                  onPress={() => handleAddOnToggle(addOn.id)}
-                >
-                  <Image source={{ uri: addOn.image }} style={styles.addOnImage} />
-                  <View style={styles.addOnInfo}>
-                    <Text style={styles.addOnName}>{addOn.name}</Text>
-                    <Text style={styles.addOnDescription}>{addOn.description}</Text>
-                    <Text style={styles.addOnPrice}>+₹{addOn.price}</Text>
-                  </View>
+                <View key={addOn.id} style={[styles.drawerAddOnCard, isSelected && styles.selectedDrawerAddOn]}>
+                  <TouchableOpacity
+                    testID={`addon-toggle-${addOn.id}`}
+                    style={styles.addOnRow}
+                    onPress={() => handleAddOnToggle(addOn.id)}
+                  >
+                    <Image source={{ uri: addOn.image }} style={styles.addOnImage} />
+                    <View style={styles.addOnInfo}>
+                      <Text style={styles.addOnName}>{addOn.name}</Text>
+                      <Text style={styles.addOnDescription}>{addOn.description}</Text>
+                      <Text style={styles.addOnPrice}>+₹{addOn.price}</Text>
+                    </View>
+                    {isSelected && (
+                      <View style={styles.addOnSelected}>
+                        <Text style={styles.checkMark}>✓</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
                   {isSelected && (
-                    <View style={styles.addOnSelected}>
-                      <Text style={styles.checkMark}>✓</Text>
+                    <View style={styles.daySelectorContainer}>
+                      <Text style={styles.daySelectorLabel}>Select days for this addon</Text>
+                      <View style={styles.daysRow}>
+                        {availableDays.map(d => {
+                          const active = days.includes(d.key);
+                          return (
+                            <TouchableOpacity
+                              key={d.key}
+                              testID={`addon-${addOn.id}-day-${d.key}`}
+                              style={[styles.dayChip, active && styles.dayChipActive]}
+                              onPress={() => toggleAddOnDay(addOn.id, d.key)}
+                            >
+                              <Text style={[styles.dayChipText, active && styles.dayChipTextActive]}>{d.short}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                      {days.length === 0 && (
+                        <Text style={styles.applyAllDaysNote}>No day selected → applies to all plan days</Text>
+                      )}
                     </View>
                   )}
-                </TouchableOpacity>
+                </View>
               );
             })}
           </ScrollView>
@@ -900,6 +1156,32 @@ const styles = StyleSheet.create({
     borderColor: '#FF6B35',
     backgroundColor: '#FFF0EB',
   },
+  weekTypeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  weekTypeButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#DDD',
+    backgroundColor: 'white',
+  },
+  weekTypeSelected: {
+    borderColor: '#FF6B35',
+    backgroundColor: '#FFF0EB',
+  },
+  weekTypeText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  weekTypeTextSelected: {
+    color: '#FF6B35',
+    fontWeight: '700',
+  },
   weekendOptionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1105,8 +1387,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 12,
     borderWidth: 2,
     borderColor: 'transparent',
@@ -1114,6 +1394,10 @@ const styles = StyleSheet.create({
   selectedDrawerAddOn: {
     borderColor: '#FF6B35',
     backgroundColor: '#FFF7F5',
+  },
+  addOnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   addOnImage: {
     width: 60,
@@ -1137,6 +1421,19 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '700',
+  },
+  variantPill: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  variantPillText: {
+    fontSize: 12,
+    color: '#374151',
+    fontWeight: '600',
   },
   addOnHeader: {
     flexDirection: 'row',
@@ -1185,6 +1482,45 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF6B35',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  daySelectorContainer: {
+    marginTop: 12,
+  },
+  daySelectorLabel: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 8,
+  },
+  daysRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  dayChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: 'white',
+  },
+  dayChipActive: {
+    borderColor: '#FF6B35',
+    backgroundColor: '#FFF0EB',
+  },
+  dayChipText: {
+    fontSize: 13,
+    color: '#333',
+    fontWeight: '500',
+  },
+  dayChipTextActive: {
+    color: '#FF6B35',
+    fontWeight: '700',
+  },
+  applyAllDaysNote: {
+    marginTop: 6,
+    fontSize: 12,
+    color: '#10B981',
   },
   checkMark: {
     color: 'white',

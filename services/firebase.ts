@@ -220,7 +220,7 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<vo
 
 export async function seedIfEmpty(): Promise<{ seeded: boolean }[]> {
   const tasks: Array<Promise<{ seeded: boolean }>> = [];
-  const { banners, categories, featuredMeals, testimonials, addOns } = await import('@/constants/data');
+  const { banners, categories, featuredMeals, extraMeals, testimonials, addOns } = await import('@/constants/data');
 
   async function ensureCollection<T>(name: string, fetcher: () => Promise<T[]>, records: any[], idKey: string = 'id') {
     try {
@@ -243,7 +243,7 @@ export async function seedIfEmpty(): Promise<{ seeded: boolean }[]> {
 
   tasks.push(ensureCollection<Banner>('banners', fetchBanners, banners as Banner[]));
   tasks.push(ensureCollection<Category>('categories', fetchCategories, categories as Category[]));
-  tasks.push(ensureCollection<Meal>('meals', fetchMeals, (featuredMeals as Meal[]).map((m) => ({ ...m, isDraft: false }))));
+  tasks.push(ensureCollection<Meal>('meals', fetchMeals, ([...featuredMeals, ...extraMeals] as Meal[]).map((m) => ({ ...m, isDraft: false }))));
   tasks.push(ensureCollection<Testimonial>('testimonials', fetchTestimonials, testimonials as Testimonial[]));
   tasks.push(ensureCollection<AddOn>('addons', fetchAddOns, (addOns as AddOn[]).map((a) => ({ ...a, isActive: true }))));
 

@@ -54,10 +54,9 @@ import {
 } from 'lucide-react-native';
 import db from '@/db';
 import { seedIfEmpty } from '@/services/firebase';
-import { Subscription, User, AppSettings, KitchenStaff, DeliveryPerson, UserRole } from '@/types';
+import { Subscription, User, AppSettings, KitchenStaff, DeliveryPerson, UserRole, TimeSlot, Meal } from '@/types';
 import PromotionalAdmin from '@/components/PromotionalAdmin';
 import RoleSelector from '@/components/RoleSelector';
-import PolygonMap from '@/components/PolygonMap';
 
 interface DashboardCard {
   id: string;
@@ -197,8 +196,13 @@ export default function AdminDashboard() {
   const [newMealPrice, setNewMealPrice] = useState('');
   const [newMealOriginalPrice, setNewMealOriginalPrice] = useState('');
   const [newMealCategoryId, setNewMealCategoryId] = useState('');
+  const [newMealCategoryIds, setNewMealCategoryIds] = useState<string[]>([]);
   const [newMealIsVeg, setNewMealIsVeg] = useState<boolean>(true);
   const [newMealHasEgg, setNewMealHasEgg] = useState<boolean>(false);
+  const [newIsBasicThali, setNewIsBasicThali] = useState<boolean>(false);
+  const [newVegVariantPrice, setNewVegVariantPrice] = useState<string>('');
+  const [newNonVegVariantPrice, setNewNonVegVariantPrice] = useState<string>('');
+  const [newAllowDaySelection, setNewAllowDaySelection] = useState<boolean>(false);
   const [newMealImageUrl, setNewMealImageUrl] = useState('');
   const [newMealIsActive, setNewMealIsActive] = useState<boolean>(true);
   const [newMealIsFeatured, setNewMealIsFeatured] = useState<boolean>(false);
@@ -225,6 +229,12 @@ export default function AdminDashboard() {
   const [kitchenStaff, setKitchenStaff] = useState<KitchenStaff[]>([]);
   const [deliveryPersons, setDeliveryPersons] = useState<DeliveryPerson[]>([]);
   const [showPromotionalAdmin, setShowPromotionalAdmin] = useState(false);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [showTimeSlotsModal, setShowTimeSlotsModal] = useState<boolean>(false);
+  const [newSlotTime, setNewSlotTime] = useState<string>('');
+  const [newSlotLabel, setNewSlotLabel] = useState<string>('');
+  const [assignSlotsMeal, setAssignSlotsMeal] = useState<Meal | null>(null);
+  const [assignSelectedSlots, setAssignSelectedSlots] = useState<string[]>([]);
   const [showUsersManagement, setShowUsersManagement] = useState<boolean>(false);
   const [userSearch, setUserSearch] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
@@ -696,7 +706,6 @@ export default function AdminDashboard() {
       onPress: () => router.push('/admin/manual-subscription' as any),
       group: 'Primary',
     },
-    
     {
       id: '5',
       title: 'Users Management',
@@ -833,6 +842,15 @@ export default function AdminDashboard() {
       group: 'Catalog',
     },
     {
+      id: '21',
+      title: 'Time Slots',
+      description: 'Create and manage delivery slots',
+      icon: Clock,
+      color: '#0EA5E9',
+      onPress: () => openTimeSlotsModal(),
+      group: 'Operations',
+    },
+    {
       id: '20',
       title: 'Subscriptions',
       description: 'View all subscriptions (live)',
@@ -840,15 +858,6 @@ export default function AdminDashboard() {
       color: '#0EA5E9',
       onPress: () => router.push('/admin/subscriptions' as any),
       group: 'Primary',
-    },
-     {
-      id: '21',
-      title: 'Polygon Location',
-      description: 'Add serviceable locations',
-      icon: MapPin,
-      color: '#F59E0B',
-      onPress: () =>router.push('/admin/polygon-locations' as any),
-      group: 'Operations',
     },
   ];
 
@@ -891,6 +900,89 @@ export default function AdminDashboard() {
     }
   };
 
+  const loadTimeSlots = async () => {
+    try {
+      const slots = await db.getTimeSlots();
+      setTimeSlots(slots);
+      console.log('Time slots loaded:', slots.length);
+    } catch (e) {
+      console.log('loadTimeSlots error', e);
+    }
+  };
+
+  const openTimeSlotsModal = async () => {
+    await loadTimeSlots();
+    setShowTimeSlotsModal(true);
+  };
+
+  const handleAddTimeSlot = async () => {
+    if (!newSlotTime.trim()) {
+      Alert.alert('Error', 'Enter time range (e.g., 12PM-2PM)');
+      return;
+    }
+    try {
+      await db.createTimeSlot({ time: newSlotTime.trim(), label: newSlotLabel.trim() || undefined, isActive: true });
+      setNewSlotTime('');
+      setNewSlotLabel('');
+      await loadTimeSlots();
+    } catch (e) {
+      console.log('add slot error', e);
+      Alert.alert('Error', 'Failed to add slot');
+    }
+  };
+
+  const toggleSlotActive = async (slotId: string) => {
+    try {
+      await db.toggleTimeSlotActive(slotId);
+      await loadTimeSlots();
+    } catch (e) {
+      console.log('toggle slot error', e);
+    }
+  };
+
+  const openAssignSlotsModal = async (meal: Meal) => {
+    try {
+      await loadTimeSlots();
+      setAssignSlotsMeal(meal);
+      const current = meal.availableTimeSlotIds ?? [];
+      setAssignSelectedSlots(current);
+      setShowAssignSlots(true);
+    } catch (e) {
+      console.log('openAssignSlotsModal error', e);
+    }
+  };
+
+  const [showAssignSlots, setShowAssignSlots] = useState<boolean>(false);
+  const [showEditMeal, setShowEditMeal] = useState<boolean>(false);
+  const [editMealId, setEditMealId] = useState<string>('');
+  const [editMealName, setEditMealName] = useState<string>('');
+  const [editMealDescription, setEditMealDescription] = useState<string>('');
+  const [editMealPrice, setEditMealPrice] = useState<string>('');
+  const [editMealOriginalPrice, setEditMealOriginalPrice] = useState<string>('');
+  const [editMealImageUrl, setEditMealImageUrl] = useState<string>('');
+  const [editMealIsVeg, setEditMealIsVeg] = useState<boolean>(true);
+  const [editMealHasEgg, setEditMealHasEgg] = useState<boolean>(false);
+  const [editMealIsActive, setEditMealIsActive] = useState<boolean>(true);
+  const [editMealIsFeatured, setEditMealIsFeatured] = useState<boolean>(false);
+  const [editMealIsDraft, setEditMealIsDraft] = useState<boolean>(false);
+  const [editMealPreparationTime, setEditMealPreparationTime] = useState<string>('');
+  const [editMealTags, setEditMealTags] = useState<string>('');
+  const [editMealCategoryIds, setEditMealCategoryIds] = useState<string[]>([]);
+  const [editMealCategoryId, setEditMealCategoryId] = useState<string>('');
+
+  const saveAssignSlots = async () => {
+    if (!assignSlotsMeal) return;
+    try {
+      await db.assignTimeSlotsToMeal(assignSlotsMeal.id, assignSelectedSlots);
+      Alert.alert('Success', 'Time slots updated for meal');
+      setShowAssignSlots(false);
+      await loadMealsData();
+    } catch (e) {
+      console.log('saveAssignSlots error', e);
+      Alert.alert('Error', 'Failed to update time slots');
+    }
+  };
+
   const handleAddCategory = async () => {
     if (!newCategoryName.trim() || !newCategoryDescription.trim()) {
       Alert.alert('Error', 'Please fill all fields');
@@ -909,6 +1001,32 @@ export default function AdminDashboard() {
       console.error('Error adding category:', error);
       Alert.alert('Error', 'Failed to add category');
     }
+  };
+
+  const openEditMeal = async (meal: Meal) => {
+    try {
+      const cats = await db.getCategories();
+      setCategories(cats);
+    } catch (e) {
+      console.log('openEditMeal: failed to load categories', e);
+    }
+    setEditMealId(meal.id);
+    setEditMealName(meal.name);
+    setEditMealDescription(meal.description);
+    setEditMealPrice(String(meal.price));
+    setEditMealOriginalPrice(meal.originalPrice ? String(meal.originalPrice) : '');
+    setEditMealImageUrl(meal.images?.[0] ?? '');
+    setEditMealIsVeg(!!meal.isVeg);
+    setEditMealHasEgg(!!meal.hasEgg);
+    setEditMealIsActive(!!meal.isActive);
+    setEditMealIsFeatured(!!meal.isFeatured);
+    setEditMealIsDraft(!!meal.isDraft);
+    setEditMealPreparationTime(meal.preparationTime ? String(meal.preparationTime) : '');
+    setEditMealTags((meal.tags || []).join(', '));
+    const catIds = Array.isArray(meal.categoryIds) && meal.categoryIds.length > 0 ? meal.categoryIds : (meal.categoryId ? [meal.categoryId] : []);
+    setEditMealCategoryIds(catIds);
+    setEditMealCategoryId(meal.categoryId || (catIds[0] ?? ''));
+    setShowEditMeal(true);
   };
 
   const handleAddMeal = async () => {
@@ -933,12 +1051,21 @@ export default function AdminDashboard() {
         .split(',')
         .map(t => t.trim())
         .filter(Boolean);
+
+      const categoryIdsPayload = newMealCategoryIds.length > 0 ? newMealCategoryIds : (newMealCategoryId ? [newMealCategoryId] : []);
+
+      const variantPricing = newIsBasicThali ? {
+        veg: newVegVariantPrice.trim() ? parseFloat(newVegVariantPrice) : price,
+        nonveg: newNonVegVariantPrice.trim() ? parseFloat(newNonVegVariantPrice) : price,
+      } : undefined;
+
       await db.addMeal({
         name: newMealName.trim(),
         description: newMealDescription.trim(),
         price,
         originalPrice,
-        categoryId: newMealCategoryId,
+        categoryId: categoryIdsPayload[0] || '',
+        categoryIds: categoryIdsPayload,
         isVeg: newMealIsVeg,
         hasEgg: newMealHasEgg,
         image: newMealImageUrl.trim() || undefined,
@@ -948,14 +1075,22 @@ export default function AdminDashboard() {
         preparationTime,
         tags: tags.length ? tags : undefined,
         nutritionInfo,
+        isBasicThali: newIsBasicThali,
+        variantPricing,
+        allowDaySelection: newAllowDaySelection,
       });
       setNewMealName('');
       setNewMealDescription('');
       setNewMealPrice('');
       setNewMealOriginalPrice('');
       setNewMealCategoryId('');
+      setNewMealCategoryIds([]);
       setNewMealIsVeg(true);
       setNewMealHasEgg(false);
+      setNewIsBasicThali(false);
+      setNewVegVariantPrice('');
+      setNewNonVegVariantPrice('');
+      setNewAllowDaySelection(false);
       setNewMealImageUrl('');
       setNewMealIsActive(true);
       setNewMealIsFeatured(false);
@@ -2001,23 +2136,29 @@ export default function AdminDashboard() {
                   </View>
 
                   <View style={styles.settingSection}>
-                    <Text style={styles.settingTitle}>Category</Text>
+                    <Text style={styles.settingTitle}>Categories</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                      {categories.map((cat) => (
-                        <TouchableOpacity
-                          key={cat.id}
-                          testID={`add-meal-category-${cat.id}`}
-                          style={[styles.categoryFilterChip, newMealCategoryId === cat.id && styles.categoryFilterChipActive]}
-                          onPress={() => setNewMealCategoryId(cat.id)}
-                        >
-                          <Text style={[styles.categoryFilterText, newMealCategoryId === cat.id && styles.categoryFilterTextActive]}>
-                            {cat.name}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                      {categories.map((cat) => {
+                        const active = newMealCategoryIds.includes(cat.id);
+                        return (
+                          <TouchableOpacity
+                            key={cat.id}
+                            testID={`add-meal-category-${cat.id}`}
+                            style={[styles.categoryFilterChip, (active || newMealCategoryId === cat.id) && styles.categoryFilterChipActive]}
+                            onPress={() => {
+                              setNewMealCategoryId(cat.id);
+                              setNewMealCategoryIds(prev => active ? prev.filter(id => id !== cat.id) : [...prev, cat.id]);
+                            }}
+                          >
+                            <Text style={[styles.categoryFilterText, (active || newMealCategoryId === cat.id) && styles.categoryFilterTextActive]}>
+                              {cat.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </ScrollView>
-                    {newMealCategoryId === '' && (
-                      <Text style={[styles.settingDescription, { marginTop: 8 }]}>Please select a category</Text>
+                    {newMealCategoryIds.length === 0 && newMealCategoryId === '' && (
+                      <Text style={[styles.settingDescription, { marginTop: 8 }]}>Please select at least one category</Text>
                     )}
                   </View>
 
@@ -2046,6 +2187,50 @@ export default function AdminDashboard() {
                         <Text style={[styles.chipText, newMealHasEgg && styles.chipTextActive]}>{newMealHasEgg ? 'Egg ✓' : 'Egg ✗'}</Text>
                       </TouchableOpacity>
                     </View>
+                    <View style={{ height: 12 }} />
+                    <Text style={styles.settingTitle}>Basic Thali & Variants</Text>
+                    <View style={styles.roleChipsRow}>
+                      <TouchableOpacity
+                        testID="add-meal-basic-thali"
+                        style={[styles.chip, newIsBasicThali && styles.chipActive]}
+                        onPress={() => setNewIsBasicThali(!newIsBasicThali)}
+                      >
+                        <Text style={[styles.chipText, newIsBasicThali && styles.chipTextActive]}>{newIsBasicThali ? 'Basic Thali ✓' : 'Basic Thali ✗'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        testID="add-meal-allow-day-selection"
+                        style={[styles.chip, newAllowDaySelection && styles.chipActive]}
+                        onPress={() => setNewAllowDaySelection(!newAllowDaySelection)}
+                      >
+                        <Text style={[styles.chipText, newAllowDaySelection && styles.chipTextActive]}>
+                          {newAllowDaySelection ? 'Allow Day Selection ✓' : 'Allow Day Selection ✗'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    {newIsBasicThali && (
+                      <View style={{ marginTop: 12 }}>
+                        <Text style={styles.settingDescription}>Set variant prices (leave blank to fallback to base price)</Text>
+                        <TextInput
+                          testID="add-meal-veg-price"
+                          style={styles.timeInput}
+                          value={newVegVariantPrice}
+                          onChangeText={setNewVegVariantPrice}
+                          placeholder="Veg variant price (₹)"
+                          placeholderTextColor="#9CA3AF"
+                          keyboardType="numeric"
+                        />
+                        <View style={{ height: 10 }} />
+                        <TextInput
+                          testID="add-meal-nonveg-price"
+                          style={styles.timeInput}
+                          value={newNonVegVariantPrice}
+                          onChangeText={setNewNonVegVariantPrice}
+                          placeholder="Non-Veg variant price (₹)"
+                          placeholderTextColor="#9CA3AF"
+                          keyboardType="numeric"
+                        />
+                      </View>
+                    )}
                   </View>
 
                   <View style={styles.settingSection}>
@@ -2239,14 +2424,12 @@ export default function AdminDashboard() {
                 />
               </View>
 
-              {/* <TouchableOpacity
+              <TouchableOpacity
                 style={styles.saveButton}
                 onPress={() => console.log('Map selection feature - would open polygon selector')}
               >
                 <Text style={styles.saveButtonText}>Select Area on Map</Text>
-              </TouchableOpacity> */}
-
-              {/* <PolygonMap /> */}
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.saveButton, { backgroundColor: '#10B981', marginTop: 10 }]}
@@ -2281,6 +2464,7 @@ export default function AdminDashboard() {
                   <View style={styles.itemInfo}>
                     <Text style={styles.itemName}>{category.name}</Text>
                     <Text style={styles.itemDescription}>{category.description}</Text>
+                    <Text style={styles.itemDescription}>Group: {category.group ? (category.group === 'meal-time' ? 'Meal-time' : 'Collection') : '—'}</Text>
                     <Text style={styles.itemStatus}>
                       Status: {category.isActive ? 'Active' : 'Inactive'}
                     </Text>
@@ -2295,6 +2479,107 @@ export default function AdminDashboard() {
                   </View>
                 </View>
               ))}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+
+        {/* Time Slots Modal */}
+        <Modal
+          visible={showTimeSlotsModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Delivery Time Slots ({timeSlots.length})</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setShowTimeSlotsModal(false)}>
+                <X size={24} color="#374151" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalContent}>
+              <View style={styles.settingSection}>
+                <Text style={styles.settingTitle}>Create New Slot</Text>
+                <TextInput
+                  style={styles.timeInput}
+                  placeholder="Time range (e.g., 12PM-2PM)"
+                  placeholderTextColor="#9CA3AF"
+                  value={newSlotTime}
+                  onChangeText={setNewSlotTime}
+                />
+                <View style={{ height: 10 }} />
+                <TextInput
+                  style={styles.timeInput}
+                  placeholder="Label (optional, e.g., Lunch)"
+                  placeholderTextColor="#9CA3AF"
+                  value={newSlotLabel}
+                  onChangeText={setNewSlotLabel}
+                />
+                <View style={{ height: 12 }} />
+                <TouchableOpacity style={styles.saveButton} onPress={handleAddTimeSlot}>
+                  <Text style={styles.saveButtonText}>Add Slot</Text>
+                </TouchableOpacity>
+              </View>
+
+              {timeSlots.map(slot => (
+                <View key={slot.id} style={styles.itemCard}>
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.itemName}>{slot.time}</Text>
+                    <Text style={styles.itemDescription}>{slot.label || '—'}</Text>
+                    <Text style={styles.itemStatus}>Status: {(slot.isActive ?? true) ? 'Active' : 'Inactive'}</Text>
+                  </View>
+                  <View style={styles.itemActions}>
+                    <TouchableOpacity style={styles.editButton} onPress={() => toggleSlotActive(slot.id)}>
+                      <ToggleRight size={16} color="white" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+
+        {/* Assign Slots Modal */}
+        <Modal
+          visible={showAssignSlots}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Assign Time Slots{assignSlotsMeal ? ` • ${assignSlotsMeal.name}` : ''}</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setShowAssignSlots(false)}>
+                <X size={24} color="#374151" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalContent}>
+              <View style={styles.settingSection}>
+                <Text style={styles.settingDescription}>Select one or more delivery time slots for this meal.</Text>
+                {timeSlots.map(slot => {
+                  const active = assignSelectedSlots.includes(slot.id);
+                  return (
+                    <TouchableOpacity
+                      key={slot.id}
+                      style={[styles.staffCard, { borderColor: active ? '#3B82F6' : '#E5E7EB' }]}
+                      onPress={() => setAssignSelectedSlots(prev => active ? prev.filter(id => id !== slot.id) : [...prev, slot.id])}
+                    >
+                      <View style={styles.staffInfo}>
+                        <View style={[styles.staffIcon, { backgroundColor: active ? '#3B82F6' : '#9CA3AF' }]}>
+                          <Clock size={20} color="white" />
+                        </View>
+                        <View style={styles.staffDetails}>
+                          <Text style={styles.staffName}>{slot.time}</Text>
+                          <Text style={styles.staffContact}>{slot.label || '—'}</Text>
+                        </View>
+                      </View>
+                      {active ? <Check size={20} color="#3B82F6" /> : <View />}
+                    </TouchableOpacity>
+                  );
+                })}
+                <View style={{ height: 12 }} />
+                <TouchableOpacity style={styles.saveButton} onPress={saveAssignSlots}>
+                  <Text style={styles.saveButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
             </ScrollView>
           </SafeAreaView>
         </Modal>
@@ -2353,7 +2638,12 @@ export default function AdminDashboard() {
 
               {/* Meals List */}
               {meals
-                .filter(meal => selectedMealCategory === '' || meal.categoryId === selectedMealCategory)
+                .filter(meal => {
+                  if (selectedMealCategory === '') return true;
+                  const primaryMatch = meal.categoryId === selectedMealCategory;
+                  const multiMatch = Array.isArray(meal.categoryIds) && meal.categoryIds.includes(selectedMealCategory);
+                  return primaryMatch || multiMatch;
+                })
                 .map((meal) => {
                   const category = categories.find(cat => cat.id === meal.categoryId);
                   return (
@@ -2432,21 +2722,13 @@ export default function AdminDashboard() {
                             <Text style={styles.previewButtonText}>Preview</Text>
                           </TouchableOpacity>
                           
+                         
                           <TouchableOpacity 
-                            style={[
-                              styles.draftToggleButton,
-                              { backgroundColor: meal.isDraft ? '#F59E0B' : '#10B981' }
-                            ]}
-                            onPress={() => handleToggleDraftMode(meal.id)}
+                            style={styles.categoryButton}
+                            onPress={() => openAssignSlotsModal(meal)}
                           >
-                            {meal.isDraft ? (
-                              <ToggleLeft size={16} color="white" />
-                            ) : (
-                              <ToggleRight size={16} color="white" />
-                            )}
-                            <Text style={styles.draftToggleText}>
-                              {meal.isDraft ? 'Draft' : 'Live'}
-                            </Text>
+                            <Clock size={16} color="white" />
+                            <Text style={styles.categoryButtonText}>Time Slots</Text>
                           </TouchableOpacity>
                           
                           <TouchableOpacity 
@@ -2466,9 +2748,26 @@ export default function AdminDashboard() {
                             <Text style={styles.categoryButtonText}>Category</Text>
                           </TouchableOpacity>
                           
-                          <TouchableOpacity style={styles.editButton}>
+                          <TouchableOpacity style={styles.editButton} onPress={() => openEditMeal(meal)}>
                             <Edit size={16} color="white" />
                           </TouchableOpacity>
+                           <TouchableOpacity 
+                            style={[
+                              styles.draftToggleButton,
+                              { backgroundColor: meal.isDraft ? '#F59E0B' : '#10B981' }
+                            ]}
+                            onPress={() => handleToggleDraftMode(meal.id)}
+                          >
+                            {meal.isDraft ? (
+                              <ToggleLeft size={16} color="white" />
+                            ) : (
+                              <ToggleRight size={16} color="white" />
+                            )}
+                            <Text style={styles.draftToggleText}>
+                              {meal.isDraft ? 'Draft' : 'Live'}
+                            </Text>
+                          </TouchableOpacity>
+
                           
                           <TouchableOpacity style={styles.deleteButton}>
                             <Trash2 size={16} color="white" />
@@ -2480,7 +2779,12 @@ export default function AdminDashboard() {
                 })
               }
               
-              {meals.filter(meal => selectedMealCategory === '' || meal.categoryId === selectedMealCategory).length === 0 && (
+              {meals.filter(meal => {
+                if (selectedMealCategory === '') return true;
+                const primaryMatch = meal.categoryId === selectedMealCategory;
+                const multiMatch = Array.isArray(meal.categoryIds) && meal.categoryIds.includes(selectedMealCategory);
+                return primaryMatch || multiMatch;
+              }).length === 0 && (
                 <View style={styles.emptyMealsContainer}>
                   <ChefHat size={48} color="#9CA3AF" />
                   <Text style={styles.emptyMealsTitle}>No Meals Found</Text>
@@ -2489,6 +2793,227 @@ export default function AdminDashboard() {
                   </Text>
                 </View>
               )}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+
+        {/* Edit Meal Modal */}
+        <Modal
+          visible={showEditMeal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Meal</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setShowEditMeal(false)}>
+                <X size={24} color="#374151" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalContent}>
+              <View style={styles.settingSection}>
+                <Text style={styles.settingTitle}>Basic Info</Text>
+                <TextInput
+                  testID="edit-meal-name"
+                  style={styles.timeInput}
+                  value={editMealName}
+                  onChangeText={setEditMealName}
+                  placeholder="Meal name"
+                  placeholderTextColor="#9CA3AF"
+                />
+                <View style={{ height: 10 }} />
+                <TextInput
+                  testID="edit-meal-description"
+                  style={[styles.timeInput, { height: 80 }]}
+                  value={editMealDescription}
+                  onChangeText={setEditMealDescription}
+                  placeholder="Description"
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                />
+              </View>
+
+              <View style={styles.settingSection}>
+                <Text style={styles.settingTitle}>Categories</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                  {categories.map((cat) => {
+                    const active = editMealCategoryIds.includes(cat.id);
+                    return (
+                      <TouchableOpacity
+                        key={cat.id}
+                        testID={`edit-meal-category-${cat.id}`}
+                        style={[styles.categoryFilterChip, (active || editMealCategoryId === cat.id) && styles.categoryFilterChipActive]}
+                        onPress={() => {
+                          setEditMealCategoryId(cat.id);
+                          setEditMealCategoryIds(prev => active ? prev.filter(id => id !== cat.id) : [...prev, cat.id]);
+                        }}
+                      >
+                        <Text style={[styles.categoryFilterText, (active || editMealCategoryId === cat.id) && styles.categoryFilterTextActive]}>
+                          {cat.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+                {editMealCategoryIds.length === 0 && (
+                  <Text style={[styles.settingDescription, { marginTop: 8 }]}>Please select at least one category</Text>
+                )}
+              </View>
+
+              <View style={styles.settingSection}>
+                <Text style={styles.settingTitle}>Diet Preference</Text>
+                <View style={styles.roleChipsRow}>
+                  <TouchableOpacity
+                    testID="edit-meal-veg"
+                    style={[styles.chip, editMealIsVeg && styles.chipActive]}
+                    onPress={() => setEditMealIsVeg(true)}
+                  >
+                    <Text style={[styles.chipText, editMealIsVeg && styles.chipTextActive]}>Veg</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    testID="edit-meal-nonveg"
+                    style={[styles.chip, !editMealIsVeg && styles.chipActive]}
+                    onPress={() => setEditMealIsVeg(false)}
+                  >
+                    <Text style={[styles.chipText, !editMealIsVeg && styles.chipTextActive]}>Non-Veg</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    testID="edit-meal-hasegg"
+                    style={[styles.chip, editMealHasEgg && styles.chipActive]}
+                    onPress={() => setEditMealHasEgg(!editMealHasEgg)}
+                  >
+                    <Text style={[styles.chipText, editMealHasEgg && styles.chipTextActive]}>{editMealHasEgg ? 'Egg ✓' : 'Egg ✗'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.settingSection}>
+                <Text style={styles.settingTitle}>Pricing</Text>
+                <TextInput
+                  testID="edit-meal-price"
+                  style={styles.timeInput}
+                  value={editMealPrice}
+                  onChangeText={setEditMealPrice}
+                  placeholder="Price (₹)"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                />
+                <View style={{ height: 10 }} />
+                <TextInput
+                  testID="edit-meal-original-price"
+                  style={styles.timeInput}
+                  value={editMealOriginalPrice}
+                  onChangeText={setEditMealOriginalPrice}
+                  placeholder="Original Price (₹)"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={styles.settingSection}>
+                <Text style={styles.settingTitle}>Media</Text>
+                <TextInput
+                  testID="edit-meal-image"
+                  style={styles.timeInput}
+                  value={editMealImageUrl}
+                  onChangeText={setEditMealImageUrl}
+                  placeholder="Image URL"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+
+              <View style={styles.settingSection}>
+                <Text style={styles.settingTitle}>Visibility</Text>
+                <View style={styles.roleChipsRow}>
+                  <TouchableOpacity
+                    testID="edit-meal-active"
+                    style={[styles.chip, editMealIsActive && styles.chipActive]}
+                    onPress={() => setEditMealIsActive(!editMealIsActive)}
+                  >
+                    <Text style={[styles.chipText, editMealIsActive && styles.chipTextActive]}>{editMealIsActive ? 'Active' : 'Inactive'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    testID="edit-meal-featured"
+                    style={[styles.chip, editMealIsFeatured && styles.chipActive]}
+                    onPress={() => setEditMealIsFeatured(!editMealIsFeatured)}
+                  >
+                    <Text style={[styles.chipText, editMealIsFeatured && styles.chipTextActive]}>{editMealIsFeatured ? 'Featured ✓' : 'Featured ✗'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    testID="edit-meal-draft"
+                    style={[styles.chip, editMealIsDraft && styles.chipActive]}
+                    onPress={() => setEditMealIsDraft(!editMealIsDraft)}
+                  >
+                    <Text style={[styles.chipText, editMealIsDraft && styles.chipTextActive]}>{editMealIsDraft ? 'Draft' : 'Live'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.settingSection}>
+                <Text style={styles.settingTitle}>Preparation & Tags</Text>
+                <TextInput
+                  testID="edit-meal-prep"
+                  style={styles.timeInput}
+                  value={editMealPreparationTime}
+                  onChangeText={setEditMealPreparationTime}
+                  placeholder="Preparation Time (minutes)"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                />
+                <View style={{ height: 10 }} />
+                <TextInput
+                  testID="edit-meal-tags"
+                  style={styles.timeInput}
+                  value={editMealTags}
+                  onChangeText={setEditMealTags}
+                  placeholder="Tags (comma separated)"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+
+              <TouchableOpacity
+                testID="edit-meal-submit"
+                style={styles.saveButton}
+                onPress={async () => {
+                  if (!editMealId) { Alert.alert('Error', 'No meal selected'); return; }
+                  if (!editMealName.trim() || !editMealDescription.trim() || !editMealPrice.trim() || editMealCategoryIds.length === 0) {
+                    Alert.alert('Error', 'Please fill all required fields');
+                    return;
+                  }
+                  try {
+                    const price = parseFloat(editMealPrice);
+                    const originalPrice = editMealOriginalPrice.trim() ? parseFloat(editMealOriginalPrice) : undefined;
+                    const preparationTime = editMealPreparationTime.trim() ? parseInt(editMealPreparationTime, 10) : undefined;
+                    const tags = editMealTags.split(',').map(t => t.trim()).filter(Boolean);
+                    const payload: Partial<Meal> = {
+                      name: editMealName.trim(),
+                      description: editMealDescription.trim(),
+                      price,
+                      originalPrice,
+                      images: [editMealImageUrl.trim()].filter(Boolean),
+                      categoryId: editMealCategoryId || editMealCategoryIds[0],
+                      categoryIds: editMealCategoryIds,
+                      isVeg: editMealIsVeg,
+                      hasEgg: editMealHasEgg,
+                      isActive: editMealIsActive,
+                      isFeatured: editMealIsFeatured,
+                      isDraft: editMealIsDraft,
+                      preparationTime,
+                      tags: tags.length ? tags : undefined,
+                    };
+                    const updated = await db.updateMeal(editMealId, payload);
+                    if (!updated) throw new Error('Update failed');
+                    Alert.alert('Success', 'Meal updated successfully');
+                    setShowEditMeal(false);
+                    await loadMealsData();
+                  } catch (e) {
+                    console.log('edit meal save error', e);
+                    Alert.alert('Error', 'Failed to update meal');
+                  }
+                }}
+              >
+                <Text style={styles.saveButtonText}>Save Changes</Text>
+              </TouchableOpacity>
             </ScrollView>
           </SafeAreaView>
         </Modal>

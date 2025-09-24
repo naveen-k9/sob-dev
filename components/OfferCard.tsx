@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Gift, Wallet, Percent } from 'lucide-react-native';
 import { Offer } from '@/types';
+import { Colors } from '@/constants/colors';
 
 interface OfferCardProps {
   offer: Offer;
@@ -18,22 +19,22 @@ export default function OfferCard({ offer, onPress }: OfferCardProps) {
   const getOfferIcon = () => {
     switch (offer.offerType) {
       case 'cashback':
-        return <Wallet size={12} color="#FF6B35" />;
+        return <Wallet size={12} color={Colors.primary} />;
       case 'deal':
-        return <Gift size={12} color="#FF6B35" />;
+        return <Gift size={12} color={Colors.primary} />;
       default:
-        return <Percent size={12} color="#FF6B35" />;
+        return <Percent size={12} color={Colors.primary} />;
     }
   };
 
   const getOfferTypeColor = () => {
     switch (offer.offerType) {
       case 'cashback':
-        return '#10B981';
+        return Colors.accent;
       case 'deal':
-        return '#8B5CF6';
+        return Colors.primary;
       default:
-        return '#FF6B35';
+        return Colors.primary;
     }
   };
 
@@ -60,7 +61,7 @@ export default function OfferCard({ offer, onPress }: OfferCardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.surface,
     borderRadius: 12,
     marginRight: 16,
     width: 250,
@@ -91,19 +92,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   discountText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: 'bold',
   },
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.text,
     marginBottom: 4,
   },
   description: {
     fontSize: 12,
-    color: '#666',
+    color: Colors.mutedText,
     lineHeight: 16,
     marginBottom: 8,
   },
@@ -114,12 +115,12 @@ const styles = StyleSheet.create({
   },
   code: {
     fontSize: 12,
-    color: '#FF6B35',
+    color: Colors.primary,
     fontWeight: '600',
     marginLeft: 4,
   },
   validity: {
     fontSize: 10,
-    color: '#999',
+    color: Colors.mutedText,
   },
 });

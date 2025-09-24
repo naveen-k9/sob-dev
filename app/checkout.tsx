@@ -12,7 +12,7 @@ import {
   Animated,
 } from 'react-native';
 import AddressBookModal from '@/components/AddressBookModal';
-import { Address } from '@/types';
+import { Address, Offer } from '@/types';
 import { Stack, router, useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, CreditCard, Wallet, MapPin, Tag, Check, CheckCircle, XCircle } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +24,7 @@ export default function CheckoutScreen() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'upi' | 'wallet' | 'razorpay'>('razorpay');
   const [promoCode, setPromoCode] = useState<string>('');
   const [promoApplied, setPromoApplied] = useState<boolean>(false);
+  const [appliedOffer, setAppliedOffer] = useState<Offer | null>(null);
   const [applyWallet, setApplyWallet] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>('');
   const [toastVisible, setToastVisible] = useState<boolean>(false);
@@ -102,7 +103,24 @@ export default function CheckoutScreen() {
     const trialDiscount: number = subscriptionDetails.isTrialMode ? discountedPrice * 0.5 : 0;
     const addOnTotal: number = (subscriptionDetails.addOns?.length ?? 0) * 50 * duration;
     const baseSubtotal: number = discountedPrice + addOnTotal - trialDiscount + deliveryFee;
-    const promoDiscount: number = promoApplied ? 150 : 0;
+    let promoDiscount: number = 0;
+    if (appliedOffer && promoApplied) {
+      const benefitType = appliedOffer.benefitType ?? 'amount';
+      if (benefitType === 'meal') {
+        const days = duration > 0 ? duration : 1;
+        const perMeal = days > 0 ? Math.round(discountedPrice / days) : 0;
+        promoDiscount = Math.max(0, perMeal);
+      } else {
+        if (appliedOffer.discountType === 'fixed') {
+          promoDiscount = Math.min(appliedOffer.discountValue, baseSubtotal);
+        } else if (appliedOffer.discountType === 'percentage') {
+          const pct = Math.max(0, Math.min(100, appliedOffer.discountValue));
+          const raw = (baseSubtotal * pct) / 100;
+          const capped = typeof appliedOffer.maxDiscount === 'number' ? Math.min(raw, appliedOffer.maxDiscount) : raw;
+          promoDiscount = Math.min(capped, baseSubtotal);
+        }
+      }
+    }
     const subtotalAfterPromo: number = Math.max(0, baseSubtotal - promoDiscount);
     const walletAppliedAmount: number = applyWallet ? Math.min(walletBalance, subtotalAfterPromo) : 0;
     const payableAmount: number = Math.max(0, subtotalAfterPromo - walletAppliedAmount);
@@ -121,7 +139,7 @@ export default function CheckoutScreen() {
       payableAmount,
       subtotalAfterPromo,
     };
-  }, [subscriptionDetails, promoApplied, applyWallet, walletBalance]);
+  }, [subscriptionDetails, promoApplied, appliedOffer, applyWallet, walletBalance]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -135,12 +153,39 @@ export default function CheckoutScreen() {
     });
   };
 
-  const handleApplyPromo = () => {
-    if (promoCode.toLowerCase() === 'first100' || promoCode.toLowerCase() === 'weekend20') {
+  const handleApplyPromo = async () => {
+    const code = promoCode.trim().toUpperCase();
+    if (!code) {
+      Alert.alert('Enter Code', 'Please enter a promo code.');
+      return;
+    }
+    try {
+      const active = await db.getActiveOffers();
+      let merged: Offer[] = Array.isArray(active) ? active : [];
+      try {
+        const constants = await import('@/constants/data');
+        const constOffers: Offer[] = (constants as any).offers ?? [];
+        const seen = new Set(merged.map(o => o.id));
+        constOffers.forEach(o => { if (o && !seen.has(o.id)) { merged.push(o); seen.add(o.id); } });
+      } catch (e) {
+        console.log('Offer constants import failed', e);
+      }
+      const match = merged.find(o => (o.promoCode ?? o.code ?? '').toUpperCase() === code && o.isActive);
+      if (!match) {
+        Alert.alert('Invalid Code', 'Please enter a valid promo code.');
+        return;
+      }
+      const now = new Date();
+      if (new Date(match.validFrom) > now || new Date(match.validTo) < now) {
+        Alert.alert('Expired', 'This promo code is not currently valid.');
+        return;
+      }
+      setAppliedOffer(match);
       setPromoApplied(true);
-      showToast(`Promo applied. You saved ₹${150}.`);
-    } else {
-      Alert.alert('Invalid Code', 'Please enter a valid promo code.');
+      showToast('Promo applied successfully.');
+    } catch (e) {
+      console.log('Apply promo failed', e);
+      Alert.alert('Error', 'Could not validate promo code. Try again.');
     }
   };
 
@@ -191,7 +236,58 @@ export default function CheckoutScreen() {
     }
   };
 
+  const createRazorpayOrderAndOpenCheckout = async (amount: number, description: string) => {
+    try {
+      const envBase = process.env.EXPO_PUBLIC_RORK_API_BASE_URL as string | undefined;
+      const base = envBase && envBase.length > 0
+        ? envBase
+        : (typeof window !== 'undefined' && (window as any).location?.origin ? (window as any).location.origin : undefined);
 
+      if (!base) {
+        console.log('[Razorpay] Missing base URL. EXPO_PUBLIC_RORK_API_BASE_URL not set and window.location.origin unavailable');
+        Alert.alert('Config error', 'API base URL not configured');
+        return null;
+      }
+
+      const customer = {
+        name: user?.name ?? 'Customer',
+        email: user?.email ?? undefined,
+        contact: user?.phone ?? undefined,
+      } as { name: string; email?: string; contact?: string };
+
+      const orderResp = await fetch(`${base}/api/payments/razorpay/create-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, currency: 'INR', receipt: `rcpt_${Date.now()}`, notes: { description } }),
+      });
+
+      if (!orderResp.ok) {
+        const t = await orderResp.text();
+        console.log('[Razorpay] order create failed', orderResp.status, t);
+        try {
+          const json = JSON.parse(t);
+          Alert.alert('Payment error', json?.error ? String(json.error) : 'Unable to start Razorpay checkout');
+        } catch {
+          Alert.alert('Payment error', 'Unable to start Razorpay checkout');
+        }
+        return null;
+      }
+
+      const order = (await orderResp.json()) as { id?: string; amount?: number };
+      if (!order?.id) {
+        Alert.alert('Payment error', 'Invalid order response from server');
+        return null;
+      }
+
+      const checkoutUrl = `${base}/api/payments/razorpay/checkout?orderId=${encodeURIComponent(order.id)}&amount=${encodeURIComponent(String(order.amount ?? Math.round(amount * 100)))}&name=${encodeURIComponent(customer.name)}&description=${encodeURIComponent(description)}&email=${encodeURIComponent(customer.email ?? '')}&contact=${encodeURIComponent(customer.contact ?? '')}&themeColor=${encodeURIComponent('#FF6B35')}`;
+
+      return checkoutUrl;
+    } catch (e) {
+      console.log('[Razorpay] order create exception', e);
+      Alert.alert('Payment error', 'Something went wrong while initializing payment.');
+      return null;
+    }
+  };
 
   const handlePlaceOrder = async () => {
     if (isGuest) {
@@ -217,7 +313,7 @@ export default function CheckoutScreen() {
       setPaymentStatus('processing');
       setTimeout(async () => {
         setPaymentStatus('success');
-        
+
         if (user?.id && orderSummary.walletAppliedAmount > 0) {
           try {
             await db.addWalletTransaction({
@@ -232,7 +328,7 @@ export default function CheckoutScreen() {
             console.log('Wallet debit failed', e);
           }
         }
-        
+
         // Save subscription to database
         const startDate = new Date(subscriptionDetails.startDate);
         const endDate = computeEndDate(startDate, subscriptionDetails.plan.duration, weekendExclusion);
@@ -256,14 +352,14 @@ export default function CheckoutScreen() {
           additionalAddOns: {},
           specialInstructions: deliveryInstructions,
         };
-        
+
         try {
           await db.createSubscription(subscription);
           console.log('Subscription created successfully');
         } catch (error) {
           console.error('Error creating subscription:', error);
         }
-        
+
         setTimeout(() => {
           setShowPaymentModal(false);
           router.push('/(tabs)');
@@ -278,6 +374,10 @@ export default function CheckoutScreen() {
     }
 
     // Non-zero payment: create Razorpay order then open checkout bridge
+    // const checkoutUrl = await createRazorpayOrderAndOpenCheckout(orderSummary.payableAmount, `Subscription payment for ${subscriptionDetails?.meal?.name ?? 'Meal'}`);
+    // if (checkoutUrl) {
+    //   router.push({ pathname: '/webview', params: { url: checkoutUrl, title: 'Complete Payment' } });
+    // }
     const description = 'Credits towards consultation';
     const payload = {
       amount: Math.round(orderSummary.payableAmount * 100),
@@ -370,14 +470,14 @@ export default function CheckoutScreen() {
         additionalAddOns: {},
         specialInstructions: deliveryInstructions,
       };
-      
+
       try {
         await db.createSubscription(subscription);
         console.log('Subscription created successfully on retry');
       } catch (error) {
         console.error('Error creating subscription on retry:', error);
       }
-      
+
       setPaymentStatus('success');
       setTimeout(() => {
         setShowPaymentModal(false);
@@ -388,7 +488,7 @@ export default function CheckoutScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen 
+      <Stack.Screen
         options={{
           title: 'Checkout',
           headerLeft: () => (
@@ -402,9 +502,9 @@ export default function CheckoutScreen() {
               <ArrowLeft size={24} color="#333" />
             </TouchableOpacity>
           ),
-        }} 
+        }}
       />
-      
+
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {!subscriptionDetails ? (
           <View style={styles.loadingContainer}>
@@ -427,7 +527,7 @@ export default function CheckoutScreen() {
                       {selectedAddress.city}, {selectedAddress.state} - {selectedAddress.pincode}
                     </Text>
                   </View>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.changeButton}
                     onPress={() => setShowAddressBook(true)}
                   >
@@ -435,7 +535,7 @@ export default function CheckoutScreen() {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.addAddressCard}
                   onPress={() => setShowAddressBook(true)}
                 >
@@ -479,7 +579,7 @@ export default function CheckoutScreen() {
                 )}
                 {promoApplied && (
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Promo Discount ({promoCode})</Text>
+                    <Text style={styles.summaryLabel}>Promo Discount ({appliedOffer?.promoCode ?? appliedOffer?.code ?? promoCode})</Text>
                     <Text style={styles.discountValue}>-₹{orderSummary.promoDiscount}</Text>
                   </View>
                 )}
@@ -557,8 +657,8 @@ export default function CheckoutScreen() {
                     autoCapitalize="none"
                   />
                 </View>
-                <TouchableOpacity 
-                  style={[styles.applyButton, promoApplied && styles.appliedButton]} 
+                <TouchableOpacity
+                  style={[styles.applyButton, promoApplied && styles.appliedButton]}
                   onPress={handleApplyPromo}
                   disabled={promoApplied}
                 >
@@ -659,12 +759,11 @@ export default function CheckoutScreen() {
             You save ₹{orderSummary.discount + orderSummary.promoDiscount + orderSummary.trialDiscount}
           </Text>
         </View>
-        <TouchableOpacity style={styles.placeOrderButton} onPress={handlePlaceOrder}> 
+        <TouchableOpacity style={styles.placeOrderButton} onPress={handlePlaceOrder}>
           <Text style={styles.placeOrderButtonText}>
             {isGuest ? 'Login & Place Order' : orderSummary.payableAmount === 0 ? 'Activate Now' : 'Pay Now'}
           </Text>
         </TouchableOpacity>
-        
       </View>
 
       {/* Payment Modal */}
@@ -684,7 +783,7 @@ export default function CheckoutScreen() {
                 <Text style={styles.modalSubtitle}>Please wait while we process your payment...</Text>
               </>
             )}
-            
+
             {paymentStatus === 'success' && (
               <>
                 <CheckCircle size={60} color="#10B981" />
@@ -700,7 +799,7 @@ export default function CheckoutScreen() {
                 )}
               </>
             )}
-            
+
             {paymentStatus === 'failed' && (
               <>
                 <XCircle size={60} color="#EF4444" />
@@ -709,14 +808,14 @@ export default function CheckoutScreen() {
                   There was an issue processing your payment. Please try again.
                 </Text>
                 <View style={styles.modalButtons}>
-                  <TouchableOpacity 
-                    style={styles.retryButton} 
+                  <TouchableOpacity
+                    style={styles.retryButton}
                     onPress={retryPayment}
                   >
                     <Text style={styles.retryButtonText}>Retry Payment</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.cancelButton} 
+                  <TouchableOpacity
+                    style={styles.cancelButton}
                     onPress={() => setShowPaymentModal(false)}
                   >
                     <Text style={styles.cancelButtonText}>Cancel</Text>
