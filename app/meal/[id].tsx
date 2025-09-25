@@ -232,16 +232,13 @@ export default function MealDetailScreen() {
   const handleProceed = () => {
     if (!meal) return;
     
-    const excludeWeekends = weekendExclusion === 'saturdays' || weekendExclusion === 'sundays' || weekendExclusion === 'both';
-
     const subscriptionData = {
       meal,
       plan: selectedPlan,
       addOns: selectedAddOns,
       mealType: selectedMealType,
       timeSlot: selectedTimeSlot ?? undefined,
-      excludeWeekends,
-      weekendExclusion,
+      weekType,
       startDate,
       isTrialMode,
       totalPrice: calculateTotalPrice(),
@@ -596,30 +593,9 @@ export default function MealDetailScreen() {
             </View>
           </View>
 
-          {/* Weekend Exclusion & Start Date */}
+          {/* Start Date */}
           <View style={styles.section}>
-            <View style={styles.toggleContainer}>
-              <Text style={styles.sectionTitle}>Weekend Exclusions</Text>
-            </View>
-            <View style={styles.weekendOptionsRow}>
-              {(['saturdays','sundays','both'] as const).map((opt) => {
-                const isSelected = weekendExclusion === opt;
-                const label = opt === 'saturdays' ? 'Saturdays' : opt === 'sundays' ? 'Sundays' : 'Both';
-                return (
-                  <TouchableOpacity
-                    key={opt}
-                    testID={`weekend-option-${opt}`}
-                    style={[styles.weekendOptionButton, isSelected && styles.weekendOptionSelected]}
-                    onPress={() => {
-                      console.log('Weekend exclusion changed', opt);
-                      setWeekendExclusion(opt);
-                    }}
-                  >
-                    <Text style={[styles.weekendOptionText, isSelected && styles.weekendOptionTextSelected]}>{label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            
             <TouchableOpacity 
               style={styles.dateSelector}
               onPress={() => setShowDatePicker(true)}

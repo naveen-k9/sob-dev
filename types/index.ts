@@ -139,7 +139,8 @@ export interface Subscription {
   deliveryTime?: string;
   deliveryTimeSlot?: string;
   excludeWeekends?: boolean;
-  weekendExclusion?: 'both' | 'saturday' | 'sunday' | 'none';
+  weekType: 'none' | 'mon-fri' | 'mon-sat';
+  weekendExclusion?: string;
   status: 'active' | 'paused' | 'cancelled' | 'completed';
   paymentStatus?: 'pending' | 'paid' | 'failed' | 'refunded';
   totalAmount: number;

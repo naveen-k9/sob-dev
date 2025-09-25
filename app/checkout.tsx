@@ -40,7 +40,6 @@ export default function CheckoutScreen() {
   const [canGoBack, setCanGoBack] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [showAddressBook, setShowAddressBook] = useState<boolean>(false);
-  const [weekendExclusion, setWeekendExclusion] = useState<'none' | 'saturday' | 'sunday' | 'both'>('none');
 
   React.useEffect(() => {
     setCanGoBack(routerInstance.canGoBack());
@@ -51,9 +50,7 @@ export default function CheckoutScreen() {
       try {
         const parsedData = JSON.parse(subscriptionData);
         setSubscriptionDetails(parsedData);
-        const initialExclusion: 'none' | 'saturday' | 'sunday' | 'both' = (parsedData.weekendExclusion as 'none' | 'saturday' | 'sunday' | 'both' | undefined)
-          ?? (parsedData.excludeWeekends ? 'both' : 'none');
-        setWeekendExclusion(initialExclusion);
+
       } catch (error) {
         console.error('Error parsing subscription data:', error);
         Alert.alert('Error', 'Invalid subscription data');
@@ -192,24 +189,33 @@ export default function CheckoutScreen() {
   const computeEndDate = (
     start: Date,
     durationDays: number,
-    exclusion: 'none' | 'saturday' | 'sunday' | 'both'
+    weekType: 'mon-fri' | 'mon-sat'
   ): Date => {
     const end = new Date(start);
     let served = 0;
+
     while (served < durationDays) {
-      const day = end.getDay();
-      const isSat = day === 6;
-      const isSun = day === 0;
-      const excluded = exclusion === 'both' || (exclusion === 'saturday' && isSat) || (exclusion === 'sunday' && isSun);
-      if (!excluded) {
+      const day = end.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+
+      let isWorkingDay = false;
+      if (weekType === 'mon-fri') {
+        isWorkingDay = day >= 1 && day <= 5; // Mon to Fri
+      } else if (weekType === 'mon-sat') {
+        isWorkingDay = day >= 1 && day <= 6; // Mon to Sat
+      }
+
+      if (isWorkingDay) {
         served += 1;
       }
+
       if (served < durationDays) {
         end.setDate(end.getDate() + 1);
       }
     }
+
     return end;
   };
+
 
   const handleApplyReferral = async () => {
     if (!user?.id) {
@@ -313,7 +319,7 @@ export default function CheckoutScreen() {
       setPaymentStatus('processing');
       setTimeout(async () => {
         setPaymentStatus('success');
-
+        console.log('Deducting wallet --- IGNORE ---');
         if (user?.id && orderSummary.walletAppliedAmount > 0) {
           try {
             await db.addWalletTransaction({
@@ -329,9 +335,10 @@ export default function CheckoutScreen() {
           }
         }
 
+        console.log('PaymentStatus after wallet --- IGNORE ---');
         // Save subscription to database
         const startDate = new Date(subscriptionDetails.startDate);
-        const endDate = computeEndDate(startDate, subscriptionDetails.plan.duration, weekendExclusion);
+        const endDate = computeEndDate(startDate, subscriptionDetails.plan.duration, subscriptionDetails.weekType);
 
         const subscription = {
           userId: user?.id || 'guest',
@@ -341,7 +348,9 @@ export default function CheckoutScreen() {
           endDate: endDate,
           deliveryTime: subscriptionDetails.timeSlot.time,
           deliveryTimeSlot: subscriptionDetails.timeSlot.time,
-          weekendExclusion: weekendExclusion,
+          weekType: subscriptionDetails.weekType,
+          weekendExclusion: subscriptionDetails.weekType === 'mon-sat' ? 'sunday' : 'both',
+          excludeWeekends: subscriptionDetails.weekType === 'mon-sat' ? true : false,
           status: 'active' as const,
           totalAmount: orderSummary.finalAmount,
           paidAmount: orderSummary.finalAmount,
@@ -352,20 +361,23 @@ export default function CheckoutScreen() {
           additionalAddOns: {},
           specialInstructions: deliveryInstructions,
         };
-
+        console.log('Creating subscription:', subscription);
         try {
           await db.createSubscription(subscription);
           console.log('Subscription created successfully');
         } catch (error) {
           console.error('Error creating subscription:', error);
         }
-
         setTimeout(() => {
           setShowPaymentModal(false);
-          router.replace('/(tabs)');
+          // Wait for modal to close before navigating
+          setTimeout(() => {
+            if (router.dismiss) {
+              router.dismiss();
+            }
+            router.replace('/(tabs)/orders');
+          }, 100);
         }, 2000);
-        setPaymentStatus('success');
-       
       }, 1500);
       return;
     }
@@ -419,8 +431,10 @@ export default function CheckoutScreen() {
       .then(async (data: { razorpay_payment_id: string }) => {
         // alert(`Success: ${data.razorpay_payment_id}`);
         // Always close payment modal and overlays
-        setShowPaymentModal(false);
+        // setShowPaymentModal(false);
         // ...existing code...
+        setShowPaymentModal(true);
+        setPaymentStatus('success');
         if (user?.id && orderSummary.walletAppliedAmount > 0) {
           try {
             await db.addWalletTransaction({
@@ -436,9 +450,13 @@ export default function CheckoutScreen() {
           }
         }
 
+        console.log('PaymentStatus after wallet --- IGNORE ---');
+
         // Save subscription to database
         const startDate = new Date(subscriptionDetails.startDate);
-        const endDate = computeEndDate(startDate, subscriptionDetails.plan.duration, weekendExclusion);
+        console.log('Start Date:', startDate);
+        const endDate = computeEndDate(startDate, subscriptionDetails.plan.duration, subscriptionDetails.weekType);
+        console.log('End Date:', endDate);
 
         const subscription = {
           userId: user?.id || 'guest',
@@ -448,7 +466,9 @@ export default function CheckoutScreen() {
           endDate: endDate,
           deliveryTime: subscriptionDetails.timeSlot.time,
           deliveryTimeSlot: subscriptionDetails.timeSlot.time,
-          weekendExclusion: weekendExclusion,
+          weekType: subscriptionDetails.weekType,
+          weekendExclusion: subscriptionDetails.weekType === 'mon-sat' ? 'sunday' : 'both',
+          excludeWeekends: subscriptionDetails.weekType === 'mon-sat' ? true : false,
           status: 'active' as const,
           totalAmount: orderSummary.finalAmount,
           paidAmount: orderSummary.finalAmount,
@@ -459,6 +479,7 @@ export default function CheckoutScreen() {
           additionalAddOns: {},
           specialInstructions: deliveryInstructions,
         };
+        console.log('Creating subscription:', subscription);
 
         try {
           await db.createSubscription(subscription);
@@ -468,9 +489,11 @@ export default function CheckoutScreen() {
         }
 
         // Force navigation reset to orders tab
-        if (router.dismiss) {
-          router.dismiss(); // If using expo-router v3+, this will close the modal/screen
-        }
+        // if (router.dismiss) {
+        //   router.dismiss(); // If using expo-router v3+, this will close the modal/screen
+        // }
+
+        setShowPaymentModal(false);
         setTimeout(() => {
           router.replace('/(tabs)');
           setTimeout(() => {
@@ -505,7 +528,7 @@ export default function CheckoutScreen() {
 
       // Save subscription on retry as well
       const startDate = new Date(subscriptionDetails.startDate);
-      const endDate = computeEndDate(startDate, subscriptionDetails.plan.duration, weekendExclusion);
+      const endDate = computeEndDate(startDate, subscriptionDetails.plan.duration, subscriptionDetails.weekType);
 
       const subscription = {
         userId: user?.id || 'guest',
@@ -515,7 +538,9 @@ export default function CheckoutScreen() {
         endDate: endDate,
         deliveryTime: subscriptionDetails.timeSlot.time,
         deliveryTimeSlot: subscriptionDetails.timeSlot.time,
-        weekendExclusion,
+        weekType: subscriptionDetails.weekType,
+        excludeWeekends: subscriptionDetails.weekType === 'mon-sat' ? true : false,
+        weekendExclusion: subscriptionDetails.weekType === 'mon-sat' ? 'sunday' : 'both' ,
         status: 'active' as const,
         totalAmount: orderSummary.finalAmount,
         paidAmount: orderSummary.finalAmount,
@@ -657,48 +682,6 @@ export default function CheckoutScreen() {
               </View>
             </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Weekend Exclusions</Text>
-              <View style={styles.weekendRow}>
-                <TouchableOpacity
-                  testID="weekend-saturday"
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: weekendExclusion === 'saturday' }}
-                  style={[styles.weekendChip, weekendExclusion === 'saturday' && styles.weekendChipActive]}
-                  onPress={() => setWeekendExclusion('saturday')}
-                >
-                  <Text style={[styles.weekendChipText, weekendExclusion === 'saturday' && styles.weekendChipTextActive]}>Saturdays</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  testID="weekend-sunday"
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: weekendExclusion === 'sunday' }}
-                  style={[styles.weekendChip, weekendExclusion === 'sunday' && styles.weekendChipActive]}
-                  onPress={() => setWeekendExclusion('sunday')}
-                >
-                  <Text style={[styles.weekendChipText, weekendExclusion === 'sunday' && styles.weekendChipTextActive]}>Sundays</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  testID="weekend-both"
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: weekendExclusion === 'both' }}
-                  style={[styles.weekendChip, weekendExclusion === 'both' && styles.weekendChipActive]}
-                  onPress={() => setWeekendExclusion('both')}
-                >
-                  <Text style={[styles.weekendChipText, weekendExclusion === 'both' && styles.weekendChipTextActive]}>Both</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  testID="weekend-none"
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: weekendExclusion === 'none' }}
-                  style={[styles.weekendChip, weekendExclusion === 'none' && styles.weekendChipActive]}
-                  onPress={() => setWeekendExclusion('none')}
-                >
-                  <Text style={[styles.weekendChipText, weekendExclusion === 'none' && styles.weekendChipTextActive]}>None</Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.weekendHelp}>Choose which weekend days to skip deliveries for this subscription.</Text>
-            </View>
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Promo Code</Text>

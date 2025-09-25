@@ -21,7 +21,7 @@ class Database {
 
   async initialize() {
     if (this.initialized) return;
-    
+
     await this.seedData();
     this.initialized = true;
     console.log('Database initialized successfully');
@@ -394,7 +394,7 @@ class Database {
       id: Date.now().toString(),
       createdAt: new Date(),
     };
-    
+
     try {
       await fbCreateSubscription(newSubscription);
     } catch (e) {
@@ -402,11 +402,11 @@ class Database {
       subscriptions.push(newSubscription);
       await this.setItem('subscriptions', subscriptions);
     }
-    
+
     if (subscriptionData.planId === '4') {
       await this.creditReferralReward(newSubscription.id);
     }
-    
+
     return newSubscription;
   }
 
@@ -430,12 +430,12 @@ class Database {
     };
     orders.push(newOrder);
     await this.setItem('orders', orders);
-    
+
     // Update streak when order is delivered
     if (newOrder.status === 'delivered') {
       await this.updateUserStreak(newOrder.userId);
     }
-    
+
     return newOrder;
   }
 
@@ -443,11 +443,11 @@ class Database {
     const orders = await this.getOrders();
     const index = orders.findIndex(order => order.id === id);
     if (index === -1) return null;
-    
+
     const previousStatus = orders[index].status;
     orders[index] = { ...orders[index], ...updates, updatedAt: new Date() };
     await this.setItem('orders', orders);
-    
+
     // Auto notifications on status changes
     if (updates.status && updates.status !== previousStatus) {
       const userId = orders[index].userId;
@@ -493,12 +493,12 @@ class Database {
         await this.cancelDeliveryAckReminders(id);
       }
     }
-    
+
     // Update streak when order status changes to delivered
     if (previousStatus !== 'delivered' && updates.status === 'delivered') {
       await this.updateUserStreak(orders[index].userId);
     }
-    
+
     return orders[index];
   }
 
@@ -696,8 +696,8 @@ class Database {
     const banners = await this.getBanners();
     const now = new Date();
     return banners
-      .filter(banner => 
-        banner.isActive && 
+      .filter(banner =>
+        banner.isActive &&
         (!banner.startDate || new Date(banner.startDate) <= now) &&
         (!banner.endDate || new Date(banner.endDate) >= now)
       )
@@ -722,9 +722,9 @@ class Database {
   async getActiveOffers(): Promise<Offer[]> {
     const offers = await this.getOffers();
     const now = new Date();
-    return offers.filter(offer => 
-      offer.isActive && 
-      new Date(offer.validFrom) <= now && 
+    return offers.filter(offer =>
+      offer.isActive &&
+      new Date(offer.validFrom) <= now &&
       new Date(offer.validTo) >= now
     );
   }
@@ -744,16 +744,16 @@ class Database {
     };
     transactions.push(newTransaction);
     await this.setItem('walletTransactions', transactions);
-    
+
     // Update user wallet balance
     const user = await this.getUserById(transactionData.userId);
     if (user) {
-      const newBalance = transactionData.type === 'credit' 
+      const newBalance = transactionData.type === 'credit'
         ? user.walletBalance + transactionData.amount
         : user.walletBalance - transactionData.amount;
       await this.updateUser(user.id, { walletBalance: Math.max(0, newBalance) });
     }
-    
+
     return newTransaction;
   }
 
@@ -819,7 +819,7 @@ class Database {
     const tickets = await this.getSupportTickets();
     const index = tickets.findIndex(ticket => ticket.id === id);
     if (index === -1) return null;
-    
+
     tickets[index] = { ...tickets[index], ...updates, updatedAt: new Date() };
     await this.setItem('supportTickets', tickets);
     return tickets[index];
@@ -901,10 +901,10 @@ class Database {
     };
     messages.push(newMessage);
     await this.setItem('supportMessages', messages);
-    
+
     // Update ticket's updatedAt timestamp
     await this.updateSupportTicket(messageData.ticketId, {});
-    
+
     return newMessage;
   }
 
@@ -921,14 +921,14 @@ class Database {
   async markSupportMessagesAsDelivered(ticketId: string, userId: string): Promise<void> {
     const messages = await this.getItem('supportMessages') || [];
     let updated = false;
-    
+
     messages.forEach((message: SupportMessage) => {
       if (message.ticketId === ticketId && message.senderId !== userId && message.deliveryStatus === 'sent') {
         message.deliveryStatus = 'delivered';
         updated = true;
       }
     });
-    
+
     if (updated) {
       await this.setItem('supportMessages', messages);
     }
@@ -1139,6 +1139,7 @@ class Database {
   }
 
   async createManualSubscription(subscriptionData: {
+    weekType: string;
     userId: string;
     planId: string;
     mealId: string;
@@ -1152,17 +1153,26 @@ class Database {
     const plan = await this.getPlanById(subscriptionData.planId);
     const planDays = plan?.days ?? 0;
     const start = new Date(subscriptionData.startDate);
-    const exclusion: 'none' | 'saturday' | 'sunday' | 'both' = subscriptionData.weekendExclusion ?? 'both';
+    const allowedWeekTypes = ['mon-fri', 'mon-sat'] as const;
+    const weekType: 'mon-fri' | 'mon-sat' = allowedWeekTypes.includes(subscriptionData.weekType as any)
+      ? subscriptionData.weekType as 'mon-fri' | 'mon-sat'
+      : 'mon-fri';
     const end = new Date(start);
     let served = 0;
     while (served < planDays) {
-      const day = end.getDay();
-      const isSat = day === 6;
-      const isSun = day === 0;
-      const excluded = exclusion === 'both' || (exclusion === 'saturday' && isSat) || (exclusion === 'sunday' && isSun);
-      if (!excluded) {
+      const day = end.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+
+      let isWorkingDay = false;
+      if (weekType === 'mon-fri') {
+        isWorkingDay = day >= 1 && day <= 5; // Mon to Fri
+      } else if (weekType === 'mon-sat') {
+        isWorkingDay = day >= 1 && day <= 6; // Mon to Sat
+      }
+
+      if (isWorkingDay) {
         served += 1;
       }
+
       if (served < planDays) {
         end.setDate(end.getDate() + 1);
       }
@@ -1177,7 +1187,11 @@ class Database {
       startDate: start,
       endDate: end,
       deliveryTimeSlot: subscriptionData.deliveryTimeSlot ?? '12:00 PM - 1:00 PM',
-      weekendExclusion: subscriptionData.weekendExclusion ?? 'both',
+      weekendExclusion: 'sunday',
+      weekType: ['mon-fri', 'mon-sat', 'none'].includes(subscriptionData?.weekType as any)
+        ? (subscriptionData?.weekType as 'mon-fri' | 'mon-sat' | 'none')
+        : 'none',
+  
       totalAmount: subscriptionData.price,
       status: 'active',
       paymentStatus: 'paid',
@@ -1221,11 +1235,11 @@ class Database {
     deliveryFee?: number;
   }): Promise<ServiceableLocation> {
     const locations = await this.getServiceableLocations();
-    
+
     // Calculate center point of polygon
     const centerLat = locationData.polygon.reduce((sum, point) => sum + point.latitude, 0) / locationData.polygon.length;
     const centerLng = locationData.polygon.reduce((sum, point) => sum + point.longitude, 0) / locationData.polygon.length;
-    
+
     const newLocation: ServiceableLocation = {
       id: Date.now().toString(),
       name: locationData.name,
@@ -1238,7 +1252,7 @@ class Database {
       isActive: true,
       polygon: locationData.polygon,
     };
-    
+
     locations.push(newLocation);
     await this.setItem('serviceableLocations', locations);
     return newLocation;
@@ -1284,7 +1298,7 @@ class Database {
     if (!user || !user.referredBy) return;
 
     const referralRewards = await this.getItem('referralRewards') || [];
-    const pendingReward = referralRewards.find((reward: ReferralReward) => 
+    const pendingReward = referralRewards.find((reward: ReferralReward) =>
       reward.referredUserId === user.id && reward.status === 'pending'
     );
 
@@ -1350,7 +1364,7 @@ class Database {
   async initializeUserStreak(userId: string): Promise<void> {
     const userStreaks = await this.getItem('userStreaks') || [];
     const existingStreak = userStreaks.find((streak: UserStreak) => streak.userId === userId);
-    
+
     if (!existingStreak) {
       const newStreak: UserStreak = {
         userId,
@@ -1367,7 +1381,7 @@ class Database {
   async updateUserStreak(userId: string): Promise<void> {
     const userStreaks = await this.getItem('userStreaks') || [];
     const streakIndex = userStreaks.findIndex((streak: UserStreak) => streak.userId === userId);
-    
+
     if (streakIndex === -1) {
       await this.initializeUserStreak(userId);
       return this.updateUserStreak(userId);
@@ -1415,7 +1429,7 @@ class Database {
     if (!milestone) return;
 
     const streakRewards = await this.getItem('streakRewards') || [];
-    const existingReward = streakRewards.find((reward: StreakReward) => 
+    const existingReward = streakRewards.find((reward: StreakReward) =>
       reward.userId === userId && reward.streakCount === currentStreak
     );
 
@@ -1471,7 +1485,7 @@ class Database {
     const meals = await this.getMeals();
     const index = meals.findIndex(meal => meal.id === mealId);
     if (index === -1) return null;
-    
+
     meals[index].isDraft = !meals[index].isDraft;
     await this.setItem('meals', meals);
     return meals[index];
@@ -1481,7 +1495,7 @@ class Database {
     const meals = await this.getMeals();
     const index = meals.findIndex(meal => meal.id === mealId);
     if (index === -1) return null;
-    
+
     meals[index] = { ...meals[index], ...updates };
     await this.setItem('meals', meals);
     return meals[index];
@@ -1626,7 +1640,7 @@ class Database {
         reviewCount: 128,
         preparationTime: 25,
         tags: ['High Protein', 'Gluten Free'],
-        availableTimeSlotIds: ['1','2'],
+        availableTimeSlotIds: ['1', '2'],
       },
       {
         id: '2',
@@ -1654,7 +1668,7 @@ class Database {
         reviewCount: 95,
         preparationTime: 20,
         tags: ['Vegetarian', 'High Protein'],
-        availableTimeSlotIds: ['1','2','3'],
+        availableTimeSlotIds: ['1', '2', '3'],
       },
       {
         id: '3',
@@ -1682,7 +1696,7 @@ class Database {
         reviewCount: 156,
         preparationTime: 30,
         tags: ['Omega-3', 'High Protein'],
-        availableTimeSlotIds: ['3','4'],
+        availableTimeSlotIds: ['3', '4'],
       },
       {
         id: '4',
@@ -2129,7 +2143,8 @@ class Database {
         startDate: new Date(),
         endDate: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000),
         deliveryTimeSlot: '12:00 PM - 1:00 PM',
-        weekendExclusion: 'both',
+        weekendExclusion: 'sunday',
+        weekType: 'mon-fri',
         totalAmount: 1499,
         paidAmount: 1499,
         totalDeliveries: 6,
@@ -2149,7 +2164,8 @@ class Database {
         startDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
         endDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
         deliveryTimeSlot: '7:00 PM - 8:00 PM',
-        weekendExclusion: 'none',
+        weekendExclusion: 'sunday',
+        weekType: 'mon-fri',
         totalAmount: 3599,
         paidAmount: 3599,
         totalDeliveries: 15,
@@ -2169,7 +2185,8 @@ class Database {
         startDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
         endDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
         deliveryTimeSlot: '1:00 PM - 2:00 PM',
-        weekendExclusion: 'both',
+        weekendExclusion: 'sunday',
+        weekType: 'mon-fri',
         totalAmount: 299,
         paidAmount: 299,
         totalDeliveries: 2,

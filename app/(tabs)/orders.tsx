@@ -159,7 +159,7 @@ export default function OrdersScreen() {
     }
   };
 
-  const resolveWeekendExclusion = (sub: Subscription): 'both' | 'saturday' | 'sunday' | 'none' => {
+  const resolveWeekendExclusion = (sub: Subscription): string => {
     const fromNew = sub.weekendExclusion ?? null;
     if (fromNew) return fromNew;
     if (sub.excludeWeekends === true) return 'both';
