@@ -29,6 +29,7 @@ import db from '@/db';
 import { useQuery } from '@tanstack/react-query';
 import { fetchBanners, fetchCategories, fetchMeals, fetchTestimonials } from '@/services/firebase';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import MealCard from '@/components/MealCard';
 
 const TOP_BG_HEIGHT = Math.round(Dimensions.get('window').height * 0.36);
 
@@ -143,10 +144,19 @@ export default function HomeScreen() {
   };
 
   const renderMealGrid = ({ item }: { item: any }) => (
-    <MealGridCard
+    <MealCard
       meal={item}
       onPress={() => handleMealPress(item.id)}
-      onAddPress={() => handleMealPress(item.id)}
+      onSubscribe={() => handleMealPress(item.id)}
+      onTryNow={() => handleMealPress(item.id)}
+    />
+  );
+
+  const renderCollectionsGrid = ({ item }: { item: any }) => (
+    <MealGridCard
+      category={item}
+      onPress={() => handleCategoryPress(item.id)}
+     
     />
   );
 
@@ -165,6 +175,7 @@ export default function HomeScreen() {
         handleOfferPress={handleOfferPress}
         handleBannerPress={handleBannerPress}
         renderMealGrid={renderMealGrid}
+         renderCollectionsGrid={renderCollectionsGrid}
         showOfferModal={showOfferModal}
         selectedOffer={selectedOffer}
         handleUseOffer={handleUseOffer}
@@ -197,6 +208,7 @@ function CustomerHomeScreen({
   selectedOffer,
   handleUseOffer,
   handleCloseOfferModal,
+  renderCollectionsGrid,
   mySubscriptions,
   subsLoading,
   refreshing,
@@ -216,6 +228,7 @@ function CustomerHomeScreen({
   handleOfferPress: (id: string) => void;
   handleBannerPress: (b: Banner) => void;
   renderMealGrid: ({ item }: { item: any }) => React.ReactElement;
+  renderCollectionsGrid: ({ item }: { item: any }) => React.ReactElement;
   showOfferModal: boolean;
   selectedOffer: Offer | null;
   handleUseOffer: (offer: Offer) => void;
@@ -270,7 +283,7 @@ function CustomerHomeScreen({
         }}
         scrollEventThrottle={16}
       >
-        <View style={[styles.topBg, { height: TOP_BG_HEIGHT }]}> 
+        <View style={[styles.topBg, { height: TOP_BG_HEIGHT }]}>
           <ExpoImage
             source={{ uri: 'https://i0.wp.com/bestgrafix.com/wp-content/uploads/2024/09/Halloween-GIF-7.gif' }}
             style={styles.heroImage}
@@ -291,9 +304,9 @@ function CustomerHomeScreen({
                 <View style={styles.walletIcon} />
                 <Text style={styles.walletText}>Rs 0</Text>
               </View>
-        <TouchableOpacity style={styles.profileCircle} onPress={() => router.push('/profile')} testID="profile-button">
-          <User2 size={27} color="#A3D397" />
-        </TouchableOpacity>
+              <TouchableOpacity style={styles.profileCircle} onPress={() => router.push('/profile')} testID="profile-button">
+                <User2 size={27} color="#48479B" />
+              </TouchableOpacity>
             </View>
 
           </View>
@@ -333,7 +346,7 @@ function CustomerHomeScreen({
           )}
         </View>
 
-        
+
 
         <View style={[styles.section]}>
           <Text style={styles.sectionTitle}>Meal Time</Text>
@@ -365,11 +378,21 @@ function CustomerHomeScreen({
               <Text style={styles.errorText}>Failed to load categories</Text>
             </View>
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-              {collectionCategories.map((category: Category) => (
-                <CategoryCard key={category.id} category={category} onPress={() => handleCategoryPress(category.id)} />
-              ))}
-            </ScrollView>
+            // <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+            //   {collectionCategories.map((category: Category) => (
+            //     <CategoryCard key={category.id} category={category} onPress={() => handleCategoryPress(category.id)} />
+            //   ))}
+            // </ScrollView>
+            <View style={styles.mealGrid}>
+              <FlatList
+                data={collectionCategories}
+                renderItem={renderCollectionsGrid}
+                keyExtractor={(item) => item.id}
+                numColumns={2}
+                columnWrapperStyle={styles.gridRow}
+                scrollEnabled={false}
+              />
+            </View>
           )}
         </View>
 
@@ -451,30 +474,30 @@ function CustomerHomeScreen({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
-  topBg: { width: '100%', paddingBottom: 0, position: 'relative', overflow: 'hidden' },
+  topBg: { width: '100%', paddingTop: 9, position: 'relative', overflow: 'hidden' },
   heroImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   bgImage: { resizeMode: 'cover' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal:18, paddingVertical: 9, backgroundColor: 'transparent' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 9, backgroundColor: 'transparent' },
   location: { flexDirection: 'row', alignItems: 'center' },
   locationText: { marginLeft: 9, marginRight: 3, fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   walletPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(163, 211, 151, 0.27)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, marginRight: 8 },
   walletIcon: { width: 18, height: 18, backgroundColor: '#A3D397', borderRadius: 4, marginRight: 6 },
   walletText: { color: '#FFFFFF', fontWeight: '700' },
-  profileCircle: { 
-     width: 45,
+  profileCircle: {
+    width: 45,
     height: 45,
     borderRadius: 27,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 0,
-    backgroundColor: '#ffffff' 
+    backgroundColor: '#ffffff'
   },
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 20 },
-  section: { marginBottom: 18,marginTop: 18 },
+  section: { marginBottom: 9, marginTop: 18 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, marginBottom: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#48489b', paddingHorizontal: 18, paddingBottom: 9 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#000000', paddingHorizontal: 18, paddingBottom: 9 },
   seeAll: { fontSize: 14, color: '#A3D397', fontWeight: '700' },
   horizontalScroll: { paddingLeft: 18 },
   mealGrid: { paddingHorizontal: 18 },
@@ -489,12 +512,12 @@ const styles = StyleSheet.create({
   errorText: { color: '#EF4444' },
   mt8: { marginTop: 8 },
   bannersRow: { paddingRight: 20 },
-  bannersContainer: { position: 'absolute', left: 0, right: 0, bottom:18 },
-  bannerCard: { width: 126, height:126, marginRight: 18, borderRadius: 18, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.27)' },
+  bannersContainer: { position: 'absolute', left: 0, right: 0, bottom: 18 },
+  bannerCard: { width: 126, height: 126, marginRight: 18, borderRadius: 18, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.27)' },
   bannerImage: { width: '100%', height: '100%' },
   bannerOverlay: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(72,72,135,0.27)' },
   bannerTitle: { position: 'absolute', bottom: 9, left: 9, right: 9, color: '#fff', fontWeight: '900', fontSize: 14 },
-  bottomSpacing: { height:18 },
+  bottomSpacing: { height: 18 },
   subscriptionCard: { backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 12, padding: 16, marginHorizontal: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(163,211,151,0.35)' },
   subscriptionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   subscriptionTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },

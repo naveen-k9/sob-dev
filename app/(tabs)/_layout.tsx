@@ -27,8 +27,8 @@ export default function TabLayout() {
         headerShown: false,
         sceneStyle: styles.scene,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: '#A3D397',
+        tabBarActiveTintColor: Colors.accent,
+        tabBarInactiveTintColor:  Colors.primary,
         tabBarLabelStyle: styles.tabLabel,
       }}
     >
@@ -68,7 +68,7 @@ export default function TabLayout() {
               return (
                 <TouchableOpacity
                   {...safeProps}
-                  style={[style, { top: -18, justifyContent: 'center', alignItems: 'center' }]}
+                  style={[style, { top: 9, justifyContent: 'center', alignItems: 'center' }]}
                   onPress={() => router.push("/profile")}
                 />
               );
@@ -79,6 +79,15 @@ export default function TabLayout() {
       )}
 
       {/* Right Tab 1 */}
+       {!isAdmin() && !isKitchen() && !isDelivery() && (
+        <Tabs.Screen
+          name="refer"
+          options={{
+            title: "Refer",
+            tabBarIcon: ({ color, size }) => <Gift color={color} size={size} />,
+          }}
+        />
+      )}
       <Tabs.Screen
         name="orders"
         options={{
@@ -88,15 +97,7 @@ export default function TabLayout() {
       />
 
       {/* Right Tab 2 */}
-      {!isAdmin() && !isKitchen() && !isDelivery() && (
-        <Tabs.Screen
-          name="refer"
-          options={{
-            title: "Refer",
-            tabBarIcon: ({ color, size }) => <Gift color={color} size={size} />,
-          }}
-        />
-      )}
+     
     </Tabs>
   );
 }

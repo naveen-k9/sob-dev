@@ -8,39 +8,27 @@ import {
   Dimensions,
 } from 'react-native';
 import { Star, Leaf, Plus } from 'lucide-react-native';
-import { Meal } from '@/types';
+import { Category, Meal } from '@/types';
 
 const { width } = Dimensions.get('window');
-const cardWidth = (width - 60) / 2;
+const cardWidth = (width - 50) / 2;
 
 interface MealGridCardProps {
-  meal: Meal;
+  category: Category;
   onPress: () => void;
-  onAddPress: () => void;
 }
 
-export default function MealGridCard({ meal, onPress, onAddPress }: MealGridCardProps) {
+export default function MealGridCard({ category, onPress }: MealGridCardProps) {
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>
       <View style={styles.imageContainer}>
-        <Image source={{ uri: meal.images[0] }} style={styles.image} />
-        {meal.isVeg && (
-          <View style={styles.vegBadge}>
-            <Leaf size={12} color="#4CAF50" />
-          </View>
-        )}
-        {meal.originalPrice && (
-          <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>
-              {Math.round(((meal.originalPrice - meal.price) / meal.originalPrice) * 100)}% OFF
-            </Text>
-          </View>
-        )}
+        <Image source={{ uri: category.image }} style={styles.image} />
+       
       </View>
       
       <View style={styles.content}>
         <Text style={styles.name} numberOfLines={2}>
-          {meal.name}
+          {category.name}
         </Text>
         
         {/* <View style={styles.rating}>
@@ -49,22 +37,8 @@ export default function MealGridCard({ meal, onPress, onAddPress }: MealGridCard
             {meal.rating} ({meal.reviewCount})
           </Text>
         </View> */}
-        <View style={styles.priceRow}>
-            <Text style={styles.price}>₹{meal.price}</Text>
-            {meal.originalPrice && (
-              <Text style={styles.originalPrice}>₹{meal.originalPrice}</Text>
-            )}
-          </View>
         
-        <View style={styles.buttonsContainer}>
-          <TouchableOpacity style={styles.addButton} onPress={onAddPress}>
-            <Text style={[{color:'white'}]}>Try Now</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.addButton} onPress={onAddPress}>
-            <Text style={[{color:'white'}]}>Subscribe</Text>
-          </TouchableOpacity>
-        </View>
+        
       </View>
     </TouchableOpacity>
   );
@@ -118,7 +92,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   content: {
-    padding: 12,
+    padding: 9,
   },
   name: {
     fontSize: 14,
@@ -160,11 +134,11 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   addButton: {
-    backgroundColor: '#48479B',
-    borderRadius: 9,
+    backgroundColor: '#48479B', 
+    borderRadius: 27,
     padding: 9,
     justifyContent: 'center',
     alignItems: 'center',
-    color: '#ffffff',
+    color: '#48479B',
   },
 });

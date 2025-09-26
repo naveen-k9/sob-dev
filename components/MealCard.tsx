@@ -5,6 +5,7 @@ import {
   Image,
   Text,
   StyleSheet,
+  Dimensions,
 } from 'react-native';
 import { Star, Leaf } from 'lucide-react-native';
 import { Meal } from '@/types';
@@ -18,6 +19,9 @@ interface MealCardProps {
   onSubscribe?: (meal: Meal) => void;
 }
 
+const { width } = Dimensions.get('window');
+const cardWidth = (width - 50) / 2;
+
 export default function MealCard({ meal, onPress, onTryNow, onSubscribe }: MealCardProps) {
   const handleTryNow = useCallback(() => {
     console.log('[MealCard] Try Now pressed', { mealId: meal.id });
@@ -27,8 +31,8 @@ export default function MealCard({ meal, onPress, onTryNow, onSubscribe }: MealC
     }
     try {
       router.push({
-        pathname: `/meal/${meal.id}`,
-        params: { mode: 'trial', planId: '1' },
+        pathname: '/meal/[id]',
+        params: { mode: 'trial', planId: '1', id: meal.id },
       });
     } catch (e) {
       console.error('[MealCard] Navigation error (Try Now):', e);
@@ -43,8 +47,8 @@ export default function MealCard({ meal, onPress, onTryNow, onSubscribe }: MealC
     }
     try {
       router.push({
-        pathname: `/meal/${meal.id}`,
-        params: { mode: 'subscribe', planId: '2' },
+        pathname: '/meal/[id]',
+        params: { mode: 'subscribe', planId: '2', id: meal.id },
       });
     } catch (e) {
       console.error('[MealCard] Navigation error (Subscribe):', e);
@@ -59,41 +63,57 @@ export default function MealCard({ meal, onPress, onTryNow, onSubscribe }: MealC
       accessibilityRole="button"
       accessibilityLabel={`Open ${meal.name}`}
     >
-      <Image source={{ uri: meal.images?.[0] ?? '' }} style={styles.image} />
-      
+      <View style={styles.imageContainer}>
+        <Image source={{ uri: meal.images[0] }} style={styles.image} />
+        {meal.isVeg && (
+          <View style={styles.vegBadge}>
+            <Leaf size={12} color="#4CAF50" />
+          </View>
+        )}
+        {meal.originalPrice && (
+          <View style={styles.discountBadge}>
+            <Text style={styles.discountText}>
+              {Math.round(((meal.originalPrice - meal.price) / meal.originalPrice) * 100)}% OFF
+            </Text>
+          </View>
+        )}
+      </View>
+
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.name} numberOfLines={1}>
             {meal.name}
           </Text>
-          {meal.isVeg && <Leaf size={16} color={Colors.accent} />}
+          
         </View>
-        
-        <Text style={styles.description} numberOfLines={2}>
+
+        {/* <Text style={styles.description} numberOfLines={2}>
           {meal.description}
-        </Text>
-        
-        <View style={styles.rating}>
+        </Text> */}
+
+        {/* <View style={styles.rating}>
           <Star size={14} color={Colors.primary} fill={Colors.primary} />
           <Text style={styles.ratingText}>
             {meal.rating} ({meal.reviewCount})
           </Text>
-        </View>
-        
-        <View style={styles.tags}>
+        </View> */}
+
+        {/* <View style={styles.tags}>
           {meal.tags.slice(0, 2).map((tag) => (
             <View key={tag} style={styles.tag}>
               <Text style={styles.tagText}>{tag}</Text>
             </View>
           ))}
-        </View>
-        
+        </View> */}
+
         <View style={styles.priceContainer}>
           <Text style={styles.startingFrom}>Starting from</Text>
-          <Text style={styles.price}> ₹{meal.price}</Text>
-          {meal.originalPrice && (
-            <Text style={styles.originalPrice}>₹{meal.originalPrice}</Text>
-          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {meal.originalPrice && (
+              <Text style={styles.originalPrice}>₹{meal.originalPrice}</Text>
+            )}
+            <Text style={styles.price}> ₹{meal.price}</Text>
+          </View>
         </View>
 
         <View style={styles.ctaRow}>
@@ -127,7 +147,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: 12,
     marginRight: 16,
-    width: 280,
+     marginBottom: 16,
+    width: cardWidth,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -139,13 +160,13 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 160,
+    height: 117,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
     resizeMode: 'cover',
   },
   content: {
-    padding: 16,
+    padding: 9,
   },
   header: {
     flexDirection: 'row',
@@ -154,7 +175,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   name: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.text,
     flex: 1,
@@ -242,6 +263,32 @@ const styles = StyleSheet.create({
   subscribeText: {
     color: Colors.primary,
     fontSize: 14,
+    fontWeight: '600',
+  },
+  imageContainer: {
+    position: 'relative',
+  },
+
+  vegBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 4,
+  },
+  discountBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#48479B',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  discountText: {
+    fontSize: 10,
+    color: 'white',
     fontWeight: '600',
   },
 });
