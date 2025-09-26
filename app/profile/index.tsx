@@ -45,7 +45,7 @@ export default function ProfileScreen() {
       loadUserSubscriptions();
     }
   }, [user]);
-
+ 
   const loadUserSubscriptions = async () => {
     if (!user) return;
     try {

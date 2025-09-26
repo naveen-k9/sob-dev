@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     minWidth: 70,
   },
   selectedCategory: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
   },
   categoryIcon: {
     fontSize: 20,

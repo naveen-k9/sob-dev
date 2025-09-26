@@ -60,7 +60,7 @@ const AdminSupportScreen: React.FC = () => {
       case 'open':
         return <Clock size={16} color="#f59e0b" />;
       case 'in_progress':
-        return <MessageCircle size={16} color="#3b82f6" />;
+        return <MessageCircle size={16} color="#48479B" />;
       case 'resolved':
         return <CheckCircle size={16} color="#10b981" />;
       case 'closed':
@@ -75,7 +75,7 @@ const AdminSupportScreen: React.FC = () => {
       case 'open':
         return '#f59e0b';
       case 'in_progress':
-        return '#3b82f6';
+        return '#48479B';
       case 'resolved':
         return '#10b981';
       case 'closed':
@@ -119,7 +119,7 @@ const AdminSupportScreen: React.FC = () => {
     <View style={styles.statusActions}>
       {ticket.status !== 'in_progress' && (
         <TouchableOpacity
-          style={[styles.statusButton, { backgroundColor: '#3b82f6' }]}
+          style={[styles.statusButton, { backgroundColor: '#48479B' }]}
           onPress={() => handleStatusChange(ticket.id, 'in_progress')}
         >
           <Text style={styles.statusButtonText}>In Progress</Text>
@@ -281,7 +281,7 @@ const AdminSupportScreen: React.FC = () => {
           onPress={() => setFilterModalVisible(true)}
           style={styles.filterButton}
         >
-          <Filter size={24} color="#3b82f6" />
+          <Filter size={24} color="#48479B" />
         </TouchableOpacity>
       </View>
 
@@ -566,8 +566,8 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
   filterOptionActive: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
+    backgroundColor: '#48479B',
+    borderColor: '#48479B',
   },
   filterOptionText: {
     fontSize: 14,
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   modalButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#48479B',
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',

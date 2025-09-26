@@ -128,7 +128,7 @@ const TicketChatScreen: React.FC = () => {
       case 'open':
         return '#f59e0b';
       case 'in_progress':
-        return '#3b82f6';
+        return '#48479B';
       case 'resolved':
         return '#10b981';
       case 'closed':
@@ -180,7 +180,7 @@ const TicketChatScreen: React.FC = () => {
       case 'delivered':
         return <CheckCheck size={12} color="#9ca3af" />;
       case 'read':
-        return <CheckCheck size={12} color="#3b82f6" />;
+        return <CheckCheck size={12} color="#48479B" />;
       default:
         return <Clock size={12} color="#9ca3af" />;
     }
@@ -331,7 +331,7 @@ const TicketChatScreen: React.FC = () => {
                 styles.sendButton,
                 {
                   backgroundColor:
-                    newMessage.trim() && !sending ? '#3b82f6' : '#d1d5db',
+                    newMessage.trim() && !sending ? '#48479B' : '#d1d5db',
                 },
               ]}
               onPress={handleSendMessage}
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 20,
     borderLeftWidth: 4,
-    borderLeftColor: '#3b82f6',
+    borderLeftColor: '#48479B',
   },
   initialMessageText: {
     fontSize: 16,
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   ownMessageBubble: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#48479B',
     borderBottomRightRadius: 4,
   },
   adminMessageBubble: {

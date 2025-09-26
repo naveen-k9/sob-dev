@@ -185,7 +185,7 @@ export default function AdminAddons() {
       ) : null}
 
       <View style={styles.actions}>
-        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#3B82F6' }]} onPress={() => openView(item)} testID={`view-${item.id}`}>
+        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#48479B' }]} onPress={() => openView(item)} testID={`view-${item.id}`}>
           <Eye size={16} color="#fff" />
           <Text style={styles.actionText}>View</Text>
         </TouchableOpacity>

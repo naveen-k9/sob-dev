@@ -45,7 +45,7 @@ export default function PromotionalSection({
   const renderIcon = (iconName?: string) => {
     switch (iconName) {
       case 'gift':
-        return <Gift size={20} color="#FF6B35" />;
+        return <Gift size={20} color="#48479B" />;
       case 'star':
         return <Star size={20} color="#FFD700" />;
       case 'clock':

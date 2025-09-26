@@ -25,6 +25,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import db from '@/db';
 import { ReferralReward, StreakReward } from '@/types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ReferScreen() {
   const { user } = useAuth();
@@ -96,12 +97,13 @@ export default function ReferScreen() {
     const milestones = getStreakMilestones();
     return milestones.find(m => !m.achieved);
   };
+  const insets = useSafeAreaInsets();
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.loginPrompt}>
-          <Gift size={64} color="#FF6B35" />
+          <Gift size={64} color="#48479B" />
           <Text style={styles.loginPromptTitle}>Login to Access Rewards</Text>
           <Text style={styles.loginPromptText}>
             Login to view your referral code, streak rewards, and earnings
@@ -115,7 +117,7 @@ export default function ReferScreen() {
   const streaksToNext = nextMilestone ? nextMilestone.streak - (user.currentStreak || 0) : 0;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView  style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -128,7 +130,7 @@ export default function ReferScreen() {
         {/* Referral Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Gift size={24} color="#FF6B35" />
+            <Gift size={24} color="#48479B" />
             <Text style={styles.sectionTitle}>Your Referral Code</Text>
           </View>
           
@@ -136,11 +138,11 @@ export default function ReferScreen() {
             <Text style={styles.referralCode}>{user.referralCode}</Text>
             <View style={styles.referralActions}>
               <TouchableOpacity style={styles.actionButton} onPress={copyReferralCode}>
-                <Copy size={20} color="#FF6B35" />
+                <Copy size={20} color="#48479B" />
                 <Text style={styles.actionButtonText}>Copy</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionButton} onPress={shareReferralCode}>
-                <Share2 size={20} color="#FF6B35" />
+                <Share2 size={20} color="#48479B" />
                 <Text style={styles.actionButtonText}>Share</Text>
               </TouchableOpacity>
             </View>
@@ -373,7 +375,7 @@ const styles = StyleSheet.create({
   referralCode: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#FF6B35',
+    color: '#48479B',
     letterSpacing: 4,
     marginBottom: 20,
   },
@@ -392,7 +394,7 @@ const styles = StyleSheet.create({
     borderColor: '#FFEDD5',
   },
   actionButtonText: {
-    color: '#FF6B35',
+    color: '#48479B',
     fontWeight: '600',
     marginLeft: 8,
   },
@@ -595,7 +597,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,

@@ -36,7 +36,7 @@ export default function PromotionalAdmin({ visible, onClose }: PromotionalAdminP
       title: '',
       subtitle: '',
       image: '',
-      backgroundColor: '#FF6B35',
+      backgroundColor: '#48479B',
       textColor: '#FFFFFF',
       icon: '',
       actionType: 'category',
@@ -212,7 +212,7 @@ export default function PromotionalAdmin({ visible, onClose }: PromotionalAdminP
                   style={styles.input}
                   value={editingItem?.backgroundColor}
                   onChangeText={(text) => setEditingItem(prev => prev ? {...prev, backgroundColor: text} : null)}
-                  placeholder="#FF6B35"
+                  placeholder="#48479B"
                 />
 
                 <Text style={styles.fieldLabel}>Action Type</Text>

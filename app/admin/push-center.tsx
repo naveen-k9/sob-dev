@@ -54,7 +54,7 @@ export default function PushCenterScreen() {
       <Stack.Screen options={{ headerTitle: 'Push Center' }} />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.previewCard}>
-          <Bell color="#FF6B35" size={24} />
+          <Bell color="#48479B" size={24} />
           <Text style={styles.previewTitle} numberOfLines={1}>{title || 'Notification Title'}</Text>
           <Text style={styles.previewBody} numberOfLines={2}>{message || 'Your message preview appears here.'}</Text>
         </View>
@@ -147,10 +147,10 @@ const styles = StyleSheet.create({
   textarea: { height: 120, textAlignVertical: 'top' },
   rolesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   roleChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#F9FAFB' },
-  roleChipActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
+  roleChipActive: { backgroundColor: '#48479B', borderColor: '#48479B' },
   roleText: { color: '#374151', fontSize: 12, fontWeight: '700' },
   roleTextActive: { color: 'white' },
-  sendBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 20, backgroundColor: '#3B82F6', paddingVertical: 14, borderRadius: 12 },
+  sendBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 20, backgroundColor: '#48479B', paddingVertical: 14, borderRadius: 12 },
   sendBtnDisabled: { opacity: 0.7 },
   sendText: { color: 'white', fontSize: 16, fontWeight: '700' },
   tipBox: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },

@@ -101,7 +101,7 @@ class ErrorBoundary extends Component<Props, State> {
               </TouchableOpacity>
               
               <TouchableOpacity style={styles.homeButton} onPress={this.handleGoHome}>
-                <Home size={20} color="#FF6B35" />
+                <Home size={20} color="#48479B" />
                 <Text style={styles.homeButtonText}>Go Home</Text>
               </TouchableOpacity>
             </View>
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -185,14 +185,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'white',
     borderWidth: 2,
-    borderColor: '#FF6B35',
+    borderColor: '#48479B',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
     gap: 8,
   },
   homeButtonText: {
-    color: '#FF6B35',
+    color: '#48479B',
     fontSize: 16,
     fontWeight: '600',
   },

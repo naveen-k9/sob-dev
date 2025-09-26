@@ -121,8 +121,8 @@ export default function AdminDashboard() {
       title: 'Total Users',
       value: stats.totalUsers.toString(),
       icon: Users,
-      color: '#3B82F6',
-      gradient: ['#3B82F6', '#2563EB'] as const,
+      color: '#48479B',
+      gradient: ['#48479B', '#2563EB'] as const,
       onPress: () => setShowUsersManagement(true),
     },
     {
@@ -667,7 +667,7 @@ export default function AdminDashboard() {
       title: 'Add Category',
       description: 'Add new meal categories',
       icon: Plus,
-      color: '#3B82F6',
+      color: '#48479B',
       onPress: () => setShowAddCategory(true),
       group: 'Catalog',
     },
@@ -765,7 +765,7 @@ export default function AdminDashboard() {
       title: 'Promotional Sections',
       description: 'Manage homepage promotional content',
       icon: Megaphone,
-      color: '#FF6B35',
+      color: '#48479B',
       onPress: () => setShowPromotionalAdmin(true),
       group: 'Marketing',
     },
@@ -1261,7 +1261,7 @@ export default function AdminDashboard() {
               <Text style={styles.assignButtonText}>Kitchen</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.assignButton, { backgroundColor: '#3B82F6' }]}
+              style={[styles.assignButton, { backgroundColor: '#48479B' }]}
               onPress={() => openStaffDrawer(item.id, 'delivery')}
             >
               <Truck size={16} color="white" />
@@ -1693,7 +1693,7 @@ export default function AdminDashboard() {
                       onPress={() => handleAssignSubscription(selectedSubscriptionId, person.id, 'delivery')}
                     >
                       <View style={styles.staffInfo}>
-                        <View style={[styles.staffIcon, { backgroundColor: '#3B82F6' }]}>
+                        <View style={[styles.staffIcon, { backgroundColor: '#48479B' }]}>
                           <Truck size={20} color="white" />
                         </View>
                         <View style={styles.staffDetails}>
@@ -1712,7 +1712,7 @@ export default function AdminDashboard() {
                           </View>
                         </View>
                       </View>
-                      <Check size={20} color="#3B82F6" />
+                      <Check size={20} color="#48479B" />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -2559,11 +2559,11 @@ export default function AdminDashboard() {
                   return (
                     <TouchableOpacity
                       key={slot.id}
-                      style={[styles.staffCard, { borderColor: active ? '#3B82F6' : '#E5E7EB' }]}
+                      style={[styles.staffCard, { borderColor: active ? '#48479B' : '#E5E7EB' }]}
                       onPress={() => setAssignSelectedSlots(prev => active ? prev.filter(id => id !== slot.id) : [...prev, slot.id])}
                     >
                       <View style={styles.staffInfo}>
-                        <View style={[styles.staffIcon, { backgroundColor: active ? '#3B82F6' : '#9CA3AF' }]}>
+                        <View style={[styles.staffIcon, { backgroundColor: active ? '#48479B' : '#9CA3AF' }]}>
                           <Clock size={20} color="white" />
                         </View>
                         <View style={styles.staffDetails}>
@@ -2571,7 +2571,7 @@ export default function AdminDashboard() {
                           <Text style={styles.staffContact}>{slot.label || '—'}</Text>
                         </View>
                       </View>
-                      {active ? <Check size={20} color="#3B82F6" /> : <View />}
+                      {active ? <Check size={20} color="#48479B" /> : <View />}
                     </TouchableOpacity>
                   );
                 })}
@@ -3140,7 +3140,7 @@ export default function AdminDashboard() {
 
                   <View style={styles.invoiceActions}>
                     <TouchableOpacity
-                      style={[styles.invoiceActionButton, { backgroundColor: '#3B82F6' }]}
+                      style={[styles.invoiceActionButton, { backgroundColor: '#48479B' }]}
                       onPress={() => handleDownloadInvoice(selectedInvoiceSubscription)}
                     >
                       <Download size={20} color="white" />
@@ -3251,7 +3251,7 @@ export default function AdminDashboard() {
                     <Text style={styles.userItemName}>{u.name}</Text>
                     <Text style={styles.userMeta}>{u.phone} • {u.email}</Text>
                     <View style={styles.userBadges}>
-                      <View style={[styles.roleBadge, { backgroundColor: u.role === 'admin' ? '#EF4444' : u.role === 'kitchen' ? '#10B981' : u.role === 'delivery' ? '#F59E0B' : '#3B82F6' }]}>
+                      <View style={[styles.roleBadge, { backgroundColor: u.role === 'admin' ? '#EF4444' : u.role === 'kitchen' ? '#10B981' : u.role === 'delivery' ? '#F59E0B' : '#48479B' }]}>
                         <Text style={styles.roleBadgeText}>{u.role.toUpperCase()}</Text>
                       </View>
                       <View style={[styles.statusPill, { backgroundColor: u.isActive ? '#D1FAE5' : '#FEE2E2' }]}>
@@ -3703,7 +3703,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   saveButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#48479B',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -3861,7 +3861,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   editButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#48479B',
     padding: 8,
     borderRadius: 6,
   },
@@ -3914,8 +3914,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   categoryFilterChipActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: '#48479B',
+    borderColor: '#48479B',
   },
   categoryFilterText: {
     fontSize: 14,
@@ -4032,7 +4032,7 @@ const styles = StyleSheet.create({
   previewButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#48479B',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
@@ -4103,7 +4103,7 @@ const styles = StyleSheet.create({
   invoiceButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#48479B',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,

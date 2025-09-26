@@ -301,7 +301,7 @@ export default function KitchenDashboard() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return '#F59E0B';
-      case 'cooking_started': return '#3B82F6';
+      case 'cooking_started': return '#48479B';
       case 'cooking_done': return '#8B5CF6';
       case 'ready_for_delivery': return '#10B981';
       default: return '#6B7280';
@@ -407,7 +407,7 @@ export default function KitchenDashboard() {
           <View style={styles.statsContainer}>
             <View style={styles.statCard}>
               <LinearGradient
-                colors={['#3B82F6', '#2563EB']}
+                colors={['#48479B', '#2563EB']}
                 style={styles.statGradient}
               >
                 <Package size={24} color="white" />
@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   startButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#48479B',
   },
   cookingDoneButton: {
     backgroundColor: '#8B5CF6',
@@ -770,7 +770,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   bulkStartButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#48479B',
   },
   bulkDoneButton: {
     backgroundColor: '#8B5CF6',

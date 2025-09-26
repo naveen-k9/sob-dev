@@ -135,7 +135,7 @@ export default function AdminNutritionistRequestsScreen() {
   const getStatusColor = (status: RequestStatus) => {
     switch (status) {
       case 'pending': return '#F59E0B';
-      case 'contacted': return '#3B82F6';
+      case 'contacted': return '#48479B';
       case 'completed': return '#10B981';
       default: return '#6B7280';
     }
@@ -240,7 +240,7 @@ export default function AdminNutritionistRequestsScreen() {
               setShowDetailModal(true);
             }}
           >
-            <Eye size={16} color="#FF6B35" />
+            <Eye size={16} color="#48479B" />
             <Text style={styles.viewButtonText}>View Details</Text>
           </TouchableOpacity>
 
@@ -413,7 +413,7 @@ export default function AdminNutritionistRequestsScreen() {
                   style={styles.attachButton}
                   onPress={() => Alert.alert('Info', 'File attachment feature would be implemented here')}
                 >
-                  <Paperclip size={20} color="#FF6B35" />
+                  <Paperclip size={20} color="#48479B" />
                   <Text style={styles.attachButtonText}>Attach Files</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -438,7 +438,7 @@ export default function AdminNutritionistRequestsScreen() {
                   <Text style={styles.statusUpdateText}>Mark Pending</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.statusUpdateButton, { backgroundColor: '#3B82F6' }]}
+                  style={[styles.statusUpdateButton, { backgroundColor: '#48479B' }]}
                   onPress={() => handleStatusUpdate(selectedRequest.id, 'contacted')}
                 >
                   <Text style={styles.statusUpdateText}>Mark Contacted</Text>
@@ -680,7 +680,7 @@ const styles = StyleSheet.create({
   },
   viewButtonText: {
     fontSize: 14,
-    color: '#FF6B35',
+    color: '#48479B',
     fontWeight: '500',
   },
   statusActions: {
@@ -688,7 +688,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#48479B',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
@@ -829,15 +829,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF0EB',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FF6B35',
+    borderColor: '#48479B',
     gap: 8,
   },
   attachButtonText: {
-    color: '#FF6B35',
+    color: '#48479B',
     fontSize: 14,
     fontWeight: '500',
   },

@@ -68,7 +68,7 @@ export default function FilterModal({
                 >
                   <Text style={styles.optionText}>{option.label}</Text>
                   {option.selected && (
-                    <Check size={20} color="#FF6B35" />
+                    <Check size={20} color="#48479B" />
                   )}
                 </TouchableOpacity>
               ))}
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   },
   clearText: {
     fontSize: 16,
-    color: '#FF6B35',
+    color: '#48479B',
     fontWeight: '500',
   },
   content: {
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#E0E0E0',
   },
   applyButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',

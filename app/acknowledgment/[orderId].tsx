@@ -61,7 +61,7 @@ export default function AcknowledgmentScreen() {
       <View style={styles.container}>
         {loading ? (
           <View style={styles.center}> 
-            <ActivityIndicator size="large" color="#FF6B35" />
+            <ActivityIndicator size="large" color="#48479B" />
             <Text style={styles.loadingText}>Loading order...</Text>
           </View>
         ) : !order ? (
@@ -73,7 +73,7 @@ export default function AcknowledgmentScreen() {
           <View style={styles.content}>
             <View style={styles.card}>
               <View style={styles.iconWrap}>
-                <Package size={28} color="#FF6B35" />
+                <Package size={28} color="#48479B" />
               </View>
               <Text style={styles.title}>Confirm Delivery</Text>
               <Text style={styles.subtitle}>Order ID: {order.id}</Text>

@@ -285,7 +285,7 @@ export default function CheckoutScreen() {
         return null;
       }
 
-      const checkoutUrl = `${base}/api/payments/razorpay/checkout?orderId=${encodeURIComponent(order.id)}&amount=${encodeURIComponent(String(order.amount ?? Math.round(amount * 100)))}&name=${encodeURIComponent(customer.name)}&description=${encodeURIComponent(description)}&email=${encodeURIComponent(customer.email ?? '')}&contact=${encodeURIComponent(customer.contact ?? '')}&themeColor=${encodeURIComponent('#FF6B35')}`;
+      const checkoutUrl = `${base}/api/payments/razorpay/checkout?orderId=${encodeURIComponent(order.id)}&amount=${encodeURIComponent(String(order.amount ?? Math.round(amount * 100)))}&name=${encodeURIComponent(customer.name)}&description=${encodeURIComponent(description)}&email=${encodeURIComponent(customer.email ?? '')}&contact=${encodeURIComponent(customer.contact ?? '')}&themeColor=${encodeURIComponent('#48479B')}`;
 
       return checkoutUrl;
     } catch (e) {
@@ -597,7 +597,7 @@ export default function CheckoutScreen() {
               <Text style={styles.sectionTitle}>Delivery Address</Text>
               {selectedAddress ? (
                 <View style={styles.addressCard}>
-                  <MapPin size={20} color="#FF6B35" />
+                  <MapPin size={20} color="#48479B" />
                   <View style={styles.addressContent}>
                     <Text style={styles.addressName}>{selectedAddress.name}</Text>
                     <Text style={styles.addressPhone}>{selectedAddress.phone}</Text>
@@ -620,7 +620,7 @@ export default function CheckoutScreen() {
                   style={styles.addAddressCard}
                   onPress={() => setShowAddressBook(true)}
                 >
-                  <MapPin size={20} color="#FF6B35" />
+                  <MapPin size={20} color="#48479B" />
                   <View style={styles.addressContent}>
                     <Text style={styles.addAddressText}>Add Delivery Address</Text>
                     <Text style={styles.addAddressSubtext}>
@@ -953,10 +953,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#FF6B35',
+    borderColor: '#48479B',
   },
   changeButtonText: {
-    color: '#FF6B35',
+    color: '#48479B',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -1003,7 +1003,7 @@ const styles = StyleSheet.create({
   totalValue: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#FF6B35',
+    color: '#48479B',
   },
   promoContainer: {
     flexDirection: 'row',
@@ -1025,7 +1025,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   applyButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
@@ -1053,8 +1053,8 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   selectedPaymentMethod: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF7F5',
+    borderColor: '#48479B',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
   },
   walletRow: {
     backgroundColor: 'white',
@@ -1066,22 +1066,22 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   walletRowActive: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF7F5',
+    borderColor: '#48479B',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
   },
   checkbox: {
     width: 22,
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#FF6B35',
+    borderColor: '#48479B',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
     marginRight: 12,
   },
   checkboxChecked: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
   },
   walletContent: {
     flex: 1,
@@ -1151,7 +1151,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   placeOrderButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -1201,7 +1201,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   retryButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
@@ -1257,13 +1257,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#FF6B35',
+    borderColor: '#48479B',
     borderStyle: 'dashed',
   },
   addAddressText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FF6B35',
+    color: '#48479B',
     marginBottom: 4,
   },
   addAddressSubtext: {
@@ -1282,7 +1282,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
   weekendChipActive: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
   },
   weekendChipText: {
     color: '#333',

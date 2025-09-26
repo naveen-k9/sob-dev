@@ -188,7 +188,7 @@ const CreateTicketScreen: React.FC = () => {
             style={[
               styles.createButton,
               {
-                backgroundColor: loading ? '#9ca3af' : '#3b82f6',
+                backgroundColor: loading ? '#9ca3af' : '#48479B',
               },
             ]}
             onPress={handleCreateTicket}
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   sendButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#48479B',
     borderRadius: 20,
     padding: 8,
   },
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#e5e7eb',
   },
   createButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#48479B',
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',

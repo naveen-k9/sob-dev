@@ -234,7 +234,7 @@ export default function CorporateCateringScreen() {
         >
           {/* Hero Section */}
           <View style={styles.heroSection}>
-            <Building2 size={48} color="#FF6B35" />
+            <Building2 size={48} color="#48479B" />
             <Text style={styles.heroTitle}>Corporate Catering Services</Text>
             <Text style={styles.heroDescription}>
               Provide healthy, delicious meals for your team. Get a customized quotation based on your requirements.
@@ -508,8 +508,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   optionChipSelected: {
-    backgroundColor: '#FF6B35',
-    borderColor: '#FF6B35',
+    backgroundColor: '#48479B',
+    borderColor: '#48479B',
   },
   optionText: {
     fontSize: 14,
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
   },
   submitButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     borderRadius: 12,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   backButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 8,

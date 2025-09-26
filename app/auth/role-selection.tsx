@@ -19,8 +19,8 @@ const roles = [
     title: 'Customer',
     description: 'Order delicious meals',
     icon: User,
-    color: '#FF6B35',
-    gradient: ['#FF6B35', '#F7931E'],
+    color: '#48479B',
+    gradient: ['#48479B', '#F7931E'],
   },
   {
     id: 'admin' as UserRole,
@@ -43,8 +43,8 @@ const roles = [
     title: 'Delivery Partner',
     description: 'Deliver with care',
     icon: Truck,
-    color: '#3B82F6',
-    gradient: ['#3B82F6', '#2563EB'],
+    color: '#48479B',
+    gradient: ['#48479B', '#2563EB'],
   },
 ];
 

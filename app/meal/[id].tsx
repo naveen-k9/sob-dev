@@ -18,7 +18,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Meal, AddOn, SubscriptionPlan, TimeSlot } from '@/types';
 import db from '@/db';
 import { addOns, subscriptionPlans } from '@/constants/data';
-
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Dimensions } from 'react-native';
+const TOP_BG_HEIGHT = Math.round(Dimensions.get('window').height * 0.36);
 type WeekType = 'mon-fri' | 'mon-sat';
  type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
 
@@ -45,6 +47,10 @@ export default function MealDetailScreen() {
 
   const [allTimeSlots, setAllTimeSlots] = useState<TimeSlot[]>([]);
 
+  const [barStyle, setBarStyle] = useState<'light' | 'dark'>('light');
+  const onScrollStatusChange = (style: 'light' | 'dark') => {
+    setBarStyle(style);
+  };  
   React.useEffect(() => {
     setCanGoBack(routerInstance.canGoBack());
   }, []);
@@ -250,7 +256,7 @@ export default function MealDetailScreen() {
     });
   };
 
-
+ const insets = useSafeAreaInsets();
 
   if (loading) {
     return (
@@ -273,15 +279,19 @@ export default function MealDetailScreen() {
   }
 
 
-
   return (
-    <SafeAreaView style={styles.container}>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: '',
-          headerTransparent: true,
-          headerLeft: () => (
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      <ScrollView style={styles.scrollView} 
+      onScroll={(e) => {
+          const y = e.nativeEvent.contentOffset?.y ?? 0;
+          const threshold = TOP_BG_HEIGHT * 0.6;
+          const next: 'light' | 'dark' = y < threshold ? 'light' : 'dark';
+          if (next !== barStyle) onScrollStatusChange(next);
+        }}
+        scrollEventThrottle={16}>
+        <View style={styles.imageContainer}>
+          {/* Custom header overlay on top of image */}
+          <View style={{ position: 'absolute', top: 18, left: 0, right: 0, zIndex: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16 }}>
             <TouchableOpacity style={styles.headerButton} onPress={() => {
               if (canGoBack) {
                 router.back();
@@ -291,8 +301,6 @@ export default function MealDetailScreen() {
             }}>
               <ArrowLeft size={24} color="white" />
             </TouchableOpacity>
-          ),
-          headerRight: () => (
             <View style={styles.headerActions}>
               <TouchableOpacity style={styles.headerButton}>
                 <Heart size={24} color="white" />
@@ -301,12 +309,7 @@ export default function MealDetailScreen() {
                 <Share size={24} color="white" />
               </TouchableOpacity>
             </View>
-          ),
-        }}
-      />
-
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.imageContainer}>
+          </View>
           <Image source={{ uri: meal.images[0] }} style={styles.mealImage} />
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.7)']}
@@ -318,11 +321,11 @@ export default function MealDetailScreen() {
           <View style={styles.basicInfo}>
             <View style={styles.titleRow}>
               <Text style={styles.mealName}>{meal.name}</Text>
-              <View style={styles.ratingContainer}>
+              {/* <View style={styles.ratingContainer}>
                 <Star size={16} color="#FFD700" fill="#FFD700" />
                 <Text style={styles.rating}>{meal.rating}</Text>
                 <Text style={styles.reviewCount}>({meal.reviewCount})</Text>
-              </View>
+              </View> */}
             </View>
             
             <Text style={styles.description}>{meal.description}</Text>
@@ -332,11 +335,11 @@ export default function MealDetailScreen() {
               {meal.originalPrice && (
                 <Text style={styles.originalPrice}>₹{meal.originalPrice}</Text>
               )}
-              <View style={styles.tags}>
+              {/* <View style={styles.tags}>
                 {meal.isVeg && <Text style={styles.vegTag}>🟢 VEG</Text>}
                 {meal.hasEgg && <Text style={styles.eggTag}>🟡 EGG</Text>}
                 {!meal.isVeg && !meal.hasEgg && <Text style={styles.nonVegTag}>🔴 NON-VEG</Text>}
-              </View>
+              </View> */}
             </View>
             {meal.variantPricing && (
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
@@ -514,7 +517,7 @@ export default function MealDetailScreen() {
               <Switch
                 value={isTrialMode}
                 onValueChange={setIsTrialMode}
-                trackColor={{ false: '#E5E7EB', true: '#FF6B35' }}
+                trackColor={{ false: '#E5E7EB', true: '#48479B' }}
                 thumbColor={isTrialMode ? '#FFFFFF' : '#FFFFFF'}
               />
             </View>
@@ -583,7 +586,7 @@ export default function MealDetailScreen() {
                     style={[styles.timeSlotButton, isSelected && styles.selectedTimeSlot]}
                     onPress={() => setSelectedTimeSlot(slot)}
                   >
-                    <Clock size={16} color={isSelected ? '#FF6B35' : '#666'} />
+                    <Clock size={16} color={isSelected ? '#48479B' : '#666'} />
                     <Text style={[styles.timeSlotText, isSelected && styles.selectedTimeSlotText]}>
                       {slot.time}
                     </Text>
@@ -600,7 +603,7 @@ export default function MealDetailScreen() {
               style={styles.dateSelector}
               onPress={() => setShowDatePicker(true)}
             >
-              <Calendar size={20} color="#FF6B35" />
+              <Calendar size={20} color="#48479B" />
               <View style={styles.dateContent}>
                 <Text style={styles.dateLabel}>Start Date</Text>
                 <Text style={styles.dateValue}>
@@ -943,7 +946,7 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FF6B35',
+    color: '#48479B',
   },
   originalPrice: {
     fontSize: 18,
@@ -994,7 +997,7 @@ const styles = StyleSheet.create({
   nutritionValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FF6B35',
+    color: '#48479B',
   },
   nutritionLabel: {
     fontSize: 12,
@@ -1020,13 +1023,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   selectedMealType: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF0EB',
+    color: '#48479B',
+    borderColor: '#48479B',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
   },
   mealTypeText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#333',
+    color: '#48479B',
   },
   planContainer: {
     gap: 12,
@@ -1040,14 +1044,14 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   selectedPlan: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF7F5',
+    borderColor: '#48479B',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
   },
   popularBadge: {
     position: 'absolute',
     top: -8,
     right: 16,
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -1076,7 +1080,7 @@ const styles = StyleSheet.create({
   planPrice: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FF6B35',
+    color: '#48479B',
   },
   planOriginalPrice: {
     fontSize: 14,
@@ -1109,7 +1113,7 @@ const styles = StyleSheet.create({
   },
   moreAddOnsText: {
     fontSize: 14,
-    color: '#FF6B35',
+    color: '#48479B',
     fontWeight: '600',
   },
   timeSlotContainer: {
@@ -1129,8 +1133,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   selectedTimeSlot: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF0EB',
+    borderColor: '#48479B',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
   },
   weekTypeRow: {
     flexDirection: 'row',
@@ -1146,8 +1150,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   weekTypeSelected: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF0EB',
+    borderColor: '#48479B',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
   },
   weekTypeText: {
     fontSize: 14,
@@ -1155,7 +1159,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   weekTypeTextSelected: {
-    color: '#FF6B35',
+    color: '#48479B',
     fontWeight: '700',
   },
   weekendOptionsRow: {
@@ -1174,8 +1178,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   weekendOptionSelected: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF0EB',
+    borderColor: '#48479B',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
   },
   weekendOptionText: {
     fontSize: 14,
@@ -1183,7 +1187,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   weekendOptionTextSelected: {
-    color: '#FF6B35',
+    color: '#48479B',
     fontWeight: '700',
   },
   timeSlotText: {
@@ -1191,7 +1195,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   selectedTimeSlotText: {
-    color: '#FF6B35',
+    color: '#48479B',
     fontWeight: '600',
   },
   dateSelector: {
@@ -1264,8 +1268,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   selectedDateOption: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF7F5',
+    borderColor: '#48479B',
+    // backgroundColor: 'rgba(163, 211, 151, 0.27)',
   },
   dateOptionContent: {
     flex: 1,
@@ -1284,7 +1288,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1316,7 +1320,7 @@ const styles = StyleSheet.create({
   totalPriceValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FF6B35',
+    color: '#48479B',
   },
   trialDiscount: {
     fontSize: 12,
@@ -1324,7 +1328,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   proceedButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -1368,8 +1372,8 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   selectedDrawerAddOn: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF7F5',
+    borderColor: '#48479B',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
   },
   addOnRow: {
     flexDirection: 'row',
@@ -1388,7 +1392,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#F0F0F0',
   },
   doneButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -1420,14 +1424,14 @@ const styles = StyleSheet.create({
   addOnToggle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FF6B35',
+    color: '#48479B',
   },
   addOnsContainer: {
     gap: 12,
   },
   selectedAddOn: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF7F5',
+    borderColor: '#48479B',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
   },
   addOnInfo: {
     flex: 1,
@@ -1446,7 +1450,7 @@ const styles = StyleSheet.create({
   addOnPrice: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FF6B35',
+    color: '#48479B',
   },
   addOnSelected: {
     position: 'absolute',
@@ -1455,7 +1459,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1481,8 +1485,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   dayChipActive: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF0EB',
+    borderColor: '#48479B',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
   },
   dayChipText: {
     fontSize: 13,
@@ -1490,7 +1494,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   dayChipTextActive: {
-    color: '#FF6B35',
+    color: '#48479B',
     fontWeight: '700',
   },
   applyAllDaysNote: {

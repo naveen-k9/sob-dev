@@ -129,7 +129,7 @@ export default function AdminCorporateCateringScreen() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return '#F59E0B';
-      case 'quotation_sent': return '#3B82F6';
+      case 'quotation_sent': return '#48479B';
       case 'approved': return '#10B981';
       case 'rejected': return '#EF4444';
       default: return '#6B7280';
@@ -600,7 +600,7 @@ export default function AdminCorporateCateringScreen() {
                     )}
                     {selectedRequest.status === 'pending' && (
                       <TouchableOpacity
-                        style={[styles.statusButton, { backgroundColor: '#3B82F6' }]}
+                        style={[styles.statusButton, { backgroundColor: '#48479B' }]}
                         onPress={() => {
                           setShowDetailsModal(false);
                           handleSendQuotation(selectedRequest);
@@ -817,7 +817,7 @@ const styles = StyleSheet.create({
   quotationButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#48479B',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -1073,7 +1073,7 @@ const styles = StyleSheet.create({
   quotationAmountLarge: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#3B82F6',
+    color: '#48479B',
     marginBottom: 8,
   },
   quotationNotesText: {

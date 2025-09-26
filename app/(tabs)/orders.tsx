@@ -38,6 +38,8 @@ import { router } from 'expo-router';
 import { getUserSubscriptions, featuredMeals, addOns } from '@/constants/data';
 import { Subscription, Meal, AddOn, AppSettings, Order } from '@/types';
 import db from '@/db';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 interface CalendarDay {
   date: Date;
@@ -509,7 +511,7 @@ export default function OrdersScreen() {
   const getCalendarStatusColor = (status: CalendarDay['deliveryStatus']) => {
     switch (status) {
       case 'delivered': return '#10B981';
-      case 'upcoming': return '#3B82F6';
+      case 'upcoming': return '#48479B';
       case 'vacation': return '#F59E0B';
       case 'on_hold': return '#EF4444';
       case 'skipped': return '#6B7280';
@@ -840,7 +842,7 @@ export default function OrdersScreen() {
           </View>
           <View style={styles.deliveryStatus}>
             {selectedDateDelivery.status === 'delivered' && <CheckCircle size={20} color="#10B981" />}
-            {selectedDateDelivery.status === 'out_for_delivery' && <Truck size={20} color="#3B82F6" />}
+            {selectedDateDelivery.status === 'out_for_delivery' && <Truck size={20} color="#48479B" />}
             {selectedDateDelivery.status === 'preparing' && <Clock size={20} color="#F59E0B" />}
             {selectedDateDelivery.status === 'scheduled' && <Calendar size={20} color="#6B7280" />}
             <Text style={styles.deliveryStatusText}>
@@ -915,7 +917,7 @@ export default function OrdersScreen() {
                 onPress={handleAddMeal}
                 testID="add-items-button"
               >
-                <Plus size={16} color="#3B82F6" />
+                <Plus size={16} color="#48479B" />
                 <Text style={styles.addButtonText}>Add Items</Text>
               </TouchableOpacity>
             )}
@@ -941,7 +943,7 @@ export default function OrdersScreen() {
     switch (status) {
       case 'cooking_started': return '#F59E0B';
       case 'cooking_done': return '#10B981';
-      case 'ready_for_delivery': return '#3B82F6';
+      case 'ready_for_delivery': return '#48479B';
       case 'packaging_done': return '#8B5CF6';
       case 'delivery_started': return '#06B6D4';
       case 'reached': return '#84CC16';
@@ -1056,7 +1058,7 @@ export default function OrdersScreen() {
       
       <View style={styles.orderActions}>
         <TouchableOpacity style={styles.trackButton}>
-          <Eye size={16} color="#3B82F6" />
+          <Eye size={16} color="#48479B" />
           <Text style={styles.trackButtonText}>Track Order</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.callButton}>
@@ -1067,14 +1069,17 @@ export default function OrdersScreen() {
     </View>
   );
 
+   const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView  style={[styles.container, { paddingTop: insets.top }]}>
+      
       <ScrollView 
         style={styles.scrollView}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-      >
+      > 
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
@@ -1187,7 +1192,7 @@ export default function OrdersScreen() {
                   onPress={() => setSelectedPlanId(subscription.id)}
                 >
                   <View style={styles.planTabHeader}>
-                    <Package size={16} color={selectedPlanId === subscription.id ? '#3B82F6' : '#6B7280'} />
+                    <Package size={16} color={selectedPlanId === subscription.id ? '#48479B' : '#6B7280'} />
                     <Text style={[
                       styles.planTabName,
                       selectedPlanId === subscription.id && styles.planTabNameSelected
@@ -1224,7 +1229,7 @@ export default function OrdersScreen() {
               <Text style={styles.legendText}>Delivered</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#3B82F6' }]} />
+              <View style={[styles.legendDot, { backgroundColor: '#48479B' }]} />
               <Text style={styles.legendText}>Upcoming</Text>
             </View>
             <View style={styles.legendItem}>
@@ -1299,7 +1304,7 @@ export default function OrdersScreen() {
               </View>
               {selectedDateDelivery && (
                 <View style={styles.selectedDateBadge}>
-                  <Sparkles size={14} color="#3B82F6" />
+                  <Sparkles size={14} color="#48479B" />
                   <Text style={styles.selectedDateBadgeText}>Scheduled</Text>
                 </View>
               )}
@@ -1452,7 +1457,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#48479B',
     paddingVertical: 24,
     paddingHorizontal: 20,
   },
@@ -1583,9 +1588,9 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   calendarDaySelected: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#48479B',
     transform: [{ scale: 1.1 }],
-    shadowColor: '#3B82F6',
+    shadowColor: '#48479B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -1679,7 +1684,7 @@ const styles = StyleSheet.create({
   selectedDateBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: '#48479B',
     marginLeft: 4,
   },
   deliveryContainer: {
@@ -1791,7 +1796,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#3B82F6',
+    borderColor: '#48479B',
     backgroundColor: '#EEF2FF',
     flex: 1,
     marginLeft: 8,
@@ -1799,7 +1804,7 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     fontSize: 14,
-    color: '#3B82F6',
+    color: '#48479B',
     marginLeft: 6,
     fontWeight: '600',
   },
@@ -1827,11 +1832,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   addProductButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#48479B',
     paddingVertical: 14,
     paddingHorizontal: 28,
     borderRadius: 12,
-    shadowColor: '#3B82F6',
+    shadowColor: '#48479B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -1882,7 +1887,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   loginButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 8,
@@ -1973,7 +1978,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   addOnItemSelected: {
-    borderColor: '#3B82F6',
+    borderColor: '#48479B',
     backgroundColor: '#EEF2FF',
   },
   addOnInfo: {
@@ -2005,8 +2010,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addOnCheckboxSelected: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: '#48479B',
+    borderColor: '#48479B',
   },
   selectedSummary: {
     backgroundColor: '#EEF2FF',
@@ -2023,10 +2028,10 @@ const styles = StyleSheet.create({
   selectedSummaryTotal: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#3B82F6',
+    color: '#48479B',
   },
   confirmButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#48479B',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -2065,7 +2070,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   retryButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#48479B',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
@@ -2114,7 +2119,7 @@ const styles = StyleSheet.create({
   },
   planTabSelected: {
     backgroundColor: '#EEF2FF',
-    borderColor: '#3B82F6',
+    borderColor: '#48479B',
   },
   planTabHeader: {
     flexDirection: 'row',
@@ -2128,7 +2133,7 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   planTabNameSelected: {
-    color: '#3B82F6',
+    color: '#48479B',
   },
   planTabDuration: {
     fontSize: 12,
@@ -2168,12 +2173,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#3B82F6',
+    borderColor: '#48479B',
   },
   subscriptionTabText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: '#48479B',
     marginBottom: 2,
   },
   subscriptionTabDuration: {
@@ -2201,7 +2206,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   viewModeButtonActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#48479B',
   },
   viewModeButtonText: {
     fontSize: 14,
@@ -2230,8 +2235,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   filterChipActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: '#48479B',
+    borderColor: '#48479B',
   },
   filterChipText: {
     fontSize: 12,
@@ -2363,7 +2368,7 @@ const styles = StyleSheet.create({
   trackButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: '#48479B',
     marginLeft: 4,
   },
   callButton: {
@@ -2400,4 +2405,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+  topBg: { width: '100%', paddingBottom: 0, position: 'relative', overflow: 'hidden' },
+  heroImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
 });

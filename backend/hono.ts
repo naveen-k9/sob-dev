@@ -145,7 +145,7 @@ app.get("/payments/razorpay/checkout", async (c) => {
     const description = url.searchParams.get("description") ?? "Order payment";
     const email = url.searchParams.get("email") ?? "";
     const contact = url.searchParams.get("contact") ?? "";
-    const themeColor = url.searchParams.get("themeColor") ?? "#FF6B35";
+    const themeColor = url.searchParams.get("themeColor") ?? "#48479B";
 
     const keyId = process.env.EXPO_PUBLIC_RAZORPAY_ID ?? "";
     if (!orderId || !keyId) {

@@ -44,7 +44,7 @@ export default function PaymentScreen() {
     },
     onSuccess: (data) => {
       createdOrderIdRef.current = data?.id ?? null;
-      const url = `${baseUrl}/api/payments/razorpay/checkout?orderId=${encodeURIComponent(data.id)}&amount=${encodeURIComponent(String(data.amount))}&name=${encodeURIComponent(nameStr ?? 'Payment')}&description=${encodeURIComponent(descStr ?? 'Order payment')}&email=${encodeURIComponent(emailStr ?? '')}&contact=${encodeURIComponent(contactStr ?? '')}&themeColor=${encodeURIComponent('#FF6B35')}`;
+      const url = `${baseUrl}/api/payments/razorpay/checkout?orderId=${encodeURIComponent(data.id)}&amount=${encodeURIComponent(String(data.amount))}&name=${encodeURIComponent(nameStr ?? 'Payment')}&description=${encodeURIComponent(descStr ?? 'Order payment')}&email=${encodeURIComponent(emailStr ?? '')}&contact=${encodeURIComponent(contactStr ?? '')}&themeColor=${encodeURIComponent('#48479B')}`;
       setCheckoutUrl(url);
     },
   });
@@ -88,7 +88,7 @@ export default function PaymentScreen() {
         <View style={styles.center}>
           {createOrder.isPending ? (
             <>
-              <ActivityIndicator size="large" color="#FF6B35" />
+              <ActivityIndicator size="large" color="#48479B" />
               <Text style={styles.loadingText}>Preparing payment...</Text>
             </>
           ) : (
@@ -158,6 +158,6 @@ const styles = StyleSheet.create({
   webview: { flex: 1 },
   webWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
   note: { color: '#6B7280', marginBottom: 12 },
-  payBtn: { backgroundColor: '#FF6B35', paddingHorizontal: 20, paddingVertical: 14, borderRadius: 12 },
+  payBtn: { backgroundColor: '#48479B', paddingHorizontal: 20, paddingVertical: 14, borderRadius: 12 },
   payBtnText: { color: 'white', fontWeight: '700', fontSize: 16 },
 });

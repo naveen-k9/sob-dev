@@ -42,7 +42,7 @@ const SupportScreen: React.FC = () => {
       case 'open':
         return <Clock size={16} color="#f59e0b" />;
       case 'in_progress':
-        return <MessageCircle size={16} color="#3b82f6" />;
+        return <MessageCircle size={16} color="#48479B" />;
       case 'resolved':
         return <CheckCircle size={16} color="#10b981" />;
       case 'closed':
@@ -57,7 +57,7 @@ const SupportScreen: React.FC = () => {
       case 'open':
         return '#f59e0b';
       case 'in_progress':
-        return '#3b82f6';
+        return '#48479B';
       case 'resolved':
         return '#10b981';
       case 'closed':
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   createButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#48479B',
     borderRadius: 20,
     padding: 8,
   },
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   createTicketButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#48479B',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

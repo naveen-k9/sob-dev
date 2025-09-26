@@ -170,7 +170,7 @@ export default function HeroBanner({ banners, onBannerPress }: HeroBannerProps) 
                   onPress={() => handleBannerPress(banner)}
                 >
                   <Text style={styles.actionText}>Explore Now</Text>
-                  <ChevronRight size={16} color="#FF6B35" />
+                  <ChevronRight size={16} color="#48479B" />
                 </TouchableOpacity>
               </View>
               
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   actionText: {
-    color: '#FF6B35',
+    color: '#48479B',
     fontSize: 14,
     fontWeight: '600',
     marginRight: 4,

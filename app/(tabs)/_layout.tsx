@@ -1,13 +1,13 @@
 import { Tabs } from "expo-router";
 import { StyleSheet } from 'react-native';
-import { Home, Grid3X3, ShoppingBag, User, Settings, ChefHat, Truck, BarChart3, Gift } from "lucide-react-native";
+import { Home, Grid3X3, ShoppingBag, User, Settings, ChefHat, Truck, BarChart3, Gift, SquareMenu } from "lucide-react-native";
 import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Colors } from "@/constants/colors";
 
 const styles = StyleSheet.create({
   scene: { backgroundColor: '#FFFFFF' },
-  tabBar: { backgroundColor: '#FFFFFF', borderTopWidth: 0, height: 81, paddingTop: 8, paddingBottom: 18 },
+  tabBar: { backgroundColor: '#FFFFFF', borderTopWidth: 0, height: 72, paddingTop: 9, paddingBottom: 9 },
   tabLabel: { fontSize: 12, fontWeight: '500' as const },
 });
 
@@ -27,7 +27,7 @@ export default function TabLayout() {
         headerShown: false,
         sceneStyle: styles.scene,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: Colors.accent,
+            tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: '#A3D397',
         tabBarLabelStyle: styles.tabLabel,
       }}
@@ -54,6 +54,18 @@ export default function TabLayout() {
         }}
       />
       
+      
+
+      {!isAdmin() && !isKitchen() && !isDelivery() && (
+        <Tabs.Screen
+          name="menu"
+          options={{
+            title: "Menu",
+            tabBarIcon: ({ color, size }) => <SquareMenu color={color} size={size} />,
+          }}
+        />
+      )}
+
       {!isAdmin() && !isKitchen() && !isDelivery() && (
         <Tabs.Screen
           name="refer"

@@ -218,7 +218,7 @@ export default function DeliveryDashboard() {
     switch (status) {
       case 'packaging': return '#F59E0B';
       case 'packaging_done': return '#8B5CF6';
-      case 'delivery_started': return '#3B82F6';
+      case 'delivery_started': return '#48479B';
       case 'reached': return '#06B6D4';
       case 'delivery_done': return '#10B981';
       default: return '#6B7280';
@@ -286,7 +286,7 @@ export default function DeliveryDashboard() {
           <View style={styles.statsContainer}>
             <View style={styles.statCard}>
               <LinearGradient
-                colors={['#3B82F6', '#2563EB']}
+                colors={['#48479B', '#2563EB']}
                 style={styles.statGradient}
               >
                 <Package size={24} color="white" />
@@ -363,7 +363,7 @@ export default function DeliveryDashboard() {
                   <Text style={styles.bulkButtonText}>All Packaging Done</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.bulkButton, { backgroundColor: '#3B82F6' }]}
+                  style={[styles.bulkButton, { backgroundColor: '#48479B' }]}
                   onPress={() => {
                     const count = deliveryOrders.filter(o => o.status === 'packaging_done').length;
                     if (count === 0) {
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
   },
   currentTime: {
     fontSize: 14,
-    color: '#3B82F6',
+    color: '#48479B',
     marginTop: 4,
     fontWeight: '600',
   },
@@ -850,7 +850,7 @@ const styles = StyleSheet.create({
   mapsButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#48479B',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,

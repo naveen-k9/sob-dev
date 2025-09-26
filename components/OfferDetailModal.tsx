@@ -31,7 +31,7 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
       case 'deal':
         return <Gift size={24} color="#8B5CF6" />;
       default:
-        return <Percent size={24} color="#FF6B35" />;
+        return <Percent size={24} color="#48479B" />;
     }
   };
 
@@ -42,7 +42,7 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
       case 'deal':
         return '#8B5CF6';
       default:
-        return '#FF6B35';
+        return '#48479B';
     }
   };
 
@@ -126,7 +126,7 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
                   <Text style={styles.promoCode}>{offer.code}</Text>
                 </View>
                 <TouchableOpacity onPress={copyPromoCode} style={styles.copyButton}>
-                  <Copy size={16} color="#FF6B35" />
+                  <Copy size={16} color="#48479B" />
                   <Text style={styles.copyText}>Copy</Text>
                 </TouchableOpacity>
               </View>
@@ -320,10 +320,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FF6B35',
+    borderColor: '#48479B',
   },
   copyText: {
-    color: '#FF6B35',
+    color: '#48479B',
     fontWeight: '600',
     marginLeft: 4,
   },

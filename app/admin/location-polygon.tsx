@@ -115,7 +115,7 @@ export default function LocationPolygonScreen() {
         {/* Map - TODO: Implement when native maps are available */}
         <View style={styles.mapContainer}>
           <View style={styles.mapPlaceholder}>
-            <MapPin size={48} color="#FF6B35" />
+            <MapPin size={48} color="#48479B" />
             <Text style={styles.mapPlaceholderTitle}>Map View Coming Soon</Text>
             <Text style={styles.mapPlaceholderText}>
               Native maps functionality will be available when react-native-maps is integrated.
@@ -165,7 +165,7 @@ export default function LocationPolygonScreen() {
               style={styles.demoButton}
               onPress={addDemoPoint}
             >
-              <MapPin size={16} color="#FF6B35" />
+              <MapPin size={16} color="#48479B" />
               <Text style={styles.demoButtonText}>Add Demo Point</Text>
             </TouchableOpacity>
             
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   pointsCounter: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FF6B35',
+    color: '#48479B',
   },
   mapContainer: {
     flex: 1,
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   saveButton: {
     flex: 2,
     height: 48,
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     borderRadius: 12,
     flexDirection: 'row',
     justifyContent: 'center',
@@ -346,11 +346,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#FF6B35',
+    borderColor: '#48479B',
   },
   demoButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FF6B35',
+    color: '#48479B',
   },
 });

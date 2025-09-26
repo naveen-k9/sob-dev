@@ -281,7 +281,7 @@ export default function BannersManagement() {
           
           {item.linkUrl && (
             <View style={styles.linkContainer}>
-              <ExternalLink size={14} color="#3B82F6" />
+              <ExternalLink size={14} color="#48479B" />
               <Text style={styles.linkText} numberOfLines={1}>{item.linkUrl}</Text>
             </View>
           )}
@@ -297,7 +297,7 @@ export default function BannersManagement() {
           
           <View style={styles.bannerActions}>
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
+              style={[styles.actionButton, { backgroundColor: '#48479B' }]}
               onPress={() => openViewModal(item)}
             >
               <Eye size={16} color="white" />
@@ -781,7 +781,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 12,
-    color: '#3B82F6',
+    color: '#48479B',
     flex: 1,
   },
   bannerDates: {
@@ -927,7 +927,7 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   saveButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#48479B',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',

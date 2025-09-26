@@ -32,7 +32,7 @@ export default function FilterChips({ filters, onFilterToggle, onClearAll }: Fil
       >
         {selectedCount > 0 && (
           <TouchableOpacity style={styles.clearAllChip} onPress={onClearAll}>
-            <X size={14} color="#FF6B35" />
+            <X size={14} color="#48479B" />
             <Text style={styles.clearAllText}>Clear All</Text>
           </TouchableOpacity>
         )}
@@ -76,8 +76,8 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
   },
   selectedChip: {
-    backgroundColor: '#FF6B35',
-    borderColor: '#FF6B35',
+    backgroundColor: '#48479B',
+    borderColor: '#48479B',
   },
   chipText: {
     fontSize: 14,
@@ -96,11 +96,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FF6B35',
+    borderColor: '#48479B',
   },
   clearAllText: {
     fontSize: 14,
-    color: '#FF6B35',
+    color: '#48479B',
     fontWeight: '500',
     marginLeft: 4,
   },

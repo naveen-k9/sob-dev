@@ -20,7 +20,7 @@ const roles = [
     name: 'User',
     icon: User,
     route: '/(tabs)',
-    color: '#3B82F6',
+    color: '#48479B',
     description: 'Customer dashboard'
   },
   {
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   },
   selectedRoleCard: {
     backgroundColor: '#F0F9FF',
-    borderColor: '#3B82F6',
+    borderColor: '#48479B',
   },
   roleCardContent: {
     flexDirection: 'row',

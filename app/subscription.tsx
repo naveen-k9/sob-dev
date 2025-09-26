@@ -149,15 +149,15 @@ export default function SubscriptionScreen() {
         {/* Benefits */}
         <View style={styles.benefitsContainer}>
           <View style={styles.benefitItem}>
-            <Clock size={20} color="#FF6B35" />
+            <Clock size={20} color="#48479B" />
             <Text style={styles.benefitText}>Daily Fresh Meals</Text>
           </View>
           <View style={styles.benefitItem}>
-            <Truck size={20} color="#FF6B35" />
+            <Truck size={20} color="#48479B" />
             <Text style={styles.benefitText}>Free Delivery</Text>
           </View>
           <View style={styles.benefitItem}>
-            <Shield size={20} color="#FF6B35" />
+            <Shield size={20} color="#48479B" />
             <Text style={styles.benefitText}>Cancel Anytime</Text>
           </View>
         </View>
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   selectedPlanCard: {
-    borderColor: '#FF6B35',
+    borderColor: '#48479B',
   },
   popularPlan: {
     borderColor: '#10B981',
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   discountBadge: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -483,8 +483,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   selectedMealType: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF7F5',
+    borderColor: '#48479B',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
   },
   mealTypeText: {
     fontSize: 14,
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   selectedMealTypeText: {
-    color: '#FF6B35',
+    color: '#48479B',
   },
   checkboxContainer: {
     flexDirection: 'row',
@@ -512,8 +512,8 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   checkedBox: {
-    backgroundColor: '#FF6B35',
-    borderColor: '#FF6B35',
+    backgroundColor: '#48479B',
+    borderColor: '#48479B',
   },
   checkboxText: {
     fontSize: 14,
@@ -532,8 +532,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   selectedDate: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF7F5',
+    borderColor: '#48479B',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
   },
   dateText: {
     fontSize: 14,
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   selectedDateText: {
-    color: '#FF6B35',
+    color: '#48479B',
   },
   bottomSpacing: {
     height: 100,
@@ -568,10 +568,10 @@ const styles = StyleSheet.create({
   summaryPrice: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#FF6B35',
+    color: '#48479B',
   },
   subscribeButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -601,8 +601,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   selectedAddOn: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF7F5',
+    borderColor: '#48479B',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
   },
   addOnImageContainer: {
     width: 50,
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
   addOnPrice: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FF6B35',
+    color: '#48479B',
   },
   addOnSelected: {
     position: 'absolute',
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     justifyContent: 'center',
     alignItems: 'center',
   },

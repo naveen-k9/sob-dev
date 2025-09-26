@@ -23,7 +23,7 @@ export default function MealGridCard({ meal, onPress, onAddPress }: MealGridCard
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>
       <View style={styles.imageContainer}>
-        <Image source={{ uri: meal.image }} style={styles.image} />
+        <Image source={{ uri: meal.images[0] }} style={styles.image} />
         {meal.isVeg && (
           <View style={styles.vegBadge}>
             <Leaf size={12} color="#4CAF50" />
@@ -43,22 +43,26 @@ export default function MealGridCard({ meal, onPress, onAddPress }: MealGridCard
           {meal.name}
         </Text>
         
-        <View style={styles.rating}>
+        {/* <View style={styles.rating}>
           <Star size={12} color="#FFB800" fill="#FFB800" />
           <Text style={styles.ratingText}>
             {meal.rating} ({meal.reviewCount})
           </Text>
-        </View>
-        
-        <View style={styles.priceContainer}>
-          <View style={styles.priceRow}>
+        </View> */}
+        <View style={styles.priceRow}>
             <Text style={styles.price}>₹{meal.price}</Text>
             {meal.originalPrice && (
               <Text style={styles.originalPrice}>₹{meal.originalPrice}</Text>
             )}
           </View>
+        
+        <View style={styles.buttonsContainer}>
           <TouchableOpacity style={styles.addButton} onPress={onAddPress}>
-            <Plus size={16} color="white" />
+            <Text style={[{color:'white'}]}>Try Now</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.addButton} onPress={onAddPress}>
+            <Text style={[{color:'white'}]}>Subscribe</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -103,7 +107,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -133,19 +137,21 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 4,
   },
-  priceContainer: {
+  buttonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingTop: 9
   },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   price: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#FF6B35',
+    color: '#48479B',
   },
   originalPrice: {
     fontSize: 12,
@@ -154,11 +160,11 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   addButton: {
-    backgroundColor: '#FF6B35',
-    borderRadius: 16,
-    width: 32,
-    height: 32,
+    backgroundColor: '#48479B',
+    borderRadius: 9,
+    padding: 9,
     justifyContent: 'center',
     alignItems: 'center',
+    color: '#ffffff',
   },
 });

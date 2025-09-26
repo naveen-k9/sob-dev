@@ -200,7 +200,7 @@ export default function AddressBookModal({
         testID={`address-item-${item.id}`}
       >
         <View style={styles.addressIcon}>
-          <IconComponent size={20} color="#FF6B35" />
+          <IconComponent size={20} color="#48479B" />
         </View>
         <View style={styles.addressContent}>
           <View style={styles.addressHeader}>
@@ -237,7 +237,7 @@ export default function AddressBookModal({
         )}
         {showSelectMode && (
           <View style={styles.selectIndicator}>
-            <Check size={20} color="#FF6B35" />
+            <Check size={20} color="#48479B" />
           </View>
         )}
       </TouchableOpacity>
@@ -362,7 +362,7 @@ export default function AddressBookModal({
                 >
                   <IconComponent 
                     size={20} 
-                    color={formData.type === type.key ? '#FF6B35' : '#666'} 
+                    color={formData.type === type.key ? '#48479B' : '#666'} 
                   />
                   <Text style={[
                     styles.typeOptionText,
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFF0EB',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   addButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -653,8 +653,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   selectedTypeOption: {
-    borderColor: '#FF6B35',
-    backgroundColor: '#FFF0EB',
+    borderColor: '#48479B',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
   },
   typeOptionText: {
     fontSize: 14,
@@ -663,10 +663,10 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   selectedTypeOptionText: {
-    color: '#FF6B35',
+    color: '#48479B',
   },
   saveButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     paddingVertical: 16,
     marginHorizontal: 20,
     marginVertical: 20,

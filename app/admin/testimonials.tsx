@@ -272,7 +272,7 @@ export default function TestimonialsManagement() {
               </Text>
             </View>
             {item.isVerified && (
-              <View style={[styles.statusBadge, { backgroundColor: '#3B82F6' }]}>
+              <View style={[styles.statusBadge, { backgroundColor: '#48479B' }]}>
                 <Text style={styles.statusText}>Verified</Text>
               </View>
             )}
@@ -297,7 +297,7 @@ export default function TestimonialsManagement() {
 
         <View style={styles.actionButtons}>
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
+            style={[styles.actionButton, { backgroundColor: '#48479B' }]}
             onPress={() => openViewModal(item)}
           >
             <Eye size={16} color="white" />
@@ -466,7 +466,7 @@ export default function TestimonialsManagement() {
                   onPress={() => setFormData(prev => ({ ...prev, isVerified: !prev.isVerified }))}
                 >
                   {formData.isVerified ? (
-                    <ToggleRight size={24} color="#3B82F6" />
+                    <ToggleRight size={24} color="#48479B" />
                   ) : (
                     <ToggleLeft size={24} color="#6B7280" />
                   )}
@@ -638,7 +638,7 @@ export default function TestimonialsManagement() {
                     </View>
                     <View style={[
                       styles.viewStatusBadge,
-                      { backgroundColor: selectedTestimonial.isVerified ? '#3B82F6' : '#6B7280' }
+                      { backgroundColor: selectedTestimonial.isVerified ? '#48479B' : '#6B7280' }
                     ]}>
                       <Text style={styles.viewStatusText}>
                         {selectedTestimonial.isVerified ? 'Verified' : 'Unverified'}

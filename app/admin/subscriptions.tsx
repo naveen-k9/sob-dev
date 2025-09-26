@@ -109,7 +109,7 @@ export default function AdminSubscriptionsScreen() {
         </View>
 
         {loading ? (
-          <View style={styles.loading}><ActivityIndicator color="#3B82F6" /></View>
+          <View style={styles.loading}><ActivityIndicator color="#48479B" /></View>
         ) : filtered.length === 0 ? (
           <View style={styles.empty}><Text style={styles.emptyText}>No subscriptions found</Text></View>
         ) : (
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   input: { color: 'white', fontSize: 16 },
   statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#1F2937', borderWidth: 1, borderColor: '#374151' },
-  chipActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
+  chipActive: { backgroundColor: '#48479B', borderColor: '#48479B' },
   chipText: { color: '#CBD5E1', fontSize: 12, fontWeight: '700' },
   chipTextActive: { color: 'white' },
   card: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },

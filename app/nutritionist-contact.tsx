@@ -119,7 +119,7 @@ export default function NutritionistContactScreen() {
           headerShown: true,
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <ArrowLeft size={24} color="#FF6B35" />
+              <ArrowLeft size={24} color="#48479B" />
             </TouchableOpacity>
           ),
         }}
@@ -128,7 +128,7 @@ export default function NutritionistContactScreen() {
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
         <View style={styles.header}>
           <View style={styles.headerIcon}>
-            <Heart size={32} color="#FF6B35" />
+            <Heart size={32} color="#48479B" />
           </View>
           <Text style={styles.headerTitle}>Get Personalized Nutrition Guidance</Text>
           <Text style={styles.headerSubtitle}>
@@ -306,7 +306,7 @@ export default function NutritionistContactScreen() {
                 >
                   <IconComponent 
                     size={24} 
-                    color={formData.contactMethod === method.id ? '#FF6B35' : '#666'} 
+                    color={formData.contactMethod === method.id ? '#48479B' : '#666'} 
                   />
                   <Text style={[
                     styles.contactMethodText,
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#FFF0EB',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -498,8 +498,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   selectedOption: {
-    backgroundColor: '#FFF0EB',
-    borderColor: '#FF6B35',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    borderColor: '#48479B',
   },
   optionIcon: {
     fontSize: 24,
@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   selectedOptionText: {
-    color: '#FF6B35',
+    color: '#48479B',
     fontWeight: '600',
   },
   contactMethods: {
@@ -528,8 +528,8 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   selectedContactMethod: {
-    backgroundColor: '#FFF0EB',
-    borderColor: '#FF6B35',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    borderColor: '#48479B',
   },
   contactMethodText: {
     fontSize: 16,
@@ -538,11 +538,11 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   selectedContactMethodText: {
-    color: '#FF6B35',
+    color: '#48479B',
     fontWeight: '600',
   },
   submitButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     marginHorizontal: 20,
     marginBottom: 40,
     borderRadius: 12,

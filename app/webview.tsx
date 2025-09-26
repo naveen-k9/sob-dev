@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   backButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

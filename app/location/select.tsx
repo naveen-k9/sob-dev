@@ -128,7 +128,7 @@ export default function LocationSelectScreen() {
       onPress={() => handleLocationSelect(item)}
     >
       <View style={styles.locationIcon}>
-        <MapPin size={20} color="#FF6B35" />
+        <MapPin size={20} color="#48479B" />
       </View>
       <View style={styles.locationInfo}>
         <Text style={styles.locationName}>{item.name}</Text>
@@ -159,7 +159,7 @@ export default function LocationSelectScreen() {
           style={styles.currentLocationButton}
           onPress={handleCurrentLocation}
         >
-          <Navigation size={20} color="#FF6B35" />
+          <Navigation size={20} color="#48479B" />
           <Text style={styles.currentLocationText}>Use Current Location</Text>
         </TouchableOpacity>
 
@@ -203,7 +203,7 @@ export default function LocationSelectScreen() {
 
             <View style={styles.modalContent}>
               <View style={styles.notifyIcon}>
-                <Bell size={48} color="#FF6B35" />
+                <Bell size={48} color="#48479B" />
               </View>
               
               <Text style={styles.notifyTitle}>
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFF0EB',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FFF0EB',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
   notifyButton: {
     width: '100%',
     height: 48,
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',

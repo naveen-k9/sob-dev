@@ -13,6 +13,7 @@ import FilterModal from '@/components/FilterModal';
 import { LayoutGrid, Rows } from 'lucide-react-native';
 
 import { offers as offersSeed } from '@/constants/data';
+import { StatusBar } from 'expo-status-bar';
 
 export default function CategoryBrowserScreen() {
   const params = useLocalSearchParams<{ categoryId?: string }>();
@@ -141,7 +142,7 @@ export default function CategoryBrowserScreen() {
     setSelectedOffer(offer);
     setOfferModalVisible(true);
   }, []);
- 
+
   const handleUseOffer = useCallback((offer: Offer) => {
     console.log('Use offer', offer?.code ?? offer?.promoCode);
     setOfferModalVisible(false);
@@ -149,6 +150,7 @@ export default function CategoryBrowserScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+
       <Stack.Screen 
         options={{ 
           title: 'Menu', 
@@ -169,7 +171,7 @@ export default function CategoryBrowserScreen() {
         </View>
       ) : hasError ? (
         <View style={styles.loadingWrap} testID="categories-error">
-          <Text style={styles.errorText}>Failed to load. Please check your connection.</Text>
+          <Text style={styles.errorText}>Failed to load. Please check your connection or Firebase keys.</Text>
           <TouchableOpacity onPress={() => { categoriesQuery.refetch(); mealsQuery.refetch(); }} style={styles.retryBtn}>
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>

@@ -137,13 +137,13 @@ export default function NotificationsScreen() {
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'order':
-        return <Package size={20} color="#FF6B35" />;
+        return <Package size={20} color="#48479B" />;
       case 'delivery':
         return <Truck size={20} color="#10B981" />;
       case 'promotion':
         return <Gift size={20} color="#8B5CF6" />;
       case 'system':
-        return <Bell size={20} color="#3B82F6" />;
+        return <Bell size={20} color="#48479B" />;
       default:
         return <Bell size={20} color="#666" />;
     }
@@ -221,7 +221,7 @@ export default function NotificationsScreen() {
       <Stack.Screen
         options={{
           title: 'Notifications',
-          headerStyle: { backgroundColor: '#FF6B35' },
+          headerStyle: { backgroundColor: '#48479B' },
           headerTintColor: 'white',
           headerTitleStyle: { fontWeight: 'bold' },
           headerRight: () => (
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   },
   unreadCard: {
     borderLeftWidth: 4,
-    borderLeftColor: '#FF6B35',
+    borderLeftColor: '#48479B',
     backgroundColor: '#FFFBF8',
   },
   notificationHeader: {
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
   },
   emptyContainer: {
     alignItems: 'center',

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Dimensions } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { MapPin, ChevronDown, Calendar, Clock, Package } from 'lucide-react-native';
+import { MapPin, ChevronDown, Calendar, Clock, Package, User, User2 } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from '@/contexts/LocationContext';
@@ -100,7 +100,7 @@ export default function HomeScreen() {
   }
 
   const handleCategoryPress = (categoryId: string) => {
-    router.push(`/categories?categoryId=${encodeURIComponent(categoryId)}`);
+    router.push(`/menu?categoryId=${encodeURIComponent(categoryId)}`);
   };
 
   const handleMealPress = (mealId: string) => {
@@ -127,7 +127,7 @@ export default function HomeScreen() {
   const handleBannerPress = (banner: Banner) => {
     switch (banner.actionType) {
       case 'category':
-        router.push(`/categories?categoryId=${encodeURIComponent(String(banner.actionValue))}`);
+        router.push(`/menu?categoryId=${encodeURIComponent(String(banner.actionValue))}`);
         break;
       case 'meal':
         router.push(`/meal/${banner.actionValue}`);
@@ -291,7 +291,9 @@ function CustomerHomeScreen({
                 <View style={styles.walletIcon} />
                 <Text style={styles.walletText}>Rs 0</Text>
               </View>
-              <View style={styles.profileCircle} testID="profile-button" />
+        <TouchableOpacity style={styles.profileCircle} onPress={() => router.push('/profile')} testID="profile-button">
+          <User2 size={27} color="#A3D397" />
+        </TouchableOpacity>
             </View>
 
           </View>
@@ -333,7 +335,7 @@ function CustomerHomeScreen({
 
         
 
-        <View style={styles.section}>
+        <View style={[styles.section]}>
           <Text style={styles.sectionTitle}>Meal Time</Text>
           {categoriesQuery.isLoading ? (
             <View style={styles.pad20}>
@@ -374,7 +376,7 @@ function CustomerHomeScreen({
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{selectedCategoryId ? 'Meals' : 'Popular Meals'}</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/menu')} testID="see-all-meals">
               <Text style={styles.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -456,15 +458,23 @@ const styles = StyleSheet.create({
   location: { flexDirection: 'row', alignItems: 'center' },
   locationText: { marginLeft: 9, marginRight: 3, fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  walletPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(163, 211, 151, 0.25)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, marginRight: 8 },
+  walletPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(163, 211, 151, 0.27)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, marginRight: 8 },
   walletIcon: { width: 18, height: 18, backgroundColor: '#A3D397', borderRadius: 4, marginRight: 6 },
   walletText: { color: '#FFFFFF', fontWeight: '700' },
-  profileCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#A3D397' },
+  profileCircle: { 
+     width: 45,
+    height: 45,
+    borderRadius: 27,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 0,
+    backgroundColor: '#ffffff' 
+  },
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 20 },
   section: { marginBottom: 18,marginTop: 18 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, marginBottom: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#48489b', paddingHorizontal: 18, marginBottom: 18 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#48489b', paddingHorizontal: 18, paddingBottom: 9 },
   seeAll: { fontSize: 14, color: '#A3D397', fontWeight: '700' },
   horizontalScroll: { paddingLeft: 18 },
   mealGrid: { paddingHorizontal: 18 },

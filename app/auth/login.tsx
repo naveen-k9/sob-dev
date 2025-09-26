@@ -117,7 +117,7 @@ export default function LoginScreen() {
       >
         <View style={styles.form}>
           <View style={styles.iconContainer}>
-            <MessageCircle size={48} color="#FF6B35" />
+            <MessageCircle size={48} color="#48479B" />
           </View>
 
           <Text style={styles.title}>
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FFF0EB',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   button: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
     paddingVertical: 16,
     borderRadius: 8,
     width: '100%',
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   linkText: {
-    color: '#FF6B35',
+    color: '#48479B',
     fontSize: 14,
     fontWeight: '500',
   },

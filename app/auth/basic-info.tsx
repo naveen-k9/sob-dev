@@ -130,9 +130,9 @@ export default function BasicInfoScreen() {
 
   const getAddressIcon = (type: string) => {
     switch (type) {
-      case 'home': return <Home size={20} color="#FF6B35" />;
-      case 'work': return <Briefcase size={20} color="#FF6B35" />;
-      default: return <MapPin size={20} color="#FF6B35" />;
+      case 'home': return <Home size={20} color="#48479B" />;
+      case 'work': return <Briefcase size={20} color="#48479B" />;
+      default: return <MapPin size={20} color="#48479B" />;
     }
   };
 
@@ -157,7 +157,7 @@ export default function BasicInfoScreen() {
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.form}>
             <View style={styles.iconContainer}>
-              <User size={48} color="#FF6B35" />
+              <User size={48} color="#48479B" />
             </View>
 
             <Text style={styles.title}>Let&apos;s get to know you better</Text>
@@ -201,7 +201,7 @@ export default function BasicInfoScreen() {
               <View style={styles.addressHeader}>
                 <Text style={styles.sectionTitle}>Delivery Addresses</Text>
                 <TouchableOpacity onPress={addNewAddress} style={styles.addButton}>
-                  <Plus size={16} color="#FF6B35" />
+                  <Plus size={16} color="#48479B" />
                   <Text style={styles.addButtonText}>Add Address</Text>
                 </TouchableOpacity>
               </View>
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FFF0EB',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'center',
@@ -377,10 +377,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#FF6B35',
+    borderColor: '#48479B',
   },
   addButtonText: {
-    color: '#FF6B35',
+    color: '#48479B',
     fontSize: 14,
     fontWeight: '500',
     marginLeft: 4,
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   primaryButton: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#48479B',
   },
   secondaryButton: {
     backgroundColor: 'transparent',
