@@ -17,7 +17,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from '@/contexts/LocationContext';
 import CategoryCard from '@/components/CategoryCard';
-import MealGridCard from '@/components/MealGridCard';
 import TestimonialCard from '@/components/TestimonialCard';
 import OfferCard from '@/components/OfferCard';
 import OfferDetailModal from '@/components/OfferDetailModal';
@@ -30,6 +29,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchBanners, fetchCategories, fetchMeals, fetchTestimonials } from '@/services/firebase';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MealCard from '@/components/MealCard';
+import CategorySquareCard from '@/components/CategorySquareCard';
 
 const TOP_BG_HEIGHT = Math.round(Dimensions.get('window').height * 0.36);
 
@@ -153,7 +153,7 @@ export default function HomeScreen() {
   );
 
   const renderCollectionsGrid = ({ item }: { item: any }) => (
-    <MealGridCard
+    <CategorySquareCard
       category={item}
       onPress={() => handleCategoryPress(item.id)}
      
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   mt8: { marginTop: 8 },
   bannersRow: { paddingRight: 20 },
   bannersContainer: { position: 'absolute', left: 0, right: 0, bottom: 18 },
-  bannerCard: { width: 126, height: 126, marginRight: 18, borderRadius: 18, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.27)' },
+  bannerCard: { width: 117, height: 108, marginRight: 18, borderRadius: 18, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.27)' },
   bannerImage: { width: '100%', height: '100%' },
   bannerOverlay: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(72,72,135,0.27)' },
   bannerTitle: { position: 'absolute', bottom: 9, left: 9, right: 9, color: '#fff', fontWeight: '900', fontSize: 14 },

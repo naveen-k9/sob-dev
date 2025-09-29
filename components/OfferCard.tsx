@@ -42,18 +42,16 @@ export default function OfferCard({ offer, onPress }: OfferCardProps) {
     <TouchableOpacity style={styles.container} onPress={onPress}>
       <Image source={{ uri: offer.image }} style={styles.image} />
       <View style={styles.content}>
-        <View style={[styles.discount, { backgroundColor: getOfferTypeColor() }]}>
-          <Text style={styles.discountText}>{offer.discount}</Text>
-        </View>
+        
         <Text style={styles.title}>{offer.title}</Text>
         <Text style={styles.description}>{offer.description}</Text>
         {offer.code && (
-          <View style={styles.codeContainer}>
-            {getOfferIcon()}
-            <Text style={styles.code}>{offer.code}</Text>
-          </View>
+          <View style={[styles.discount, { backgroundColor: getOfferTypeColor() }]}>
+          <Text style={styles.discountText}>{offer.code}</Text>
+        </View>
         )}
-        <Text style={styles.validity}>Valid until {offer.validUntil}</Text>
+        
+        {/* <Text style={styles.validity}>Valid until {offer.validUntil}</Text> */}
       </View>
     </TouchableOpacity>
   );
@@ -89,7 +87,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     alignSelf: 'flex-start',
-    marginBottom: 8,
+   
   },
   discountText: {
     color: '#FFFFFF',

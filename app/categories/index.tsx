@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchCategories, fetchMeals } from '@/services/firebase';
 import { Category, Meal, Offer } from '@/types';
 import CategoryCard from '@/components/CategoryCard';
-import MealGridCard from '@/components/MealGridCard';
 import OfferCard from '@/components/OfferCard';
 import OfferDetailModal from '@/components/OfferDetailModal';
 import FilterChips from '@/components/FilterChips';
@@ -13,6 +12,7 @@ import FilterModal from '@/components/FilterModal';
 import { LayoutGrid, Rows } from 'lucide-react-native';
 
 import { offers as offersSeed } from '@/constants/data';
+import MealCard from '@/components/MealCard';
 
 export default function CategoryBrowserScreen() {
   const params = useLocalSearchParams<{ categoryId?: string }>();
@@ -245,7 +245,7 @@ export default function CategoryBrowserScreen() {
             <FlatList
               data={displayedMeals}
               renderItem={({ item }) => (
-                <MealGridCard meal={item} onPress={() => handleMealPress(item.id)} onAddPress={() => handleAdd(item.id)} />
+                <MealCard meal={item} onPress={() => handleMealPress(item.id)} onSubscribe={() => handleAdd(item.id)} />
               )}
               keyExtractor={(item) => item.id}
               numColumns={gridCols}
