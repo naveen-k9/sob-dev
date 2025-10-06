@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Dimensions } from 'react-native';
 const TOP_BG_HEIGHT = Math.round(Dimensions.get('window').height * 0.36);
 type WeekType = 'mon-fri' | 'mon-sat';
- type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
+type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
 
 export default function MealDetailScreen() {
   const { id, mode, planId } = useLocalSearchParams();
@@ -52,7 +52,7 @@ export default function MealDetailScreen() {
   const [barStyle, setBarStyle] = useState<'light' | 'dark'>('light');
   const onScrollStatusChange = (style: 'light' | 'dark') => {
     setBarStyle(style);
-  };  
+  };
   React.useEffect(() => {
     setCanGoBack(routerInstance.canGoBack());
   }, []);
@@ -122,7 +122,7 @@ export default function MealDetailScreen() {
         setSelectedPlan(basic);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, planId]);
 
   // Dynamic pricing plans based on meal price
@@ -231,9 +231,9 @@ export default function MealDetailScreen() {
   }, [meal, selectedMealType]);
 
   const calculateTotalPrice = () => {
-  if (!meal || !selectedPlan) return 0;
-  const daysPerWeek = weekType === 'mon-fri' ? 5 : 6;
-  const weeks = Math.ceil(selectedPlan.duration / daysPerWeek);
+    if (!meal || !selectedPlan) return 0;
+    const daysPerWeek = weekType === 'mon-fri' ? 5 : 6;
+    const weeks = Math.ceil(selectedPlan.duration / daysPerWeek);
 
     let thaliDelta = 0;
     if (meal.isBasicThali && meal.variantPricing) {
@@ -280,7 +280,7 @@ export default function MealDetailScreen() {
 
   const handleProceed = () => {
     if (!meal) return;
-    
+
     const subscriptionData = {
       meal,
       plan: selectedPlan,
@@ -292,14 +292,14 @@ export default function MealDetailScreen() {
       isTrialMode,
       totalPrice: calculateTotalPrice(),
     };
-    
+
     router.push({
       pathname: '/checkout',
       params: { subscriptionData: JSON.stringify(subscriptionData) }
     });
   };
 
- const insets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
 
   if (loading) {
     return (
@@ -324,8 +324,8 @@ export default function MealDetailScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <ScrollView style={styles.scrollView} 
-      onScroll={(e) => {
+      <ScrollView style={styles.scrollView}
+        onScroll={(e) => {
           const y = e.nativeEvent.contentOffset?.y ?? 0;
           const threshold = TOP_BG_HEIGHT * 0.6;
           const next: 'light' | 'dark' = y < threshold ? 'light' : 'dark';
@@ -370,9 +370,9 @@ export default function MealDetailScreen() {
                 <Text style={styles.reviewCount}>({meal.reviewCount})</Text>
               </View> */}
             </View>
-            
+
             <Text style={styles.description}>{meal.description}</Text>
-            
+
             <View style={styles.priceRow}>
               <Text style={styles.price}>₹{variantPrice}</Text>
               {meal.originalPrice && (
@@ -516,7 +516,7 @@ export default function MealDetailScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Week Type</Text>
             <View style={styles.weekTypeRow}>
-              {([['mon-fri','Mon-Fri'], ['mon-sat','Mon-Sat']] as const).map(([val,label]) => {
+              {([['mon-fri', 'Mon-Fri'], ['mon-sat', 'Mon-Sat']] as const).map(([val, label]) => {
                 const isSelected = weekType === val;
                 return (
                   <TouchableOpacity
@@ -561,28 +561,8 @@ export default function MealDetailScreen() {
 
           {/* Add-ons */}
           <View style={styles.section}>
-            <TouchableOpacity 
-              style={styles.addOnHeader}
-              onPress={() => setShowAddOnsDrawer(true)}
-            >
-              <Text style={styles.sectionTitle}>Add-ons ({selectedAddOns.length})</Text>
-              <Text style={styles.addOnToggle}>{'>'}</Text>
-            </TouchableOpacity>
-            {selectedAddOns.length > 0 && (
-              <View style={styles.selectedAddOnsPreview}>
-                {selectedAddOns.slice(0, 2).map((addOnId) => {
-                  const addOn = addOns.find(a => a.id === addOnId);
-                  return addOn ? (
-                    <Text key={addOnId} style={styles.selectedAddOnText}>
-                      {addOn.name} (+₹{addOn.price})
-                    </Text>
-                  ) : null;
-                })}
-                {selectedAddOns.length > 2 && (
-                  <Text style={styles.moreAddOnsText}>+{selectedAddOns.length - 2} more</Text>
-                )}
-              </View>
-            )}
+
+
             {meal.allowDaySelection && (
               <View style={{ marginTop: 12 }}>
                 <Text style={styles.sectionTitle}>Select Days for this item</Text>
@@ -608,70 +588,110 @@ export default function MealDetailScreen() {
           </View>
 
           <View style={styles.section}>
-                      <View style={styles.mealsCard}>
-                        <View style={styles.mealsHeader}>
-                          <Text style={styles.mealsTitle}>Meals</Text>
-                          <View style={styles.mealsHeaderActions}>
-                            <TouchableOpacity
-                              testID="meals-card-add"
-                              style={styles.mealsAddBtn}
-                              onPress={async () => {
-                                try {
-                                  const cats = await db.getCategories();
-                                  // setCategories(cats);
-                                } catch (e) {
-                                  console.log('load categories for meals card add', e);
-                                }
-                                // setShowAddMeal(true);
-                              }}
-                            >
-                              <Plus size={16} color="white" />
-                              <Text style={styles.mealsAddBtnText}>Add Meal</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              testID="meals-card-view-all"
-                              style={styles.mealsViewAllBtn}
-                              // onPress={openMealsModal}
-                            >
-                              <Text style={styles.mealsViewAllText}>View all</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-          
-                        {/* Inline list preview */}
-                        {addOns.length === 0 ? (
-                          <View style={styles.emptyMealsContainer}>
-                            <ChefHat size={48} color="#9CA3AF" />
-                            <Text style={styles.emptyMealsTitle}>No Meals</Text>
-                            <Text style={styles.emptyMealsDescription}>Create your first meal to get started.</Text>
-                          </View>
-                        ) : (
-                          <View>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                              <View style={styles.mealsRow}> 
-                                {addOns.slice(0, 6).map((meal) => (
-                                  <View key={meal.id} style={styles.mealTinyCard}>
-                                    <View style={styles.mealTinyThumb}>
-                                      <Text style={styles.mealImageText}>🍽️</Text>
-                                    </View>
-                                    <Text numberOfLines={1} style={styles.mealTinyName}>{meal.name}</Text>
-                                    <Text style={styles.mealTinyMeta}>₹{meal.price}</Text>
-                                    <View style={styles.mealTinyBadges}>
-                                      <View style={[styles.vegBadge, { backgroundColor: meal.isVeg ? '#4CAF50' : '#F44336' }]}>
-                                        <Text style={styles.vegBadgeText}>{meal.isVeg ? 'Veg' : 'Non-Veg'}</Text>
-                                      </View>
-                                      <View style={[styles.statusBadge, { backgroundColor: meal.isActive ? '#10B981' : '#6B7280' }]}>
-                                        <Text style={styles.statusText}>{meal.isActive ? 'Active' : 'Inactive'}</Text>
-                                      </View>
-                                    </View>
-                                  </View>
-                                ))}
+            <View style={styles.mealsCard}>
+              <View style={styles.mealsHeader}>
+                <Text style={styles.mealsTitle}>Add-ons ({selectedAddOns.length})</Text>
+                <View style={styles.mealsHeaderActions}>
+                  <TouchableOpacity
+                    testID="meals-card-add"
+                    style={styles.mealsAddBtn}
+                    onPress={() => setShowAddOnsDrawer(true)}
+                  >
+                    <Plus size={16} color="white" />
+                    <Text style={styles.mealsAddBtnText}>Add</Text>
+                  </TouchableOpacity>
+
+                </View>
+              </View>
+
+              {/* Inline list preview */}
+              {selectedAddOns.length === 0 ? (
+                <View style={styles.emptyMealsContainer}>
+                  <ChefHat size={48} color="#9CA3AF" />
+                  <Text style={styles.emptyMealsTitle}>No Addons</Text>
+                  <Text style={styles.emptyMealsDescription}>Customize the addons delivery days.</Text>
+                </View>
+              ) : (
+                <View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={styles.mealsRow}>
+                  
+                        <View style={styles.addOnsCardsContainer}>
+                          {selectedAddOns.slice(0, 6).map((addOnId) => {
+                            const addOn = addOns.find(a => a.id === addOnId);
+                            if (!addOn) return null;
+
+                            return (
+                              <View key={addOn.id} style={styles.mealTinyCard}>
+                                <View style={[styles.mealTinyThumb, { padding: 0 }]}> 
+                                  {addOn.image ? (
+                                    <Image
+                                      source={{ uri: addOn.image }}
+                                      style={{ width: '100%', height: '100%', borderRadius: 8, resizeMode: 'cover', backgroundColor: '#F3F4F6' }}
+                                    />
+                                  ) : (
+                                    <Text style={styles.mealImageText}>🍽️</Text>
+                                  )}
+                                </View>
+                                <Text numberOfLines={1} style={styles.mealTinyName}>{addOn.name}</Text>
+                                <Text style={styles.mealTinyMeta}>₹{addOn.price}</Text>
+                                {/* Show selected weekdays for this addon */}
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                                  {(() => {
+                                    const days = selectedAddOnDays[addOn.id] ?? [];
+                                    if (days.length === 0) {
+                                      // All days selected, show label and balls for all availableDays (week type)
+                                      return (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                          {/* <Text style={{ fontSize: 11, color: '#10B981', marginRight: 4 }}>All days:</Text> */}
+                                          {availableDays.map(dayObj => (
+                                            <View key={dayObj.key} style={{
+                                              width: 24,
+                                              height: 24,
+                                              borderRadius: 12,
+                                              backgroundColor: '#10B981',
+                                              justifyContent: 'center',
+                                              alignItems: 'center',
+                                            }}>
+                                              <Text style={{ fontSize: 12, color: 'white', fontWeight: 'bold' }}>{dayObj.short}</Text>
+                                            </View>
+                                          ))}
+                                        </View>
+                                      );
+                                    }
+                                    return days.map(dayKey => {
+                                      const dayObj = availableDays.find(d => d.key === dayKey);
+                                      return dayObj ? (
+                                        <View key={dayKey} style={{
+                                          width: 24,
+                                          height: 24,
+                                          borderRadius: 12,
+                                          backgroundColor: '#48479B',
+                                          justifyContent: 'center',
+                                          alignItems: 'center',
+                                        }}>
+                                          <Text style={{ fontSize: 12, color: 'white', fontWeight: 'bold' }}>{dayObj.short}</Text>
+                                        </View>
+                                      ) : null;
+                                    });
+                                  })()}
+                                </View>
                               </View>
-                            </ScrollView>
-                          </View>
-                        )}
-                      </View>
+                            );
+                          })}
+                          {selectedAddOns.length > 6 && (
+                            <Text style={styles.moreAddOnsText}>+{selectedAddOns.length - 6} more</Text>
+                          )}
+                        </View>
+                    
+
                     </View>
+                  </ScrollView>
+                
+                </View>
+              )}
+            </View>
+          </View>
 
           {/* Delivery Time Slot */}
           {/* <View style={styles.section}>
@@ -755,19 +775,19 @@ export default function MealDetailScreen() {
         <SafeAreaView style={styles.datePickerContainer}>
           <View style={styles.datePickerHeader}>
             <Text style={styles.datePickerTitle}>Select Start Date</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.closeButton}
               onPress={() => setShowDatePicker(false)}
             >
               <X size={24} color="#333" />
             </TouchableOpacity>
           </View>
-          
+
           <ScrollView style={styles.datePickerContent}>
             <Text style={styles.datePickerDescription}>
               Choose when you want your subscription to start. You can select today or any future date.
             </Text>
-            
+
             <View style={styles.dateOptionsContainer}>
               {/* Today Option */}
               <TouchableOpacity
@@ -796,7 +816,7 @@ export default function MealDetailScreen() {
                   </View>
                 )}
               </TouchableOpacity>
-              
+
               {/* Tomorrow Option */}
               {(() => {
                 const tomorrow = new Date();
@@ -830,7 +850,7 @@ export default function MealDetailScreen() {
                   </TouchableOpacity>
                 );
               })()}
-              
+
               {/* Next Week Options */}
               {Array.from({ length: 7 }, (_, i) => {
                 const futureDate = new Date();
@@ -870,7 +890,7 @@ export default function MealDetailScreen() {
                 );
               })}
             </View>
-            
+
             <View style={styles.datePickerNote}>
               <Text style={styles.datePickerNoteText}>
                 💡 Your subscription will start on the selected date. You can modify or skip meals up to the cutoff time.
@@ -890,14 +910,14 @@ export default function MealDetailScreen() {
         <SafeAreaView style={styles.drawerContainer}>
           <View style={styles.drawerHeader}>
             <Text style={styles.drawerTitle}>Select Add-ons</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.closeButton}
               onPress={() => setShowAddOnsDrawer(false)}
             >
               <X size={24} color="#333" />
             </TouchableOpacity>
           </View>
-          
+
           <ScrollView style={styles.drawerContent}>
             {filteredAddOns.map((addOn) => {
               const isSelected = selectedAddOns.includes(addOn.id);
@@ -949,9 +969,9 @@ export default function MealDetailScreen() {
               );
             })}
           </ScrollView>
-          
+
           <View style={styles.drawerFooter}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.doneButton}
               onPress={() => setShowAddOnsDrawer(false)}
             >
@@ -1618,7 +1638,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
-   emptyMealsContainer: {
+  emptyMealsContainer: {
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 40,
@@ -1638,7 +1658,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
   },
-   mealsCard: {
+  mealsCard: {
     backgroundColor: 'white',
     borderRadius: 16,
     padding: 16,
@@ -1737,13 +1757,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.3,
   },
-    mealImageText: {
+  mealImageText: {
     fontSize: 24,
   },
   mealInfo: {
     flex: 1,
   },
-    vegBadge: {
+  vegBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
@@ -1753,7 +1773,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
   },
-   statusBadge: {
+  statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -1762,5 +1782,23 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: 'white',
+  },
+   noAddOnsContainer: {
+    padding: 20,
+    marginVertical: 10,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noAddOnsText: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+ addOnsCardsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginVertical: 10,
   },
 });
