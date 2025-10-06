@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Heart, Share, Plus, Minus, Star, Calendar, Clock, X, ChevronRight } from 'lucide-react-native';
+import { ArrowLeft, Heart, Share, Plus, Minus, Star, Calendar, Clock, X, ChevronRight, ChefHat } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Meal, AddOn, SubscriptionPlan, TimeSlot } from '@/types';
 import db from '@/db';
@@ -31,7 +31,8 @@ export default function MealDetailScreen() {
   const [selectedMealType, setSelectedMealType] = useState<'veg' | 'nonveg' | 'egg' | 'both'>('veg');
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [showAddOnsDrawer, setShowAddOnsDrawer] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>(subscriptionPlans[1]);
+  // Default to 6-day plan for dynamic plans
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const [isTrialMode, setIsTrialMode] = useState(false);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
   const [weekendExclusion, setWeekendExclusion] = useState<'saturdays' | 'sundays' | 'both'>('both');
@@ -41,6 +42,7 @@ export default function MealDetailScreen() {
   const [canGoBack, setCanGoBack] = useState(false);
   const [weekType, setWeekType] = useState<WeekType>('mon-fri');
   const [addonMealFilter, setAddonMealFilter] = useState<'veg' | 'nonveg' | 'both'>('both');
+  const [addonFilterManuallySet, setAddonFilterManuallySet] = useState(false);
   const [selectedAddOnDays, setSelectedAddOnDays] = useState<Record<string, DayKey[]>>({});
   const [thaliDayMap, setThaliDayMap] = useState<Record<DayKey, 'veg' | 'nonveg'>>({} as Record<DayKey, 'veg' | 'nonveg'>);
   const [productDays, setProductDays] = useState<DayKey[]>([]);
@@ -71,6 +73,19 @@ export default function MealDetailScreen() {
               : active.map(s => s.id);
             const first = active.find(s => ids.includes(s.id)) ?? active[0] ?? null;
             setSelectedTimeSlot(first ?? null);
+            // Set default selected plan to 6-day dynamic plan
+            setSelectedPlan({
+              id: 'dynamic-6',
+              name: '6 Day Plan',
+              duration: 6,
+              originalPrice: mealData.price * 6,
+              discountedPrice: mealData.price * 6,
+              discount: 0,
+              mealsPerDay: 1,
+              description: 'Meal price x 6 days',
+              features: ['6 Days', '1 Meal/Day', 'Free Delivery'],
+              popular: true,
+            });
           }
         }
       } catch (error) {
@@ -85,7 +100,7 @@ export default function MealDetailScreen() {
   // Update selected plan when trial mode changes
   useEffect(() => {
     const availablePlans = getAvailablePlans();
-    if (availablePlans.length > 0) {
+    if (availablePlans.length > 0 && selectedPlan) {
       const isCurrentPlanAvailable = availablePlans.some(plan => plan.id === selectedPlan.id);
       if (!isCurrentPlanAvailable) {
         setSelectedPlan(availablePlans[0]);
@@ -110,13 +125,27 @@ export default function MealDetailScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, planId]);
 
+  // Dynamic pricing plans based on meal price
+  const dynamicPlanDurations = [2, 6, 15, 16];
   const getAvailablePlans = () => {
+    if (!meal) return [];
+    // Build plans dynamically
+    const plans = dynamicPlanDurations.map((duration, idx) => ({
+      id: `dynamic-${duration}`,
+      name: `${duration} Day Plan`,
+      duration,
+      originalPrice: meal.price * duration,
+      discountedPrice: meal.price * duration, // No discount logic for now
+      discount: 0,
+      mealsPerDay: 1,
+      description: `Meal price x ${duration} days`,
+      features: [`${duration} Days`, '1 Meal/Day', 'Free Delivery'],
+      popular: duration === 6 || duration === 15,
+    }));
     if (isTrialMode) {
-      // In trial mode, only show the 2-day Meal Lite plan
-      return subscriptionPlans.filter(plan => plan.duration === 2);
+      return plans.filter(plan => plan.duration === 2);
     } else {
-      // In regular mode, show 6, 15, and 26 day plans (exclude 2-day trial plan)
-      return subscriptionPlans.filter(plan => plan.duration !== 2);
+      return plans.filter(plan => plan.duration !== 2);
     }
   };
 
@@ -163,6 +192,15 @@ export default function MealDetailScreen() {
     }
   }, [availableDays.length]);
 
+  // Sync Addon filter with meal type unless manually overridden
+  useEffect(() => {
+    if (!addonFilterManuallySet) {
+      if (selectedMealType === 'veg') setAddonMealFilter('veg');
+      else if (selectedMealType === 'nonveg') setAddonMealFilter('nonveg');
+      else setAddonMealFilter('both');
+    }
+  }, [selectedMealType, addonFilterManuallySet]);
+
   const toggleAddOnDay = useCallback((addOnId: string, day: DayKey) => {
     setSelectedAddOnDays(prev => {
       const current = prev[addOnId] ?? [];
@@ -193,9 +231,9 @@ export default function MealDetailScreen() {
   }, [meal, selectedMealType]);
 
   const calculateTotalPrice = () => {
-    if (!meal) return 0;
-    const daysPerWeek = weekType === 'mon-fri' ? 5 : 6;
-    const weeks = Math.ceil(selectedPlan.duration / daysPerWeek);
+  if (!meal || !selectedPlan) return 0;
+  const daysPerWeek = weekType === 'mon-fri' ? 5 : 6;
+  const weeks = Math.ceil(selectedPlan.duration / daysPerWeek);
 
     let thaliDelta = 0;
     if (meal.isBasicThali && meal.variantPricing) {
@@ -231,8 +269,13 @@ export default function MealDetailScreen() {
       return total + addOn.price * totalDaysForAddon;
     }, 0);
 
-    const vegBasePlan = isTrialMode ? selectedPlan.discountedPrice * 0.5 : selectedPlan.discountedPrice;
-    return vegBasePlan + thaliDelta + addOnTotal + productDayTotal;
+    // For dynamic plans, base price is meal.price * duration
+    let basePrice = selectedPlan.discountedPrice;
+    // If trial, use dynamic trial price (meal.price * 2)
+    if (isTrialMode && meal) {
+      basePrice = meal.price * 2;
+    }
+    return basePrice + thaliDelta + addOnTotal + productDayTotal;
   };
 
   const handleProceed = () => {
@@ -443,7 +486,7 @@ export default function MealDetailScreen() {
             <Text style={styles.sectionTitle}>Select Plan</Text>
             <View style={styles.planContainer}>
               {getAvailablePlans().map((plan) => {
-                const isSelected = selectedPlan.id === plan.id;
+                const isSelected = selectedPlan ? selectedPlan.id === plan.id : false;
                 return (
                   <TouchableOpacity
                     key={plan.id}
@@ -490,7 +533,7 @@ export default function MealDetailScreen() {
           </View>
 
           {/* Add-on Meal Type Filter */}
-          <View style={styles.section}>
+          {/* <View style={styles.section}>
             <Text style={styles.sectionTitle}>Addon Type</Text>
             <View style={styles.mealTypeContainer}>
               {(['veg','nonveg','both'] as const).map(opt => {
@@ -501,30 +544,20 @@ export default function MealDetailScreen() {
                     key={opt}
                     testID={`addon-filter-${opt}`}
                     style={[styles.mealTypeButton, isSelected && styles.selectedMealType]}
-                    onPress={() => setAddonMealFilter(opt)}
+                    onPress={() => {
+                      setAddonMealFilter(opt);
+                      setAddonFilterManuallySet(true);
+                    }}
                   >
                     <Text style={styles.mealTypeText}>{label}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
-          </View>
+            <Text style={{fontSize:12,color:'#888',marginTop:4}}>Addon type auto-selects based on meal type, but you can override it here.</Text>
+          </View> */}
 
-          {/* Trial/Subscribe Toggle */}
-          <View style={styles.section}>
-            <View style={styles.toggleContainer}>
-              <Text style={styles.sectionTitle}>Trial Mode</Text>
-              <Switch
-                value={isTrialMode}
-                onValueChange={setIsTrialMode}
-                trackColor={{ false: '#E5E7EB', true: '#48479B' }}
-                thumbColor={isTrialMode ? '#FFFFFF' : '#FFFFFF'}
-              />
-            </View>
-            {isTrialMode && (
-              <Text style={styles.trialNote}>Try our service with a 2-day meal plan at a special price!</Text>
-            )}
-          </View>
+          {/* ...existing code... */}
 
           {/* Add-ons */}
           <View style={styles.section}>
@@ -574,8 +607,74 @@ export default function MealDetailScreen() {
             )}
           </View>
 
-          {/* Delivery Time Slot */}
           <View style={styles.section}>
+                      <View style={styles.mealsCard}>
+                        <View style={styles.mealsHeader}>
+                          <Text style={styles.mealsTitle}>Meals</Text>
+                          <View style={styles.mealsHeaderActions}>
+                            <TouchableOpacity
+                              testID="meals-card-add"
+                              style={styles.mealsAddBtn}
+                              onPress={async () => {
+                                try {
+                                  const cats = await db.getCategories();
+                                  // setCategories(cats);
+                                } catch (e) {
+                                  console.log('load categories for meals card add', e);
+                                }
+                                // setShowAddMeal(true);
+                              }}
+                            >
+                              <Plus size={16} color="white" />
+                              <Text style={styles.mealsAddBtnText}>Add Meal</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              testID="meals-card-view-all"
+                              style={styles.mealsViewAllBtn}
+                              // onPress={openMealsModal}
+                            >
+                              <Text style={styles.mealsViewAllText}>View all</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+          
+                        {/* Inline list preview */}
+                        {addOns.length === 0 ? (
+                          <View style={styles.emptyMealsContainer}>
+                            <ChefHat size={48} color="#9CA3AF" />
+                            <Text style={styles.emptyMealsTitle}>No Meals</Text>
+                            <Text style={styles.emptyMealsDescription}>Create your first meal to get started.</Text>
+                          </View>
+                        ) : (
+                          <View>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                              <View style={styles.mealsRow}> 
+                                {addOns.slice(0, 6).map((meal) => (
+                                  <View key={meal.id} style={styles.mealTinyCard}>
+                                    <View style={styles.mealTinyThumb}>
+                                      <Text style={styles.mealImageText}>🍽️</Text>
+                                    </View>
+                                    <Text numberOfLines={1} style={styles.mealTinyName}>{meal.name}</Text>
+                                    <Text style={styles.mealTinyMeta}>₹{meal.price}</Text>
+                                    <View style={styles.mealTinyBadges}>
+                                      <View style={[styles.vegBadge, { backgroundColor: meal.isVeg ? '#4CAF50' : '#F44336' }]}>
+                                        <Text style={styles.vegBadgeText}>{meal.isVeg ? 'Veg' : 'Non-Veg'}</Text>
+                                      </View>
+                                      <View style={[styles.statusBadge, { backgroundColor: meal.isActive ? '#10B981' : '#6B7280' }]}>
+                                        <Text style={styles.statusText}>{meal.isActive ? 'Active' : 'Inactive'}</Text>
+                                      </View>
+                                    </View>
+                                  </View>
+                                ))}
+                              </View>
+                            </ScrollView>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+
+          {/* Delivery Time Slot */}
+          {/* <View style={styles.section}>
             <Text style={styles.sectionTitle}>Delivery Time</Text>
             <View style={styles.timeSlotContainer}>
               {(allTimeSlots.filter(s => !meal.availableTimeSlotIds || meal.availableTimeSlotIds.length === 0 || meal.availableTimeSlotIds.includes(s.id))).map((slot) => {
@@ -594,10 +693,10 @@ export default function MealDetailScreen() {
                 );
               })}
             </View>
-          </View>
+          </View> */}
 
           {/* Start Date */}
-          <View style={styles.section}>
+          {/* <View style={styles.section}>
             
             <TouchableOpacity 
               style={styles.dateSelector}
@@ -617,18 +716,29 @@ export default function MealDetailScreen() {
               </View>
               <ChevronRight size={16} color="#666" />
             </TouchableOpacity>
-          </View>
+          </View> */}
         </View>
       </ScrollView>
 
       {/* Bottom Actions */}
       <View style={styles.bottomActions}>
-        <View style={styles.priceBreakdown}>
-          <Text style={styles.totalPriceLabel}>Total Price</Text>
-          <Text style={styles.totalPriceValue}>₹{calculateTotalPrice()}</Text>
-          {isTrialMode && (
-            <Text style={styles.trialDiscount}>50% Trial Discount Applied</Text>
-          )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          <View style={styles.priceBreakdown}>
+            <Text style={styles.totalPriceLabel}>Total Price</Text>
+            <Text style={styles.totalPriceValue}>₹{calculateTotalPrice()}</Text>
+            {isTrialMode && (
+              <Text style={styles.trialDiscount}>Trial Plan: ₹{meal ? meal.price * 2 : 0}</Text>
+            )}
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={{ fontSize: 16, marginRight: 4 }}>Trial Mode</Text>
+            <Switch
+              value={isTrialMode}
+              onValueChange={setIsTrialMode}
+              trackColor={{ false: '#E5E7EB', true: '#48479B' }}
+              thumbColor={isTrialMode ? '#FFFFFF' : '#FFFFFF'}
+            />
+          </View>
         </View>
         <TouchableOpacity testID="proceed-to-checkout" style={styles.proceedButton} onPress={handleProceed}>
           <Text style={styles.proceedButtonText}>Proceed to Checkout</Text>
@@ -1506,5 +1616,151 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+
+   emptyMealsContainer: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 40,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  emptyMealsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyMealsDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+   mealsCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  mealsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  mealsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  mealsHeaderActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  mealsAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  mealsAddBtnText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  mealsViewAllBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  mealsViewAllText: {
+    color: '#111827',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  mealsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  mealTinyCard: {
+    width: 140,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: 'white',
+  },
+  mealTinyThumb: {
+    width: '100%',
+    height: 70,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  mealTinyName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  mealTinyMeta: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  mealTinyBadges: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  toggleActiveBtn: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  toggleActiveText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+    mealImageText: {
+    fontSize: 24,
+  },
+  mealInfo: {
+    flex: 1,
+  },
+    vegBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  vegBadgeText: {
+    fontSize: 10,
+    color: 'white',
+    fontWeight: '600',
+  },
+   statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'white',
   },
 });

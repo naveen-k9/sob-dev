@@ -1069,10 +1069,12 @@ export default function OrdersScreen() {
     </View>
   );
 
-   const insets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
 
+  // StatusBar with light style and Colors.primary background
   return (
-    <SafeAreaView  style={[styles.container, { paddingTop: insets.top }]}>
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBar style="light" backgroundColor="#48479B" />
       
       <ScrollView 
         style={styles.scrollView}

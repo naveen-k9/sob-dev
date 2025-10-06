@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#000',
+    color: Colors.primary,
   },
   originalPrice: {
     fontSize: 12,
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   subscribeBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.accent,
     paddingVertical: 9,
     borderRadius: 9,
     alignItems: 'center',
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
 
   },
   subscribeText: {
-    color: '#fff',
+    color:'#000000',
     fontWeight: '600',
     fontSize: 14,
   },

@@ -12,13 +12,16 @@ import FilterModal from '@/components/FilterModal';
 import { LayoutGrid, Rows } from 'lucide-react-native';
 
 import { offers as offersSeed } from '@/constants/data';
+import { Colors } from '@/constants/colors';
 import { StatusBar } from 'expo-status-bar';
 import MealCard from '@/components/MealCard';
+import MenuOffers from '@/components/MenuOffers';
 
 export default function CategoryBrowserScreen() {
   const params = useLocalSearchParams<{ categoryId?: string }>();
   const initial = typeof params.categoryId === 'string' ? params.categoryId : null;
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(initial);
+  const [activeCategoryName, setActiveCategoryName] = useState<string>('');
   const [gridCols, setGridCols] = useState<number>(2);
   const [showFilterModal, setShowFilterModal] = useState<boolean>(false);
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
@@ -29,16 +32,20 @@ export default function CategoryBrowserScreen() {
     { id: 'under-300', label: 'Under ₹300', selected: false },
   ]);
   const [filterSections, setFilterSections] = useState<{ id: string; title: string; options: { id: string; label: string; selected: boolean; }[]; }[]>([
-    { id: 'diet', title: 'Diet', options: [
-      { id: 'veg', label: 'Vegetarian', selected: false },
-      { id: 'non-veg', label: 'Non-Vegetarian', selected: false },
-      { id: 'vegan', label: 'Vegan', selected: false },
-    ]},
-    { id: 'price', title: 'Price', options: [
-      { id: 'under-200', label: 'Under ₹200', selected: false },
-      { id: '200-400', label: '₹200–₹400', selected: false },
-      { id: 'above-400', label: 'Above ₹400', selected: false },
-    ]},
+    {
+      id: 'diet', title: 'Diet', options: [
+        { id: 'veg', label: 'Vegetarian', selected: false },
+        { id: 'non-veg', label: 'Non-Vegetarian', selected: false },
+        { id: 'vegan', label: 'Vegan', selected: false },
+      ]
+    },
+    {
+      id: 'price', title: 'Price', options: [
+        { id: 'under-200', label: 'Under ₹200', selected: false },
+        { id: '200-400', label: '₹200–₹400', selected: false },
+        { id: 'above-400', label: 'Above ₹400', selected: false },
+      ]
+    },
   ]);
 
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
@@ -50,6 +57,8 @@ export default function CategoryBrowserScreen() {
       setActiveCategoryId(initial);
     }
   }, [initial, activeCategoryId]);
+  // ...existing code...
+  // Move activeCategoryName effect below allCategories declaration
 
   const isLoading = categoriesQuery.isLoading || mealsQuery.isLoading;
   const hasError = categoriesQuery.isError || mealsQuery.isError;
@@ -59,13 +68,22 @@ export default function CategoryBrowserScreen() {
   const collectionCategories = useMemo(() => categories.filter(c => c.group === 'collection'), [categories]);
   const allCategories: Category[] = useMemo(() => [...mealTimeCategories, ...collectionCategories], [mealTimeCategories, collectionCategories]);
 
+  useEffect(() => {
+    if (activeCategoryId) {
+      const found = allCategories.find(c => c.id === activeCategoryId);
+      setActiveCategoryName(found ? found.name : '');
+    } else {
+      setActiveCategoryName('');
+    }
+  }, [activeCategoryId, allCategories]);
+
   const displayedMeals: Meal[] = useMemo(() => {
     const all: Meal[] = mealsQuery.data ?? [];
     let list = activeCategoryId
       ? all.filter(m => {
-          const ids = (m.categoryIds ?? []).concat(m.categoryId ? [m.categoryId] : []);
-          return ids.includes(activeCategoryId);
-        })
+        const ids = (m.categoryIds ?? []).concat(m.categoryId ? [m.categoryId] : []);
+        return ids.includes(activeCategoryId);
+      })
       : [];
     const chipFilters = new Set(filterChips.filter(c => c.selected).map(c => c.id));
     if (chipFilters.has('veg')) list = list.filter(m => m.isVeg === true);
@@ -150,21 +168,70 @@ export default function CategoryBrowserScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* StatusBar light style */}
+      <StatusBar style="light" />
 
-      <Stack.Screen 
-        options={{ 
-          title: 'Menu', 
+      <Stack.Screen
+        options={{
+          title: 'Menu',
           headerShown: true,
+          headerStyle: { backgroundColor: Colors.primary },
+          headerTitleStyle: { color: Colors.background, fontSize: 22, fontWeight: '700' },
           headerRight: () => (
             <View style={styles.filtersBar}>
-            <Text style={styles.filtersLabel}>Filters</Text>
-            <TouchableOpacity onPress={() => setShowFilterModal(true)} testID="open-filter">
-              <Text style={styles.filterAction}>Open</Text>
-            </TouchableOpacity>
-          </View>
+              <Text style={styles.filtersLabel}>Filters</Text>
+              <TouchableOpacity onPress={() => setShowFilterModal(true)} testID="open-filter">
+                <Text style={styles.filterAction}>Open</Text>
+              </TouchableOpacity>
+            </View>
           ),
-        }} 
+        }}
       />
+
+     
+
+      <View style={[styles.sectionMain, { marginTop: 0 }]}> 
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.horizontalScroll}
+          contentContainerStyle={styles.horizontalContent}
+          onContentSizeChange={() => {
+            if (activeCategoryId) {
+              requestAnimationFrame(() => scrollToCategory(activeCategoryId));
+            }
+          }}
+        >
+          {allCategories.map(c => (
+            <View
+              key={c.id}
+              testID={`category-item-${c.id}`}
+              onLayout={(e) => {
+                const { x, width } = e.nativeEvent.layout;
+                console.log('Category item layout', c.id, { x, width });
+                onCategoryLayout(c.id, x, width);
+              }}
+            >
+              <CategoryCard
+                category={c}
+                isActive={c.id === activeCategoryId}
+                onPress={() => {
+                  setActiveCategoryId(prev => (prev === c.id ? null : c.id));
+                  requestAnimationFrame(() => scrollToCategory(c.id));
+                }}
+              />
+            </View>
+          ))}
+        </ScrollView>
+        {/* Active Category Name below ScrollView */}
+        {/* {activeCategoryName ? (
+          <View style={styles.activeCategoryNameWrap}>
+            <Text style={styles.activeCategoryNameText}>{activeCategoryName} Products</Text>
+          </View>
+        ) : null} */}
+      </View>
+
       {isLoading ? (
         <View style={styles.loadingWrap} testID="categories-loading">
           <Text style={styles.loadingText}>Loading...</Text>
@@ -178,62 +245,33 @@ export default function CategoryBrowserScreen() {
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false}>
-          <ScrollView
-            ref={scrollRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.horizontalScroll}
-            contentContainerStyle={styles.horizontalContent}
-            onContentSizeChange={() => {
-              if (activeCategoryId) {
-                requestAnimationFrame(() => scrollToCategory(activeCategoryId));
-              }
-            }}
-          >
-            {allCategories.map(c => (
-              <View
-                key={c.id}
-                testID={`category-item-${c.id}`}
-                onLayout={(e) => {
-                  const { x, width } = e.nativeEvent.layout;
-                  console.log('Category item layout', c.id, { x, width });
-                  onCategoryLayout(c.id, x, width);
-                }}
-              >
-                <CategoryCard 
-                  category={c} 
-                  isActive={c.id === activeCategoryId} 
-                  onPress={() => {
-                    setActiveCategoryId(prev => (prev === c.id ? null : c.id));
-                    requestAnimationFrame(() => scrollToCategory(c.id));
-                  }} 
-                />
-              </View>
-            ))}
-          </ScrollView>
+
 
           {/* OFFERS SECTION */}
-          <View style={styles.sectionHeader}>
+
+          {/* <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitleSmall}>Offers & Coupons</Text>
             <TouchableOpacity onPress={() => console.log('View all offers')}>
               <Text style={styles.clearText}>View all</Text>
             </TouchableOpacity>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.offersRow}>
+          </View> */}
+          {/* <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.offersRow}>
             {activeOffers.map((offer) => (
-              <OfferCard 
-                key={offer.id} 
+              <OfferCard
+                key={offer.id}
                 offer={{
                   ...offer,
                   discount: offer.discount ?? (offer.discountType === 'percentage' ? `${offer.discountValue}% OFF` : offer.discountType === 'cashback' ? `₹${offer.discountValue} Cashback` : `₹${offer.discountValue} OFF`),
                   code: offer.code ?? offer.promoCode,
                   validUntil: offer.validUntil ?? new Date(offer.validTo).toDateString(),
-                }} 
+                }}
                 onPress={() => handleOfferPress(offer)}
               />
             ))}
-          </ScrollView>
 
+          </ScrollView> */}
+          <MenuOffers />
+{/* 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitleSmall}>{activeCategoryId ? 'Products' : 'Pick a category'}</Text>
             {activeCategoryId && (
@@ -241,7 +279,7 @@ export default function CategoryBrowserScreen() {
                 <Text style={styles.clearText}>Clear</Text>
               </TouchableOpacity>
             )}
-          </View>
+          </View> */}
 
           <View style={styles.mealGrid}>
             <FlatList
@@ -261,8 +299,8 @@ export default function CategoryBrowserScreen() {
 
       <FilterModal visible={showFilterModal} onClose={() => setShowFilterModal(false)} sections={filterSections} onOptionToggle={handleFilterOptionToggle} onApply={handleApplyFilters} onClear={handleClearFilters} />
 
-      <OfferDetailModal 
-        visible={offerModalVisible} 
+      <OfferDetailModal
+        visible={offerModalVisible}
         offer={selectedOffer}
         onClose={() => setOfferModalVisible(false)}
         onUseOffer={handleUseOffer}
@@ -272,11 +310,14 @@ export default function CategoryBrowserScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  menuTextWrap: { alignItems: 'center', marginTop: 12 },
+  menuText: { backgroundColor: '#A3D397', color: '#111827', fontSize: 22, fontWeight: '700', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: '#333', paddingHorizontal: 20, marginTop: 16, marginBottom: 12 },
   sectionTitleSmall: { fontSize: 16, fontWeight: '700', color: '#333' },
   horizontalScroll: { paddingVertical: 12 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginTop: 12 },
+  sectionMain: { marginTop: 20 },
   clearText: { color: '#48479B', fontWeight: '600' },
   mealGrid: { paddingHorizontal: 20, marginTop: 12 },
   gridRow: { justifyContent: 'space-between' },
@@ -292,4 +333,6 @@ const styles = StyleSheet.create({
   retryText: { color: 'white', fontWeight: '600' },
   offersRow: { paddingLeft: 20, paddingVertical: 8 },
   horizontalContent: { paddingHorizontal: 20 },
+  activeCategoryNameWrap: { alignItems: 'center', marginTop: 8, marginBottom: 4 },
+  activeCategoryNameText: { fontSize: 16, fontWeight: '700', color: '#000' },
 });

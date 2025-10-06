@@ -18,6 +18,7 @@ import { ArrowLeft, CreditCard, Wallet, MapPin, Tag, Check, CheckCircle, XCircle
 import { useAuth } from '@/contexts/AuthContext';
 import db from '@/db';
 import RazorpayCheckout from 'react-native-razorpay';
+import { Colors } from '@/constants/colors';
 export default function CheckoutScreen() {
   const { user, isGuest, updateUser } = useAuth();
   const { subscriptionData } = useLocalSearchParams();
@@ -40,6 +41,11 @@ export default function CheckoutScreen() {
   const [canGoBack, setCanGoBack] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [showAddressBook, setShowAddressBook] = useState<boolean>(false);
+  // Delivery slot and start date states
+  const [allTimeSlots, setAllTimeSlots] = useState<any[]>([]);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<any>(null);
+  const [startDate, setStartDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   React.useEffect(() => {
     setCanGoBack(routerInstance.canGoBack());
@@ -50,7 +56,9 @@ export default function CheckoutScreen() {
       try {
         const parsedData = JSON.parse(subscriptionData);
         setSubscriptionDetails(parsedData);
-
+        // Set start date and slot from params if available
+        if (parsedData?.startDate) setStartDate(new Date(parsedData.startDate));
+        if (parsedData?.timeSlot) setSelectedTimeSlot(parsedData.timeSlot);
       } catch (error) {
         console.error('Error parsing subscription data:', error);
         Alert.alert('Error', 'Invalid subscription data');
@@ -62,6 +70,22 @@ export default function CheckoutScreen() {
       }
     }
   }, [subscriptionData]);
+  // Load delivery slots from db
+  useEffect(() => {
+    async function loadSlots() {
+      try {
+        const slots = await db.getTimeSlots();
+        setAllTimeSlots((slots || []).filter((s: any) => s.isActive !== false));
+        // If no slot selected, pick first
+        if (!selectedTimeSlot && slots && slots.length > 0) {
+          setSelectedTimeSlot(slots[0]);
+        }
+      } catch (e) {
+        console.log('Error loading slots', e);
+      }
+    }
+    loadSlots();
+  }, []);
 
   useEffect(() => {
     if (user?.addresses && user.addresses.length > 0) {
@@ -313,6 +337,12 @@ export default function CheckoutScreen() {
       }
     }
 
+    // Always update subscriptionDetails with latest startDate and slot before payment
+    const updatedDetails = {
+      ...subscriptionDetails,
+      startDate,
+      timeSlot: selectedTimeSlot,
+    };
     // If amount payable is zero, activate immediately
     if (orderSummary.payableAmount === 0) {
       setShowPaymentModal(true);
@@ -337,27 +367,27 @@ export default function CheckoutScreen() {
 
         console.log('PaymentStatus after wallet --- IGNORE ---');
         // Save subscription to database
-        const startDate = new Date(subscriptionDetails.startDate);
-        const endDate = computeEndDate(startDate, subscriptionDetails.plan.duration, subscriptionDetails.weekType);
+        const startDateVal = new Date(updatedDetails.startDate);
+        const endDate = computeEndDate(startDateVal, updatedDetails.plan.duration, updatedDetails.weekType);
 
         const subscription = {
           userId: user?.id || 'guest',
-          mealId: subscriptionDetails.meal.id,
-          planId: subscriptionDetails.plan.id,
-          startDate: startDate,
+          mealId: updatedDetails.meal.id,
+          planId: updatedDetails.plan.id,
+          startDate: startDateVal,
           endDate: endDate,
-          deliveryTime: subscriptionDetails.timeSlot.time,
-          deliveryTimeSlot: subscriptionDetails.timeSlot.time,
-          weekType: subscriptionDetails.weekType,
-          weekendExclusion: subscriptionDetails.weekType === 'mon-sat' ? 'sunday' : 'both',
-          excludeWeekends: subscriptionDetails.weekType === 'mon-sat' ? true : false,
+          deliveryTime: updatedDetails.timeSlot?.time,
+          deliveryTimeSlot: updatedDetails.timeSlot?.time,
+          weekType: updatedDetails.weekType,
+          weekendExclusion: updatedDetails.weekType === 'mon-sat' ? 'sunday' : 'both',
+          excludeWeekends: updatedDetails.weekType === 'mon-sat' ? true : false,
           status: 'active' as const,
           totalAmount: orderSummary.finalAmount,
           paidAmount: orderSummary.finalAmount,
-          remainingDeliveries: subscriptionDetails.plan.duration,
-          totalDeliveries: subscriptionDetails.plan.duration,
+          remainingDeliveries: updatedDetails.plan.duration,
+          totalDeliveries: updatedDetails.plan.duration,
           addressId: selectedAddress?.id || 'default',
-          addOns: (subscriptionDetails.addOns ?? []).map((addon: any) => addon.id),
+          addOns: (updatedDetails.addOns ?? []).map((addon: any) => addon.id),
           additionalAddOns: {},
           specialInstructions: deliveryInstructions,
         };
@@ -429,10 +459,6 @@ export default function CheckoutScreen() {
     console.log('Razorpay options:', options);
     RazorpayCheckout.open(options)
       .then(async (data: { razorpay_payment_id: string }) => {
-        // alert(`Success: ${data.razorpay_payment_id}`);
-        // Always close payment modal and overlays
-        // setShowPaymentModal(false);
-        // ...existing code...
         setShowPaymentModal(true);
         setPaymentStatus('success');
         if (user?.id && orderSummary.walletAppliedAmount > 0) {
@@ -450,32 +476,28 @@ export default function CheckoutScreen() {
           }
         }
 
-        console.log('PaymentStatus after wallet --- IGNORE ---');
-
         // Save subscription to database
-        const startDate = new Date(subscriptionDetails.startDate);
-        console.log('Start Date:', startDate);
-        const endDate = computeEndDate(startDate, subscriptionDetails.plan.duration, subscriptionDetails.weekType);
-        console.log('End Date:', endDate);
+        const startDateVal = new Date(updatedDetails.startDate);
+        const endDate = computeEndDate(startDateVal, updatedDetails.plan.duration, updatedDetails.weekType);
 
         const subscription = {
           userId: user?.id || 'guest',
-          mealId: subscriptionDetails.meal.id,
-          planId: subscriptionDetails.plan.id,
-          startDate: startDate,
+          mealId: updatedDetails.meal.id,
+          planId: updatedDetails.plan.id,
+          startDate: startDateVal,
           endDate: endDate,
-          deliveryTime: subscriptionDetails.timeSlot.time,
-          deliveryTimeSlot: subscriptionDetails.timeSlot.time,
-          weekType: subscriptionDetails.weekType,
-          weekendExclusion: subscriptionDetails.weekType === 'mon-sat' ? 'sunday' : 'both',
-          excludeWeekends: subscriptionDetails.weekType === 'mon-sat' ? true : false,
+          deliveryTime: updatedDetails.timeSlot?.time,
+          deliveryTimeSlot: updatedDetails.timeSlot?.time,
+          weekType: updatedDetails.weekType,
+          weekendExclusion: updatedDetails.weekType === 'mon-sat' ? 'sunday' : 'both',
+          excludeWeekends: updatedDetails.weekType === 'mon-sat' ? true : false,
           status: 'active' as const,
           totalAmount: orderSummary.finalAmount,
           paidAmount: orderSummary.finalAmount,
-          remainingDeliveries: subscriptionDetails.plan.duration,
-          totalDeliveries: subscriptionDetails.plan.duration,
+          remainingDeliveries: updatedDetails.plan.duration,
+          totalDeliveries: updatedDetails.plan.duration,
           addressId: selectedAddress?.id || 'default',
-          addOns: (subscriptionDetails.addOns ?? []).map((addon: any) => addon.id),
+          addOns: (updatedDetails.addOns ?? []).map((addon: any) => addon.id),
           additionalAddOns: {},
           specialInstructions: deliveryInstructions,
         };
@@ -487,11 +509,6 @@ export default function CheckoutScreen() {
         } catch (error) {
           console.error('Error creating subscription:', error);
         }
-
-        // Force navigation reset to orders tab
-        // if (router.dismiss) {
-        //   router.dismiss(); // If using expo-router v3+, this will close the modal/screen
-        // }
 
         setShowPaymentModal(false);
         setTimeout(() => {
@@ -569,22 +586,21 @@ export default function CheckoutScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen
-        options={{
-          title: 'Checkout',
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => {
-              if (canGoBack) {
-                router.back();
-              } else {
-                router.replace('/(tabs)');
-              }
-            }} style={styles.backButton}>
-              <ArrowLeft size={24} color="#333" />
-            </TouchableOpacity>
-          ),
-        }}
-      />
+     <Stack.Screen
+             options={{
+               title: 'Checkout',
+               headerShown: true,
+               headerStyle: { backgroundColor: Colors.primary },
+               headerTitleStyle: { color: Colors.background, fontSize: 18, fontWeight: '700' },
+               headerLeft: () => (
+                <View style={{ marginLeft: 18,marginRight:9 }}>
+                   <TouchableOpacity  onPress={() => router.push('/')} testID="open-filter">
+                     <ArrowLeft size={24} color={Colors.background} />
+                   </TouchableOpacity>
+                </View>
+               ),
+             }}
+           />
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {!subscriptionDetails ? (
@@ -680,6 +696,54 @@ export default function CheckoutScreen() {
                   <Text style={styles.totalValue}>₹{orderSummary.finalAmount}</Text>
                 </View>
               </View>
+            </View>
+            {/* Delivery Slot Selection (EXACT MATCH + DEBUG) */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Delivery Time</Text>
+              <View style={styles.timeSlotContainer}>
+                {allTimeSlots
+                  .filter(s => !subscriptionDetails?.meal?.availableTimeSlotIds || subscriptionDetails.meal.availableTimeSlotIds.length === 0 || subscriptionDetails.meal.availableTimeSlotIds.includes(s.id))
+                  .map((slot) => {
+                    const isSelected = selectedTimeSlot?.id === slot.id;
+                    return (
+                      <TouchableOpacity
+                        key={slot.id}
+                        style={[styles.timeSlotButton, isSelected && styles.selectedTimeSlot]}
+                        onPress={() => {
+                          setSelectedTimeSlot(slot);
+                          console.log('[CHECKOUT] Selected delivery slot:', slot);
+                        }}
+                      >
+                        {/* Use same icon as meal id */}
+                        <Text style={[styles.timeSlotText, isSelected && styles.selectedTimeSlotText]}>
+                          {slot.time}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+              </View>
+              <Text style={{fontSize:12,color:'#666'}}>DEBUG: selectedTimeSlot = {JSON.stringify(selectedTimeSlot)}</Text>
+            </View>
+            {/* Start Date Selection (EXACT MATCH + DEBUG) */}
+            <View style={styles.section}>
+              <TouchableOpacity 
+                style={styles.dateSelector}
+                onPress={() => {
+                  setShowDatePicker(true);
+                  console.log('[CHECKOUT] Opened date picker, current startDate:', startDate);
+                }}
+              >
+                <Text style={styles.dateLabel}>Start Date</Text>
+                <Text style={styles.dateValue}>
+                  {startDate.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                  })}
+                </Text>
+              </TouchableOpacity>
+              <Text style={{fontSize:12,color:'#666'}}>DEBUG: startDate = {startDate.toISOString()}</Text>
             </View>
 
 
@@ -805,6 +869,133 @@ export default function CheckoutScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Date Picker Modal (EXACT MATCH + DEBUG) */}
+      <Modal
+        visible={showDatePicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <SafeAreaView style={styles.datePickerContainer}>
+          <View style={styles.datePickerHeader}>
+            <Text style={styles.datePickerTitle}>Select Start Date</Text>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => {
+                setShowDatePicker(false);
+                console.log('[CHECKOUT] Closed date picker, startDate:', startDate);
+              }}
+            >
+              <Text style={{fontSize: 24}}>×</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.datePickerContent}>
+            <Text style={styles.datePickerDescription}>
+              Choose when you want your subscription to start. You can select today or any future date.
+            </Text>
+            <View style={styles.dateOptionsContainer}>
+              {/* Today Option */}
+              <TouchableOpacity
+                style={[styles.dateOption, startDate.toDateString() === new Date().toDateString() && styles.selectedDateOption]}
+                onPress={() => {
+                  setStartDate(new Date());
+                  setShowDatePicker(false);
+                  console.log('[CHECKOUT] Picked startDate: Today', new Date());
+                }}
+              >
+                <View style={styles.dateOptionContent}>
+                  <Text style={styles.dateOptionTitle}>Today</Text>
+                  <Text style={styles.dateOptionSubtitle}>
+                    {new Date().toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long'
+                    })}
+                  </Text>
+                </View>
+                {startDate.toDateString() === new Date().toDateString() && (
+                  <View style={styles.selectedIndicator}>
+                    <Text style={styles.checkMark}>✓</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              {/* Tomorrow Option */}
+              {(() => {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                return (
+                  <TouchableOpacity
+                    style={[styles.dateOption, startDate.toDateString() === tomorrow.toDateString() && styles.selectedDateOption]}
+                    onPress={() => {
+                      setStartDate(tomorrow);
+                      setShowDatePicker(false);
+                      console.log('[CHECKOUT] Picked startDate: Tomorrow', tomorrow);
+                    }}
+                  >
+                    <View style={styles.dateOptionContent}>
+                      <Text style={styles.dateOptionTitle}>Tomorrow</Text>
+                      <Text style={styles.dateOptionSubtitle}>
+                        {tomorrow.toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          day: 'numeric',
+                          month: 'long'
+                        })}
+                      </Text>
+                    </View>
+                    {startDate.toDateString() === tomorrow.toDateString() && (
+                      <View style={styles.selectedIndicator}>
+                        <Text style={styles.checkMark}>✓</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })()}
+              {/* Next Week Options */}
+              {Array.from({ length: 7 }, (_, i) => {
+                const futureDate = new Date();
+                futureDate.setDate(futureDate.getDate() + i + 2);
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    style={[styles.dateOption, startDate.toDateString() === futureDate.toDateString() && styles.selectedDateOption]}
+                    onPress={() => {
+                      setStartDate(futureDate);
+                      setShowDatePicker(false);
+                      console.log('[CHECKOUT] Picked startDate: Future', futureDate);
+                    }}
+                  >
+                    <View style={styles.dateOptionContent}>
+                      <Text style={styles.dateOptionTitle}>
+                        {futureDate.toLocaleDateString('en-US', {
+                          weekday: 'long'
+                        })}
+                      </Text>
+                      <Text style={styles.dateOptionSubtitle}>
+                        {futureDate.toLocaleDateString('en-US', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric'
+                        })}
+                      </Text>
+                    </View>
+                    {startDate.toDateString() === futureDate.toDateString() && (
+                      <View style={styles.selectedIndicator}>
+                        <Text style={styles.checkMark}>✓</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <View style={styles.datePickerNote}>
+              <Text style={styles.datePickerNoteText}>
+                💡 Your subscription will start on the selected date. You can modify or skip meals up to the cutoff time.
+              </Text>
+            </View>
+            <Text style={{fontSize:12,color:'#666',marginTop:12}}>DEBUG: startDate = {startDate.toISOString()}</Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
       {/* Payment Modal */}
       <Modal
         visible={showPaymentModal}
@@ -1296,5 +1487,138 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: '#666',
     fontSize: 12,
+  },
+  timeSlotContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  timeSlotButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#DDD',
+    backgroundColor: 'white',
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  selectedTimeSlot: {
+    borderColor: '#48479B',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+  },
+  timeSlotText: {
+    fontSize: 14,
+    color: '#48479B',
+    fontWeight: '500',
+  },
+  selectedTimeSlotText: {
+    color: '#48479B',
+    fontWeight: '700',
+  },
+  dateSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#DDD',
+  },
+  dateLabel: {
+    fontSize: 16,
+    color: '#48479B',
+    fontWeight: '600',
+    marginRight: 12,
+  },
+  dateValue: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+  datePickerContainer: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  datePickerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  datePickerContent: {
+    padding: 20,
+  },
+  datePickerDescription: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 16,
+  },
+  dateOptionsContainer: {
+    gap: 12,
+  },
+  dateOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#DDD',
+  },
+  selectedDateOption: {
+    borderColor: '#48479B',
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+  },
+  dateOptionContent: {
+    flex: 1,
+  },
+  dateOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#48479B',
+  },
+  dateOptionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+  },
+  selectedIndicator: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#48479B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkMark: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  datePickerNote: {
+    marginTop: 16,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    padding: 12,
+  },
+  datePickerNoteText: {
+    fontSize: 14,
+    color: '#666',
   },
 });

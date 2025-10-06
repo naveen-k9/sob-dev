@@ -26,11 +26,13 @@ import {
   Clock,
   Edit,
   Heart,
+  ArrowLeft,
 } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import db from '@/db';
 import { Subscription } from '@/types';
+import { Colors } from '@/constants/colors';
 
 export default function ProfileScreen() {
   const { user, isGuest, logout } = useAuth();
@@ -234,6 +236,21 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+       <Stack.Screen
+        options={{
+          title: 'Profile',
+          headerShown: true,
+          headerStyle: { backgroundColor: Colors.primary },
+          headerTitleStyle: { color: Colors.background, fontSize: 18, fontWeight: '700' },
+          headerLeft: () => (
+           <View style={{ marginLeft: 18,marginRight:9 }}>
+              <TouchableOpacity  onPress={() => router.push('/')} testID="open-filter">
+                <ArrowLeft size={24} color={Colors.background} />
+              </TouchableOpacity>
+           </View>
+          ),
+        }}
+      />
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Profile Header */}
         <View style={styles.header}>
