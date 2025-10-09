@@ -30,6 +30,7 @@ import { fetchBanners, fetchCategories, fetchMeals, fetchTestimonials } from '@/
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MealCard from '@/components/MealCard';
 import CategorySquareCard from '@/components/CategorySquareCard';
+import RoleSelector from '@/components/RoleSelector';
 
 const TOP_BG_HEIGHT = Math.round(Dimensions.get('window').height * 0.36);
 
@@ -163,6 +164,7 @@ export default function HomeScreen() {
   return (
     <>
       <StatusBar translucent backgroundColor="transparent" style={barStyle} />
+      
       <CustomerHomeScreen
         user={user}
         isGuest={isGuest}
@@ -188,6 +190,10 @@ export default function HomeScreen() {
         barStyle={barStyle}
         onScrollStatusChange={(next: 'light' | 'dark') => setBarStyle(next)}
       />
+       <RoleSelector currentRole="admin" />
+       <TouchableOpacity onPress={() => router.push('/admin/polygon-locations')} style={{position: 'absolute', bottom: 50, right: 20, backgroundColor: '#007AFF', padding: 10, borderRadius: 5}}>
+        <Text>Switch to Admin</Text>
+       </TouchableOpacity>
     </>
   );
 }

@@ -50,11 +50,11 @@ export interface Address {
   };
   isDefault: boolean;
   deliveryInstructions?: string;
-
+ 
   phoneNumber: string;
   addressText: string;
   createdAt: Date;
-  updatedAt: Date;
+  updatedAt?: Date;
   notes?: string;
   extra?: any;
 

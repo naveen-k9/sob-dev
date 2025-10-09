@@ -126,7 +126,7 @@ export default function MealDetailScreen() {
   }, [mode, planId]);
 
   // Dynamic pricing plans based on meal price
-  const dynamicPlanDurations = [2, 6, 15, 16];
+  const dynamicPlanDurations = [2, 6, 15, 26];
   const getAvailablePlans = () => {
     if (!meal) return [];
     // Build plans dynamically

@@ -57,6 +57,8 @@ import { seedIfEmpty } from '@/services/firebase';
 import { Subscription, User, AppSettings, KitchenStaff, DeliveryPerson, UserRole, TimeSlot, Meal } from '@/types';
 import PromotionalAdmin from '@/components/PromotionalAdmin';
 import RoleSelector from '@/components/RoleSelector';
+import PolygonMap from '@/components/PolygonMap';
+import PolygonSelector from '@/components/PolygonSelector';
 
 interface DashboardCard {
   id: string;
@@ -2430,6 +2432,7 @@ export default function AdminDashboard() {
               >
                 <Text style={styles.saveButtonText}>Select Area on Map</Text>
               </TouchableOpacity>
+              <PolygonSelector />
 
               <TouchableOpacity
                 style={[styles.saveButton, { backgroundColor: '#10B981', marginTop: 10 }]}
