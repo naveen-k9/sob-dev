@@ -28,12 +28,14 @@ const LocationDetector: React.FC<LocationDetectorProps> = ({ polygons }) => {
     Array<{ id: string; name: string; color: string }>
   >([]);
   const mapRef = useRef<MapView | null>(null);
-  const initialRegion: Region = {
-    latitude: 37.78825,
-    longitude: -122.4324,
+  
+  // Dynamic initial region - default to a general location, will be updated when current location is available
+  const [initialRegion, setInitialRegion] = useState<Region>({
+    latitude: 12.9716, // Bangalore coordinates as default for India
+    longitude: 77.5946,
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
-  };
+  });
 
   const getCurrentLocation = async () => {
     try {
@@ -54,30 +56,58 @@ const LocationDetector: React.FC<LocationDetectorProps> = ({ polygons }) => {
         longitude: location.coords.longitude,
       };
 
-  setCurrentLocation(coords);
-  // Animate map to currentLocation whenever it changes
-  useEffect(() => {
-    if (currentLocation && mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: currentLocation.latitude,
-        longitude: currentLocation.longitude,
+      setCurrentLocation(coords);
+
+      // Update initial region to center on current location
+      const newRegion = {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
-      }, 500);
-    }
-  }, [currentLocation]);
+      };
+      setInitialRegion(newRegion);
 
       // Check if location is in any polygon
       const containingPolygons = findPolygonsContainingPoint(coords, polygons);
       setServiceablePolygons(containingPolygons);
 
     } catch (error) {
-      Alert.alert('Error', 'Failed to get current location. Please try again.');
       console.error('Location error:', error);
+      let errorMessage = 'Failed to get current location. Please try again.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Location request timed out')) {
+          errorMessage = 'Location request timed out. Please check your GPS and try again.';
+        } else if (error.message.includes('Location provider unavailable')) {
+          errorMessage = 'Location services are unavailable. Please enable GPS and try again.';
+        } else if (error.message.includes('Network error')) {
+          errorMessage = 'Network error occurred. Please check your internet connection.';
+        }
+      }
+      
+      Alert.alert('Location Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Auto-get location on component mount
+  useEffect(() => {
+    getCurrentLocation();
+  }, []);
+
+  // Animate map to current location whenever it changes
+  useEffect(() => {
+    if (currentLocation && mapRef.current) {
+      const region = {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+      mapRef.current.animateToRegion(region, 1000);
+    }
+  }, [currentLocation]);
 
   useEffect(() => {
     if (currentLocation) {
@@ -104,7 +134,12 @@ const LocationDetector: React.FC<LocationDetectorProps> = ({ polygons }) => {
       <View style={styles.mapContainer}>
         <MapView
           style={styles.map}
-          initialRegion={initialRegion}
+          initialRegion={currentLocation ? {
+            latitude: currentLocation.latitude,
+            longitude: currentLocation.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          } : initialRegion}
           ref={mapRef}
           showsUserLocation={true}
           showsMyLocationButton={false}

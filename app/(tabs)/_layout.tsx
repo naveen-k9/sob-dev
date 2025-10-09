@@ -1,6 +1,6 @@
 import { Tabs, useRouter } from "expo-router";
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Home, ShoppingBag, Gift, SquareMenu } from "lucide-react-native";
+import { Home, ShoppingBag, Gift, SquareMenu, MapPin } from "lucide-react-native";
 import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Colors } from "@/constants/colors";
@@ -95,6 +95,28 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <ShoppingBag color={color} size={size} />,
         }}
       />
+
+      {/* Detection Tab */}
+      {!isAdmin() && !isKitchen() && !isDelivery() && (
+        <Tabs.Screen
+          name="detection"
+          options={{
+            title: "Detection",
+            tabBarIcon: ({ color, size }) => <MapPin color={color} size={size} />,
+          }}
+        />
+      )}
+
+      {/* Addresses Tab */}
+      {!isAdmin() && !isKitchen() && !isDelivery() && (
+        <Tabs.Screen
+          name="addresses"
+          options={{
+            title: "Addresses",
+            tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
+          }}
+        />
+      )}
 
       {/* Right Tab 2 */}
      

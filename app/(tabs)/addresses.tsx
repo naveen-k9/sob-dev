@@ -1,17 +1,19 @@
 
-import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Region } from 'react-native-maps';
+import * as Location from 'expo-location';
 import AddressForm from '@/components/AddressForm';
 import AddressList from '@/components/AddressList';
 import { useAsyncStorage } from '@/hooks/useStorage';
 import { Address } from '@/types';
 
-const INITIAL_REGION: Region = {
-  latitude: 37.78825,
-  longitude: -122.4324,
+// Default to Bangalore coordinates instead of San Francisco
+const DEFAULT_REGION: Region = {
+  latitude: 12.9716,
+  longitude: 77.5946,
   latitudeDelta: 0.0922,
   longitudeDelta: 0.0421,
 };
@@ -20,7 +22,79 @@ export default function AddressManager() {
   const [addresses, setAddresses, loadingAddresses] = useAsyncStorage<Address[]>('addresses', []);
   const [showForm, setShowForm] = useState(false);
   const [showList, setShowList] = useState(false);
-  // Removed region state to avoid controlled MapView blinking
+  const [currentLocation, setCurrentLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [initialRegion, setInitialRegion] = useState<Region>(DEFAULT_REGION);
+  const mapRef = useRef<MapView | null>(null);
+
+  // Get current location on component mount
+  useEffect(() => {
+    getCurrentLocation();
+  }, []);
+
+  // Animate map to current location when available
+  useEffect(() => {
+    if (currentLocation && mapRef.current) {
+      const region = {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+      mapRef.current.animateToRegion(region, 1000);
+    }
+  }, [currentLocation]);
+
+  const getCurrentLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Location permission denied');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      const coords = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+
+      setCurrentLocation(coords);
+
+      // Update initial region to center on current location
+      const newRegion = {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+      setInitialRegion(newRegion);
+
+    } catch (error) {
+      console.error('Location error:', error);
+      // Silently fail for addresses page - not critical functionality
+    }
+  };
+
+  const centerOnCurrentLocation = async () => {
+    if (currentLocation && mapRef.current) {
+      const region = {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+      mapRef.current.animateToRegion(region, 1000);
+    } else {
+      // Try to get current location if not available
+      await getCurrentLocation();
+    }
+  };
 
   const handleSubmitAddress = (addressData: {
     name: string;
@@ -72,7 +146,13 @@ export default function AddressManager() {
       <View style={styles.mapContainer}>
         <MapView
           style={styles.map}
-          initialRegion={INITIAL_REGION}
+          initialRegion={currentLocation ? {
+            latitude: currentLocation.latitude,
+            longitude: currentLocation.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          } : initialRegion}
+          ref={mapRef}
           showsUserLocation={true}
           showsMyLocationButton={true}
         >
@@ -125,6 +205,18 @@ export default function AddressManager() {
               color="#007AFF" 
             />
           </TouchableOpacity>
+          {!showList && (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={centerOnCurrentLocation}
+            >
+              <Ionicons 
+                name="locate" 
+                size={20} 
+                color="#007AFF" 
+              />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={[styles.headerButton, styles.addButton]}
             onPress={() => setShowForm(true)}

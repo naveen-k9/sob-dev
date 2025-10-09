@@ -36,7 +36,7 @@ interface SelectedLocation {
   name: string;
 }
 
-export default function LocationSelectScreen() {
+export default function LocationSelectorScreen() {
   // State management
   const [addresses, setAddresses] = useAsyncStorage<Address[]>('addresses', []);
   const [searchQuery, setSearchQuery] = useState('');
@@ -162,22 +162,6 @@ export default function LocationSelectScreen() {
           secondary_text: 'Hyderabad, Telangana',
         },
       },
-      {
-        place_id: '4',
-        description: 'APHB Colony, Kukatpally, Hyderabad',
-        structured_formatting: {
-          main_text: 'APHB Colony',
-          secondary_text: 'Kukatpally, Hyderabad',
-        },
-      },
-      {
-        place_id: '5',
-        description: 'Balaji Nagar Main Road, Kukatpally, APHB Colony, Hyderabad',
-        structured_formatting: {
-          main_text: 'Balaji Nagar Main Road',
-          secondary_text: 'Kukatpally, APHB Colony, Hyderabad',
-        },
-      },
     ].filter(item => 
       item.description.toLowerCase().includes(query.toLowerCase())
     );
@@ -203,14 +187,6 @@ export default function LocationSelectScreen() {
       longitude: mockCoords.longitude,
       address: suggestion.description,
       name: suggestion.structured_formatting.main_text,
-    });
-
-    // Update map region
-    setMapRegion({
-      latitude: mockCoords.latitude,
-      longitude: mockCoords.longitude,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
     });
 
     setSearchQuery('');
@@ -440,12 +416,21 @@ export default function LocationSelectScreen() {
             <Text style={styles.locationName}>{selectedLocation.name}</Text>
             <Text style={styles.locationAddress}>{selectedLocation.address}</Text>
             
-            <TouchableOpacity
-              style={styles.confirmButton}
-              onPress={handleConfirmLocation}
-            >
-              <Text style={styles.confirmButtonText}>Confirm Location</Text>
-            </TouchableOpacity>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.changeButton]}
+                onPress={() => setShowAddressForm(true)}
+              >
+                <Text style={styles.changeButtonText}>Add Address</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.actionButton, styles.confirmButton]}
+                onPress={handleConfirmLocation}
+              >
+                <Text style={styles.confirmButtonText}>Confirm Location</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </SafeAreaView>
@@ -456,7 +441,7 @@ export default function LocationSelectScreen() {
     <Modal
       visible={showAddressForm}
       animationType="slide"
-      presentationStyle="fullScreen"
+      presentationStyle="pageSheet"
     >
       <SafeAreaView style={styles.modalContainer}>
         <View style={styles.modalHeader}>
@@ -495,13 +480,7 @@ export default function LocationSelectScreen() {
               <View style={styles.miniMapOverlay}>
                 <Text style={styles.detectedLocation}>{selectedLocation.name}</Text>
                 <Text style={styles.detectedAddress}>{selectedLocation.address}</Text>
-                <TouchableOpacity 
-                  style={styles.changeLocationButton}
-                  onPress={() => {
-                    setShowAddressForm(false);
-                    setShowMapView(true);
-                  }}
-                >
+                <TouchableOpacity style={styles.changeLocationButton}>
                   <Text style={styles.changeLocationText}>Change</Text>
                 </TouchableOpacity>
               </View>
@@ -572,19 +551,10 @@ export default function LocationSelectScreen() {
 
         <View style={styles.formFooter}>
           <TouchableOpacity
-            style={[
-              styles.saveAddressButton,
-              houseNumber.trim() ? styles.saveAddressButtonActive : {},
-            ]}
+            style={styles.saveAddressButton}
             onPress={handleSaveAddress}
-            disabled={!houseNumber.trim()}
           >
-            <Text style={[
-              styles.saveAddressButtonText,
-              houseNumber.trim() ? styles.saveAddressButtonTextActive : {},
-            ]}>
-              SAVE ADDRESS
-            </Text>
+            <Text style={styles.saveAddressButtonText}>SAVE ADDRESS</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -703,6 +673,7 @@ export default function LocationSelectScreen() {
     </SafeAreaView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -979,11 +950,28 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     lineHeight: 20,
   },
-  confirmButton: {
-    backgroundColor: '#E91E63',
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
+  },
+  changeButton: {
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  changeButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  confirmButton: {
+    backgroundColor: '#E91E63',
   },
   confirmButtonText: {
     color: '#FFFFFF',
@@ -1098,15 +1086,9 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
   },
-  saveAddressButtonActive: {
-    backgroundColor: '#E91E63',
-  },
   saveAddressButtonText: {
     color: '#666',
     fontSize: 16,
     fontWeight: '600',
-  },
-  saveAddressButtonTextActive: {
-    color: '#FFFFFF',
   },
 });

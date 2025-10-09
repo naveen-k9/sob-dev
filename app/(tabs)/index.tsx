@@ -191,7 +191,7 @@ export default function HomeScreen() {
         onScrollStatusChange={(next: 'light' | 'dark') => setBarStyle(next)}
       />
        <RoleSelector currentRole="admin" />
-       <TouchableOpacity onPress={() => router.push('/admin/polygon-locations')} style={{position: 'absolute', bottom: 50, right: 20, backgroundColor: '#007AFF', padding: 10, borderRadius: 5}}>
+       <TouchableOpacity onPress={() => router.push('/admin/location-polygon')} style={{position: 'absolute', bottom: 50, right: 20, backgroundColor: '#007AFF', padding: 10, borderRadius: 5}}>
         <Text>Switch to Admin</Text>
        </TouchableOpacity>
     </>
