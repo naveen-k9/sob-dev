@@ -21,8 +21,10 @@ import TestimonialCard from '@/components/TestimonialCard';
 import OfferCard from '@/components/OfferCard';
 import OfferDetailModal from '@/components/OfferDetailModal';
 import FilterModal from '@/components/FilterModal';
+import LocationService from '@/components/LocationService';
 import { offers, PromotionalItem } from '@/constants/data';
-import { Banner, Offer, Subscription, Category, Meal, Testimonial } from '@/types';
+import { useAsyncStorage } from '@/hooks/useStorage';
+import { Banner, Offer, Subscription, Category, Meal, Testimonial, Polygon } from '@/types';
 import { router } from 'expo-router';
 import db from '@/db';
 import { useQuery } from '@tanstack/react-query';
@@ -36,6 +38,7 @@ const TOP_BG_HEIGHT = Math.round(Dimensions.get('window').height * 0.36);
 
 export default function HomeScreen() {
   const { user, isGuest, isAdmin, isKitchen, isDelivery } = useAuth();
+  const [polygons] = useAsyncStorage<Polygon[]>('polygons', []);
 
   const [barStyle, setBarStyle] = useState<'light' | 'dark'>('dark');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -189,9 +192,10 @@ export default function HomeScreen() {
         selectedCategoryId={selectedCategoryId}
         barStyle={barStyle}
         onScrollStatusChange={(next: 'light' | 'dark') => setBarStyle(next)}
+        polygons={polygons.filter(p => p.completed)}
       />
        <RoleSelector currentRole="admin" />
-       <TouchableOpacity onPress={() => router.push('/admin/location-polygon')} style={{position: 'absolute', bottom: 50, right: 20, backgroundColor: '#007AFF', padding: 10, borderRadius: 5}}>
+       <TouchableOpacity onPress={() => router.push('/location/selector')} style={{position: 'absolute', bottom: 50, right: 20, backgroundColor: '#007AFF', padding: 10, borderRadius: 5}}>
         <Text>Switch to Admin</Text>
        </TouchableOpacity>
     </>
@@ -222,6 +226,7 @@ function CustomerHomeScreen({
   selectedCategoryId,
   barStyle,
   onScrollStatusChange,
+  polygons,
 }: {
   user: any;
   isGuest: boolean;
@@ -246,6 +251,7 @@ function CustomerHomeScreen({
   selectedCategoryId: string | null;
   barStyle: 'light' | 'dark';
   onScrollStatusChange: (next: 'light' | 'dark') => void;
+  polygons: Polygon[];
 }) {
   const { locationState } = useLocation();
   const insets = useSafeAreaInsets();
@@ -298,13 +304,12 @@ function CustomerHomeScreen({
             testID="bg-image"
           />
           <View style={[styles.header, { paddingTop: insets.top }]}>
-            <TouchableOpacity style={styles.location} onPress={() => router.push('/location/select')} testID="select-location">
-              <MapPin size={16} color="#A3D397" />
-              <Text style={styles.locationText}>
-                {locationState.selectedLocation?.name || user?.addresses?.[0]?.city || 'Select Location'}
-              </Text>
-              <ChevronDown size={16} color="#A3D397" />
-            </TouchableOpacity>
+            <LocationService 
+              polygons={polygons}
+              onLocationSet={(location) => {
+                console.log('Location set:', location);
+              }}
+            />
             <View style={styles.headerActions}>
               <View style={styles.walletPill} testID="wallet-pill">
                 <View style={styles.walletIcon} />
@@ -314,7 +319,6 @@ function CustomerHomeScreen({
                 <User2 size={27} color="#48479B" />
               </TouchableOpacity>
             </View>
-
           </View>
 
           {bannersQuery.isLoading ? (

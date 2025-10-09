@@ -7,45 +7,33 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Modal,
   Alert,
   ActivityIndicator,
-  Keyboard,
   Platform,
+  Modal,
 } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, Region } from 'react-native-maps';
+import MapView, { Marker, Region, Polygon as MapPolygon } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useAsyncStorage } from '@/hooks/useStorage';
-import { Address } from '@/types';
-
-interface LocationSuggestion {
-  place_id: string;
-  description: string;
-  structured_formatting: {
-    main_text: string;
-    secondary_text: string;
-  };
-}
-
-interface SelectedLocation {
-  latitude: number;
-  longitude: number;
-  address: string;
-  name: string;
-}
+import { Address, Polygon } from '@/types';
+import { findPolygonsContainingPoint } from '@/utils/polygonUtils';
+import { useActiveAddress } from '@/contexts/ActiveAddressContext';
 
 export default function LocationSelectScreen() {
+  const params = useLocalSearchParams();
+  const mode = params.mode as string; // 'pin' for pin-based selection
+  const showOnlyServiceable = params.showOnlyServiceable === 'true';
+  const { setActiveAddress, setCurrentLocationAddress, isAddressActive } = useActiveAddress();
+
   // State management
   const [addresses, setAddresses] = useAsyncStorage<Address[]>('addresses', []);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
-  const [showSearchModal, setShowSearchModal] = useState(false);
-  const [showMapView, setShowMapView] = useState(false);
+  const [polygons] = useAsyncStorage<Polygon[]>('polygons', []);
+  const [showMapView, setShowMapView] = useState(mode === 'pin');
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
   
   // Location state
   const [currentLocation, setCurrentLocation] = useState<{
@@ -53,7 +41,14 @@ export default function LocationSelectScreen() {
     longitude: number;
   } | null>(null);
   
-  const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    address: string;
+    name: string;
+    isServiceable: boolean;
+  } | null>(null);
+  
   const [mapRegion, setMapRegion] = useState<Region>({
     latitude: 17.3850, // Hyderabad coordinates as shown in images
     longitude: 78.4867,
@@ -63,17 +58,180 @@ export default function LocationSelectScreen() {
 
   // Address form state
   const [houseNumber, setHouseNumber] = useState('');
-  const [buildingBlock, setBuildingBlock] = useState('');
-  const [landmarkArea, setLandmarkArea] = useState('');
+  const [landmark, setLandmark] = useState('');
   const [addressLabel, setAddressLabel] = useState('home');
+
+  // Notify modal state
+  const [notifyName, setNotifyName] = useState('');
+  const [notifyPhone, setNotifyPhone] = useState('');
+  const [notifyEmail, setNotifyEmail] = useState('');
+  const [isSubmittingNotify, setIsSubmittingNotify] = useState(false);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchDrawer, setShowSearchDrawer] = useState(false);
+  const [isModalTransitioning, setIsModalTransitioning] = useState(false);
 
   // Refs
   const mapRef = useRef<MapView | null>(null);
-  const searchInputRef = useRef<TextInput | null>(null);
+  const geocodeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Get current location on mount
+  // Distance calculation function
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371000; // Earth's radius in meters
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  // Get distance text
+  const getDistanceText = (): string => {
+    if (!currentLocation || !selectedLocation) return '';
+    
+    const distance = calculateDistance(
+      currentLocation.latitude,
+      currentLocation.longitude,
+      selectedLocation.latitude,
+      selectedLocation.longitude
+    );
+    
+    if (distance < 10) return 'At current location';
+    if (distance < 1000) return `${Math.round(distance)} meters away from current location`;
+    return `${(distance / 1000).toFixed(1)} km away from current location`;
+  };
+
+  // Check if user needs to zoom in more for precise location
+  const shouldShowZoomInstruction = (): boolean => {
+    // Show zoom instruction if latitude delta is greater than 0.003 degrees
+    // This roughly corresponds to a zoom level where GPS precision matters most
+    // 0.003 degrees ≈ ~300 meters at the equator
+    return mapRegion.latitudeDelta > 0.003 || mapRegion.longitudeDelta > 0.003;
+  };
+
+  // Google Places search function
+  const searchGooglePlaces = async (query: string) => {
+    if (!query.trim() || query.length < 3) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const apiKey = 'AIzaSyAz5QXMfoHQLZ_ZpWWqE_7OUrAIaYPSmi4'; // From Android manifest
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${apiKey}&components=country:IN`
+      );
+      
+      const data = await response.json();
+      
+      if (data.predictions) {
+        setSearchResults(data.predictions);
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Handle search result selection
+  const handleSearchResultSelect = async (placeId: string, description: string) => {
+    try {
+      const apiKey = 'AIzaSyAz5QXMfoHQLZ_ZpWWqE_7OUrAIaYPSmi4';
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${apiKey}&fields=geometry,formatted_address,name`
+      );
+      
+      const data = await response.json();
+      
+      if (data.result && data.result.geometry) {
+        const location = data.result.geometry.location;
+        
+        // Update map region
+        setMapRegion({
+          latitude: location.lat,
+          longitude: location.lng,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
+        
+        // Check if location is serviceable
+        const serviceablePolygons = findPolygonsContainingPoint(
+          { latitude: location.lat, longitude: location.lng },
+          polygons.filter(p => p.completed)
+        );
+        const isServiceable = serviceablePolygons.length > 0;
+        
+        // Set selected location
+        setSelectedLocation({
+          latitude: location.lat,
+          longitude: location.lng,
+          address: data.result.formatted_address || description,
+          name: data.result.name || 'Selected Location',
+          isServiceable,
+        });
+        
+        // Always close search drawer first
+        setSearchQuery('');
+        setShowSearchDrawer(false);
+        setSearchResults([]);
+        
+        // If location is not serviceable, show notify modal after search drawer closes
+        if (!isServiceable) {
+          // Use setTimeout to ensure search modal is fully closed first
+          setTimeout(() => {
+            setShowNotifyModal(true);
+          }, 300); // Wait for modal close animation
+        }
+      }
+    } catch (error) {
+      console.error('Place details error:', error);
+      Alert.alert('Error', 'Failed to get location details. Please try again.');
+    }
+  };
+
+  // Debounced search
   useEffect(() => {
-    getCurrentLocation();
+    const timeoutId = setTimeout(() => {
+      searchGooglePlaces(searchQuery);
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  // If mode is pin, show map view immediately
+  useEffect(() => {
+    if (mode === 'pin') {
+      setShowMapView(true);
+    }
+  }, [mode]);
+
+  // Auto-get current location when map view opens (for Add New Address flow)
+  useEffect(() => {
+    if (showMapView && !currentLocation && !selectedLocation) {
+      getCurrentLocation();
+    }
+  }, [showMapView]);
+
+  // Debug effect to track search drawer state changes
+  useEffect(() => {
+    console.log('Search drawer state changed:', showSearchDrawer);
+  }, [showSearchDrawer]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (geocodeTimeoutRef.current) {
+        clearTimeout(geocodeTimeoutRef.current);
+      }
+    };
   }, []);
 
   const getCurrentLocation = async () => {
@@ -111,11 +269,16 @@ export default function LocationSelectScreen() {
         const address = reverseGeocode[0];
         const formattedAddress = `${address.name || ''} ${address.street || ''}, ${address.city || ''}, ${address.region || ''}`.trim();
         
+        // Check if location is serviceable
+        const serviceablePolygons = findPolygonsContainingPoint(coords, polygons.filter(p => p.completed));
+        const isServiceable = serviceablePolygons.length > 0;
+        
         setSelectedLocation({
           latitude: coords.latitude,
           longitude: coords.longitude,
           address: formattedAddress,
           name: address.name || 'Current Location',
+          isServiceable,
         });
       }
 
@@ -127,986 +290,1506 @@ export default function LocationSelectScreen() {
     }
   };
 
-  // Mock search function (replace with Google Places API)
-  const searchAddresses = async (query: string) => {
-    if (query.length < 3) {
-      setSuggestions([]);
+  const handleUseCurrentLocation = async () => {
+    // Get current location when user clicks this option
+    await getCurrentLocation();
+    
+    if (currentLocation && selectedLocation) {
+      // Create an Address object for the current location
+      const currentLocationAddress: Address = {
+        id: 'current-location',
+        userId: '',
+        type: 'other',
+        label: 'Current Location',
+        name: 'Current Location',
+        phone: '',
+        phoneNumber: '',
+        addressLine: '',
+        addressText: selectedLocation.address,
+        street: '',
+        city: '',
+        state: '',
+        pincode: '',
+        coordinates: currentLocation,
+        isDefault: false,
+        createdAt: new Date(),
+      };
+
+      // Set as current location address (not active address)
+      setCurrentLocationAddress(currentLocationAddress);
+      
+      router.back();
+    }
+  };
+
+  const handleSelectSavedAddress = (address: Address) => {
+    // Check if address is serviceable
+    const serviceablePolygons = findPolygonsContainingPoint(address.coordinates, polygons.filter(p => p.completed));
+    const isServiceable = serviceablePolygons.length > 0;
+    
+    if (showOnlyServiceable && !isServiceable) {
+      Alert.alert(
+        'Address Not Serviceable',
+        'This saved address is outside our service area. Please choose a different address or add a new one in a serviceable location.'
+      );
       return;
     }
-
-    setIsSearching(true);
     
-    // Mock suggestions - replace with actual Google Places API
-    const mockSuggestions: LocationSuggestion[] = [
-      {
-        place_id: '1',
-        description: 'Naveen Nagar, Banjara Hills, Hyderabad, Telangana, India',
-        structured_formatting: {
-          main_text: 'Naveen Nagar',
-          secondary_text: 'Banjara Hills, Hyderabad, Telangana, India',
-        },
-      },
-      {
-        place_id: '2',
-        description: 'Naveen gold & bros, Ruby Block, Brundavan Colony, Bolarum, Hyderabad, Telangana, India',
-        structured_formatting: {
-          main_text: 'Naveen gold & bros',
-          secondary_text: 'Ruby Block, Brundavan Colony, Bolarum, Hyderabad',
-        },
-      },
-      {
-        place_id: '3',
-        description: 'Naveena Monty School',
-        structured_formatting: {
-          main_text: 'Naveena Monty School',
-          secondary_text: 'Hyderabad, Telangana',
-        },
-      },
-      {
-        place_id: '4',
-        description: 'APHB Colony, Kukatpally, Hyderabad',
-        structured_formatting: {
-          main_text: 'APHB Colony',
-          secondary_text: 'Kukatpally, Hyderabad',
-        },
-      },
-      {
-        place_id: '5',
-        description: 'Balaji Nagar Main Road, Kukatpally, APHB Colony, Hyderabad',
-        structured_formatting: {
-          main_text: 'Balaji Nagar Main Road',
-          secondary_text: 'Kukatpally, APHB Colony, Hyderabad',
-        },
-      },
-    ].filter(item => 
-      item.description.toLowerCase().includes(query.toLowerCase())
-    );
-
-    setSuggestions(mockSuggestions);
-    setIsSearching(false);
-  };
-
-  const handleSearchQueryChange = (text: string) => {
-    setSearchQuery(text);
-    searchAddresses(text);
-  };
-
-  const handleSuggestionSelect = (suggestion: LocationSuggestion) => {
-    // Mock coordinates - replace with actual geocoding
-    const mockCoords = {
-      latitude: 17.3850 + (Math.random() - 0.5) * 0.01,
-      longitude: 78.4867 + (Math.random() - 0.5) * 0.01,
-    };
-
+    // Update current location to the selected address coordinates
+    setCurrentLocation({
+      latitude: address.coordinates.latitude,
+      longitude: address.coordinates.longitude,
+    });
+    
+    // Set the selected address as selectedLocation
     setSelectedLocation({
-      latitude: mockCoords.latitude,
-      longitude: mockCoords.longitude,
-      address: suggestion.description,
-      name: suggestion.structured_formatting.main_text,
+      latitude: address.coordinates.latitude,
+      longitude: address.coordinates.longitude,
+      address: address.addressText || address.addressLine,
+      name: address.name,
+      isServiceable,
     });
 
-    // Update map region
-    setMapRegion({
-      latitude: mockCoords.latitude,
-      longitude: mockCoords.longitude,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    });
+    // Set this address as the active address
+    setActiveAddress(address);
+    
+    router.back();
+  };
 
-    setSearchQuery('');
-    setSuggestions([]);
-    setShowSearchModal(false);
+  const handleAddNewAddress = () => {
+    // Just open the map view - we'll get current location after map opens
     setShowMapView(true);
   };
 
-  const handleMapPress = async (event: any) => {
-    const coordinate = event.nativeEvent.coordinate;
+  const handleMapRegionChange = (region: Region) => {
+    setMapRegion(region);
     
-    try {
-      // Reverse geocode the coordinates to get address
-      const result = await Location.reverseGeocodeAsync(coordinate);
-      if (result.length > 0) {
-        const address = result[0];
-        const formattedAddress = `${address.name || ''} ${address.street || ''}, ${address.city || ''}, ${address.region || ''}`.trim();
-        
-        setSelectedLocation({
-          latitude: coordinate.latitude,
-          longitude: coordinate.longitude,
-          address: formattedAddress,
-          name: address.name || 'Selected Location',
-        });
-      }
-    } catch (error) {
-      console.error('Reverse geocoding error:', error);
+    // Don't auto-close search drawer on map region changes
+    // Let the user explicitly close it via the close button or back gesture
+    
+    // Update selected location based on map center
+    const centerCoordinate = {
+      latitude: region.latitude,
+      longitude: region.longitude,
+    };
+    
+    // Check if the new location is serviceable
+    const serviceablePolygons = findPolygonsContainingPoint(centerCoordinate, polygons.filter(p => p.completed));
+    const isServiceable = serviceablePolygons.length > 0;
+    
+    if (showOnlyServiceable && !isServiceable) {
+      // Don't prevent map movement, just update the status
+      setSelectedLocation(prev => prev ? {
+        ...prev,
+        latitude: centerCoordinate.latitude,
+        longitude: centerCoordinate.longitude,
+        isServiceable: false,
+      } : null);
+      return;
     }
+    
+    setSelectedLocation(prev => prev ? {
+      ...prev,
+      latitude: centerCoordinate.latitude,
+      longitude: centerCoordinate.longitude,
+      isServiceable,
+    } : null);
+    
+    // Debounce reverse geocoding to avoid too many API calls
+    if (geocodeTimeoutRef.current) {
+      clearTimeout(geocodeTimeoutRef.current);
+    }
+    
+    geocodeTimeoutRef.current = setTimeout(() => {
+      Location.reverseGeocodeAsync(centerCoordinate)
+        .then(result => {
+          if (result.length > 0) {
+            const address = result[0];
+            const formattedAddress = `${address.name || ''} ${address.street || ''}, ${address.city || ''}, ${address.region || ''}`.trim();
+            
+            setSelectedLocation(prev => prev ? {
+              ...prev,
+              address: formattedAddress,
+              name: address.name || 'Selected Location',
+            } : null);
+          }
+        })
+        .catch(error => console.warn('Reverse geocoding failed:', error));
+    }, 500); // 500ms debounce
   };
 
   const handleConfirmLocation = () => {
-    if (selectedLocation) {
-      // Navigate back with the selected location
-      router.back();
-      // You can also store this location or pass it back via context/callback
+    if (!selectedLocation) return;
+    
+    if (!selectedLocation.isServiceable) {
+      Alert.alert(
+        'Location Not Serviceable',
+        'This location is outside our service area. Please choose a location within the highlighted service areas.'
+      );
+      return;
     }
+    
+    setShowAddressForm(true);
   };
 
-  const handleSaveAddress = async () => {
-    if (!selectedLocation) {
-      Alert.alert('Error', 'Please select a location first.');
+  const handleSaveAddress = () => {
+    if (!selectedLocation || !houseNumber.trim()) {
+      Alert.alert('Missing Information', 'Please fill in all required fields.');
       return;
     }
-
-    if (!houseNumber.trim()) {
-      Alert.alert('Error', 'Please enter house number and floor.');
-      return;
-    }
-
+    
     const newAddress: Address = {
       id: Date.now().toString(),
-      name: selectedLocation.name,
-      phoneNumber: '', // You can add phone input if needed
-      addressText: `${houseNumber}${buildingBlock ? ', ' + buildingBlock : ''}${landmarkArea ? ', ' + landmarkArea : ''}, ${selectedLocation.address}`,
-      coordinates: {
-        latitude: selectedLocation.latitude,
-        longitude: selectedLocation.longitude,
-      },
-      createdAt: new Date(),
       userId: '',
       type: addressLabel as 'home' | 'work' | 'other',
       label: addressLabel,
+      name: selectedLocation.name,
       phone: '',
-      addressLine: selectedLocation.address,
+      phoneNumber: '',
+      addressLine: `${houseNumber}${landmark ? ', ' + landmark : ''}`,
+      addressText: selectedLocation.address,
       street: '',
       city: '',
       state: '',
       pincode: '',
-      isDefault: false,
-      updatedAt: undefined,
+      landmark,
+      coordinates: {
+        latitude: selectedLocation.latitude,
+        longitude: selectedLocation.longitude,
+      },
+      isDefault: addresses.length === 0, // First address is default
+      createdAt: new Date(),
     };
 
     setAddresses([...addresses, newAddress]);
     
-    // Reset form
-    setHouseNumber('');
-    setBuildingBlock('');
-    setLandmarkArea('');
-    setAddressLabel('home');
-    setShowAddressForm(false);
-    setShowMapView(false);
-    
-    Alert.alert('Success', 'Address saved successfully!');
+    Alert.alert('Success', 'Address saved successfully!', [
+      {
+        text: 'OK',
+        onPress: () => {
+          router.back();
+          // TODO: Update location context with new address
+        }
+      }
+    ]);
   };
 
-  const renderSearchModal = () => (
-    <Modal
-      visible={showSearchModal}
-      animationType="slide"
-      presentationStyle="pageSheet"
-    >
-      <SafeAreaView style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>Select Address</Text>
+  const handleSubmitNotifyRequest = async () => {
+    if (!notifyName.trim() || !notifyPhone.trim()) {
+      Alert.alert('Missing Information', 'Please fill in your name and phone number.');
+      return;
+    }
+
+    if (!selectedLocation) {
+      Alert.alert('Error', 'No location selected.');
+      return;
+    }
+
+    setIsSubmittingNotify(true);
+
+    try {
+      // TODO: Replace with actual API call to save notification request
+      const notifyRequest = {
+        name: notifyName.trim(),
+        phone: notifyPhone.trim(),
+        email: notifyEmail.trim(),
+        location: {
+          latitude: selectedLocation.latitude,
+          longitude: selectedLocation.longitude,
+          address: selectedLocation.address,
+        },
+        requestedAt: new Date().toISOString(),
+      };
+
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      console.log('Notify request:', notifyRequest);
+
+      Alert.alert(
+        'Request Submitted!', 
+        'We will notify you when delivery service is available in your area.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setIsModalTransitioning(true);
+              setShowNotifyModal(false);
+              setNotifyName('');
+              setNotifyPhone('');
+              setNotifyEmail('');
+              setTimeout(() => {
+                setIsModalTransitioning(false);
+                router.back();
+              }, 300);
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error submitting notify request:', error);
+      Alert.alert('Error', 'Failed to submit request. Please try again.');
+    } finally {
+      setIsSubmittingNotify(false);
+    }
+  };
+
+  // Search Drawer Component
+  const renderSearchDrawer = () => {
+    console.log('Rendering search drawer, visible:', showSearchDrawer);
+    console.log('Search query:', searchQuery);
+    console.log('Is modal transitioning:', isModalTransitioning);
+    return (
+      <Modal
+        visible={showSearchDrawer}
+        animationType="fade"
+        presentationStyle="fullScreen"
+        onRequestClose={() => {
+          console.log('Search drawer onRequestClose triggered');
+          setShowSearchDrawer(false);
+          setSearchQuery('');
+          setSearchResults([]);
+        }}
+      >
+      <SafeAreaView style={styles.searchDrawerContainer}>
+        {/* Search Header */}
+        <View style={styles.searchDrawerHeader}>
           <TouchableOpacity
-            onPress={() => setShowSearchModal(false)}
-            style={styles.modalCloseButton}
+            style={styles.searchDrawerCloseButton}
+            onPress={() => {
+              console.log('Search drawer close button pressed');
+              setShowSearchDrawer(false);
+              setSearchQuery('');
+              setSearchResults([]);
+            }}
           >
-            <Ionicons name="close" size={24} color="#666" />
+            <Ionicons name="close" size={24} color="#007AFF" />
           </TouchableOpacity>
+          <Text style={styles.searchDrawerTitle}>Search Places</Text>
+          <View style={styles.searchDrawerCloseButton} />
         </View>
-
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-          <TextInput
-            ref={searchInputRef}
-            style={styles.searchInput}
-            placeholder="Search Address"
-            value={searchQuery}
-            onChangeText={handleSearchQueryChange}
-            autoFocus
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => {
-                setSearchQuery('');
-                setSuggestions([]);
-              }}
-              style={styles.clearButton}
-            >
-              <Ionicons name="close-circle" size={20} color="#666" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <TouchableOpacity
-          style={styles.currentLocationButton}
-          onPress={() => {
-            setShowSearchModal(false);
-            getCurrentLocation();
-            setShowMapView(true);
-          }}
-          disabled={isLoadingLocation}
-        >
-          <Ionicons name="locate" size={20} color="#E91E63" />
-          <Text style={styles.currentLocationText}>Use my Current Location</Text>
-          {isLoadingLocation && <ActivityIndicator size="small" color="#E91E63" />}
-        </TouchableOpacity>
-
-        <ScrollView style={styles.suggestionsContainer}>
-          {isSearching ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#666" />
-              <Text style={styles.loadingText}>Searching...</Text>
-            </View>
-          ) : (
-            suggestions.map((suggestion) => (
+        
+        {/* Search Input */}
+        <View style={styles.searchInputContainer}>
+          <View style={styles.searchDrawerBar}>
+            <Ionicons name="search" size={20} color="#8E8E93" />
+            <TextInput
+              style={styles.searchDrawerInput}
+              placeholder="Search for places..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCorrect={false}
+              autoCapitalize="none"
+              autoFocus={true}
+            />
+            {(searchQuery.length > 0 || isSearching) && (
               <TouchableOpacity
-                key={suggestion.place_id}
-                style={styles.suggestionItem}
-                onPress={() => handleSuggestionSelect(suggestion)}
+                onPress={() => {
+                  setSearchQuery('');
+                  setSearchResults([]);
+                }}
               >
-                <Ionicons name="location-outline" size={20} color="#666" />
-                <View style={styles.suggestionTextContainer}>
-                  <Text style={styles.suggestionMainText}>
-                    {suggestion.structured_formatting.main_text}
-                  </Text>
-                  <Text style={styles.suggestionSecondaryText}>
-                    {suggestion.structured_formatting.secondary_text}
-                  </Text>
-                </View>
+                {isSearching ? (
+                  <ActivityIndicator size="small" color="#8E8E93" />
+                ) : (
+                  <Ionicons name="close-circle" size={20} color="#8E8E93" />
+                )}
               </TouchableOpacity>
-            ))
+            )}
+          </View>
+        </View>
+
+        {/* Search Results */}
+        <ScrollView 
+          style={styles.searchDrawerResults} 
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {isSearching && searchQuery.length >= 3 && (
+            <View style={styles.searchLoadingContainer}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.searchLoadingText}>Searching places...</Text>
+            </View>
+          )}
+          
+          {!isSearching && searchQuery.length >= 3 && searchResults.length === 0 && (
+            <View style={styles.searchEmptyContainer}>
+              <Ionicons name="location-outline" size={48} color="#8E8E93" />
+              <Text style={styles.searchEmptyTitle}>No places found</Text>
+              <Text style={styles.searchEmptySubtitle}>Try searching with different keywords</Text>
+            </View>
+          )}
+
+          {searchResults.map((result, index) => (
+            <TouchableOpacity
+              key={result.place_id || index}
+              style={styles.searchDrawerResultItem}
+              onPress={() => handleSearchResultSelect(result.place_id, result.description)}
+            >
+              <View style={styles.searchResultIcon}>
+                <Ionicons name="location" size={20} color="#007AFF" />
+              </View>
+              <View style={styles.searchDrawerResultContent}>
+                <Text style={styles.searchDrawerResultTitle}>
+                  {result.structured_formatting?.main_text || result.description}
+                </Text>
+                <Text style={styles.searchDrawerResultSubtitle}>
+                  {result.structured_formatting?.secondary_text || ''}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+            </TouchableOpacity>
+          ))}
+
+          {searchQuery.length > 0 && searchQuery.length < 3 && (
+            <View style={styles.searchHintContainer}>
+              <Text style={styles.searchHintText}>
+                Type at least 3 characters to search for places
+              </Text>
+            </View>
           )}
         </ScrollView>
       </SafeAreaView>
     </Modal>
-  );
+    );
+  };
 
-  const renderMapView = () => (
-    <Modal
-      visible={showMapView}
-      animationType="slide"
-      presentationStyle="fullScreen"
-    >
-      <SafeAreaView style={styles.mapContainer}>
-        <View style={styles.mapHeader}>
-          <TouchableOpacity
-            onPress={() => setShowMapView(false)}
-            style={styles.backButton}
-          >
-            <Ionicons name="arrow-back" size={24} color="#000" />
-          </TouchableOpacity>
-          <Text style={styles.mapTitle}>Select Your Location</Text>
-        </View>
-
-        <View style={styles.mapSearchContainer}>
-          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.mapSearchInput}
-            placeholder="Search for apartment, street name..."
-            onFocus={() => setShowSearchModal(true)}
-          />
-        </View>
-
-        <View style={styles.mapViewContainer}>
-          <MapView
-            ref={mapRef}
-            style={styles.map}
-            region={mapRegion}
-            onPress={handleMapPress}
-            showsUserLocation={true}
-            showsMyLocationButton={false}
-          >
-            {selectedLocation && (
-              <Marker
-                coordinate={{
-                  latitude: selectedLocation.latitude,
-                  longitude: selectedLocation.longitude,
-                }}
-                draggable
-                onDragEnd={(e) => handleMapPress({ nativeEvent: e.nativeEvent })}
-              />
-            )}
-          </MapView>
-
-          {selectedLocation && (
-            <View style={styles.locationTooltip}>
-              <Text style={styles.tooltipText}>Order will be delivered here</Text>
-              <Text style={styles.tooltipSubtext}>Place the pin to your exact location</Text>
-            </View>
-          )}
-        </View>
-
-        {selectedLocation && (
-          <View style={styles.locationDetails}>
-            <Text style={styles.locationName}>{selectedLocation.name}</Text>
-            <Text style={styles.locationAddress}>{selectedLocation.address}</Text>
-            
-            <TouchableOpacity
-              style={styles.confirmButton}
-              onPress={handleConfirmLocation}
-            >
-              <Text style={styles.confirmButtonText}>Confirm Location</Text>
-            </TouchableOpacity>
+  if (showAddressForm) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Stack.Screen options={{ title: 'Add Address Details' }} />
+        
+        <ScrollView style={styles.content}>
+          <View style={styles.locationPreview}>
+            <Ionicons name="location" size={20} color="#007AFF" />
+            <Text style={styles.locationPreviewText}>
+              {selectedLocation?.address}
+            </Text>
           </View>
-        )}
-      </SafeAreaView>
-    </Modal>
-  );
-
-  const renderAddressForm = () => (
-    <Modal
-      visible={showAddressForm}
-      animationType="slide"
-      presentationStyle="fullScreen"
-    >
-      <SafeAreaView style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <TouchableOpacity
-            onPress={() => setShowAddressForm(false)}
-            style={styles.backButton}
-          >
-            <Ionicons name="arrow-back" size={24} color="#000" />
-          </TouchableOpacity>
-          <Text style={styles.modalTitle}>Add Address...</Text>
-        </View>
-
-        <ScrollView style={styles.formContainer}>
-          {/* Mini Map */}
-          {selectedLocation && (
-            <View style={styles.miniMapContainer}>
-              <MapView
-                style={styles.miniMap}
-                region={{
-                  latitude: selectedLocation.latitude,
-                  longitude: selectedLocation.longitude,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                }}
-                scrollEnabled={false}
-                zoomEnabled={false}
-              >
-                <Marker
-                  coordinate={{
-                    latitude: selectedLocation.latitude,
-                    longitude: selectedLocation.longitude,
-                  }}
-                />
-              </MapView>
-              
-              <View style={styles.miniMapOverlay}>
-                <Text style={styles.detectedLocation}>{selectedLocation.name}</Text>
-                <Text style={styles.detectedAddress}>{selectedLocation.address}</Text>
-                <TouchableOpacity 
-                  style={styles.changeLocationButton}
-                  onPress={() => {
-                    setShowAddressForm(false);
-                    setShowMapView(true);
-                  }}
-                >
-                  <Text style={styles.changeLocationText}>Change</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* Address Form */}
+          
           <View style={styles.formSection}>
-            <Text style={styles.formSectionTitle}>Add Address</Text>
+            <Text style={styles.sectionTitle}>Address Details</Text>
             
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>House No. & Floor *</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>House/Flat Number *</Text>
               <TextInput
                 style={styles.textInput}
                 value={houseNumber}
                 onChangeText={setHouseNumber}
-                placeholder="Enter house number and floor"
+                placeholder="Enter house/flat number"
+                autoCapitalize="words"
               />
             </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Building & Block No. (Optional)</Text>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Landmark (Optional)</Text>
               <TextInput
                 style={styles.textInput}
-                value={buildingBlock}
-                onChangeText={setBuildingBlock}
-                placeholder="Enter building and block number"
+                value={landmark}
+                onChangeText={setLandmark}
+                placeholder="Nearby landmark"
+                autoCapitalize="words"
               />
             </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Landmark & Area Name (Optional)</Text>
-              <TextInput
-                style={styles.textInput}
-                value={landmarkArea}
-                onChangeText={setLandmarkArea}
-                placeholder="Enter landmark and area name"
-              />
-            </View>
-          </View>
-
-          {/* Address Label */}
-          <View style={styles.formSection}>
-            <Text style={styles.formSectionTitle}>Add Address Label</Text>
-            <View style={styles.labelContainer}>
-              {['home', 'work', 'other'].map((label) => (
-                <TouchableOpacity
-                  key={label}
-                  style={[
-                    styles.labelButton,
-                    addressLabel === label && styles.labelButtonActive,
-                  ]}
-                  onPress={() => setAddressLabel(label)}
-                >
-                  <Text
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Save as</Text>
+              <View style={styles.labelOptions}>
+                {['home', 'work', 'other'].map((label) => (
+                  <TouchableOpacity
+                    key={label}
                     style={[
-                      styles.labelButtonText,
-                      addressLabel === label && styles.labelButtonTextActive,
+                      styles.labelOption,
+                      addressLabel === label && styles.labelOptionActive
                     ]}
+                    onPress={() => setAddressLabel(label)}
                   >
-                    {label.charAt(0).toUpperCase() + label.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text style={[
+                      styles.labelOptionText,
+                      addressLabel === label && styles.labelOptionTextActive
+                    ]}>
+                      {label.charAt(0).toUpperCase() + label.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           </View>
         </ScrollView>
-
-        <View style={styles.formFooter}>
+        
+        <View style={styles.bottomActions}>
           <TouchableOpacity
-            style={[
-              styles.saveAddressButton,
-              houseNumber.trim() ? styles.saveAddressButtonActive : {},
-            ]}
-            onPress={handleSaveAddress}
-            disabled={!houseNumber.trim()}
+            style={[styles.actionButton, styles.secondaryButton]}
+            onPress={() => setShowAddressForm(false)}
           >
-            <Text style={[
-              styles.saveAddressButtonText,
-              houseNumber.trim() ? styles.saveAddressButtonTextActive : {},
-            ]}>
-              SAVE ADDRESS
+            <Text style={styles.secondaryButtonText}>Back</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.actionButton, styles.primaryButton]}
+            onPress={handleSaveAddress}
+          >
+            <Text style={styles.primaryButtonText}>Save Address</Text>
+          </TouchableOpacity>
+        </View>
+        {renderSearchDrawer()}
+      </SafeAreaView>
+    );
+  }
+
+  // NotifyMe Modal
+  const renderNotifyModal = () => (
+    <Modal
+      visible={showNotifyModal}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={() => setShowNotifyModal(false)}
+    >
+      <SafeAreaView style={styles.container}>
+        <View style={styles.modalHeader}>
+          <TouchableOpacity
+            style={styles.modalCloseButton}
+            onPress={() => setShowNotifyModal(false)}
+          >
+            <Ionicons name="close" size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <Text style={styles.modalTitle}>Notify Me</Text>
+          <View style={styles.modalCloseButton} />
+        </View>
+
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.notifyInfo}>
+            <Ionicons name="information-circle" size={48} color="#FF9500" />
+            <Text style={styles.notifyInfoTitle}>Area Not Serviceable</Text>
+            <Text style={styles.notifyInfoDescription}>
+              We don't deliver to this location yet, but we're expanding! 
+              Leave your details and we'll notify you when delivery is available in your area.
             </Text>
+          </View>
+
+          <View style={styles.selectedLocationInfo}>
+            <Ionicons name="location" size={20} color="#8E8E93" />
+            <Text style={styles.selectedLocationText}>
+              {selectedLocation?.address}
+            </Text>
+          </View>
+
+          <View style={styles.formSection}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Name *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={notifyName}
+                onChangeText={setNotifyName}
+                placeholder="Enter your full name"
+                autoCapitalize="words"
+                autoComplete="name"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Phone Number *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={notifyPhone}
+                onChangeText={setNotifyPhone}
+                placeholder="Enter your phone number"
+                keyboardType="phone-pad"
+                autoComplete="tel"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Email (Optional)</Text>
+              <TextInput
+                style={styles.textInput}
+                value={notifyEmail}
+                onChangeText={setNotifyEmail}
+                placeholder="Enter your email address"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+              />
+            </View>
+
+            <Text style={styles.notifyDisclaimer}>
+              We'll contact you as soon as delivery service is available in your area. 
+              Your information will only be used for service notifications.
+            </Text>
+          </View>
+        </ScrollView>
+
+        <View style={styles.bottomActions}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.secondaryButton]}
+            onPress={() => setShowNotifyModal(false)}
+            disabled={isSubmittingNotify}
+          >
+            <Text style={styles.secondaryButtonText}>Cancel</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.primaryButton]}
+            onPress={handleSubmitNotifyRequest}
+            disabled={isSubmittingNotify}
+          >
+            {isSubmittingNotify ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Submit Request</Text>
+            )}
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     </Modal>
   );
 
+  if (showMapView) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Stack.Screen options={{ title: 'Select Location', headerShown: true }} />
+        
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <TouchableOpacity 
+            style={styles.searchBar}
+            onPress={() => {
+              console.log('Search bar pressed, opening drawer...');
+              if (!isModalTransitioning) {
+                setShowSearchDrawer(true);
+              }
+            }}
+            disabled={isModalTransitioning}
+          >
+            <Ionicons name="search" size={20} color="#8E8E93" />
+            <Text style={styles.searchPlaceholder}>Search for places...</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.mapContainer}>
+          {Platform.OS !== 'web' ? (
+            <MapView
+              style={styles.map}
+              region={mapRegion}
+              ref={mapRef}
+              showsUserLocation={true}
+              showsMyLocationButton={false}
+              onRegionChangeComplete={handleMapRegionChange}
+            >
+              {/* Render serviceable area polygons */}
+              {polygons
+                .filter(p => p.completed)
+                .map((polygon) => (
+                  <MapPolygon
+                    key={polygon.id}
+                    coordinates={polygon.points}
+                    fillColor={`${polygon.color}20`}
+                    strokeColor={polygon.color}
+                    strokeWidth={2}
+                  />
+                ))}
+            </MapView>
+          ) : (
+            <View style={styles.webMapPlaceholder}>
+              <Text>Map view not available on web</Text>
+            </View>
+          )}
+          
+          {/* Static pin overlay in center of map */}
+          <View style={styles.centerMarker}>
+            <View style={[
+              styles.pinContainer,
+              { backgroundColor: selectedLocation?.isServiceable ? '#34C759' : '#FF3B30' }
+            ]}>
+              <Ionicons name="location" size={24} color="#FFFFFF" />
+            </View>
+            <View style={styles.pinShadow} />
+          </View>
+          
+          {/* Map controls */}
+          <View style={styles.mapControls}>
+            
+            
+            {/* Use Current Location Button */}
+            <TouchableOpacity
+              style={styles.useCurrentLocationButton}
+              onPress={getCurrentLocation}
+              disabled={isLoadingLocation}
+            >
+              <Ionicons name="navigate" size={16} color="#007AFF" />
+              <Text style={styles.useCurrentLocationText}>
+                {isLoadingLocation ? 'Getting location...' : 'Use Current Location'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
+          {/* Location info panel */}
+          {selectedLocation && (
+            <View style={styles.locationInfoPanel}>
+              <View style={styles.mapInstructions}>
+                {currentLocation && (
+                  <Text style={styles.distanceText}>
+                    {getDistanceText()}
+                  </Text>
+                )}
+              </View>
+              
+              <View style={styles.locationInfo}>
+                <Ionicons 
+                  name={selectedLocation.isServiceable ? "checkmark-circle" : "close-circle"} 
+                  size={24} 
+                  color={selectedLocation.isServiceable ? "#34C759" : "#FF3B30"} 
+                />
+                <View style={styles.locationTextInfo}>
+                  <Text style={styles.locationInfoAddress}>
+                    {selectedLocation.address}
+                  </Text>
+                  <Text style={[
+                    styles.locationInfoStatus,
+                    { color: selectedLocation.isServiceable ? "#34C759" : "#FF3B30" }
+                  ]}>
+                    {selectedLocation.isServiceable ? "Serviceable area" : "Not serviceable"}
+                  </Text>
+                </View>
+              </View>
+              
+              {(selectedLocation.isServiceable && shouldShowZoomInstruction()) ? (
+                <TouchableOpacity
+                  style={styles.zoomInstructionButton}
+                  onPress={() => {
+                    // Zoom in to a more precise level
+                    setMapRegion({
+                      ...mapRegion,
+                      latitudeDelta: 0.002,
+                      longitudeDelta: 0.002,
+                    });
+                  }}
+                >
+                  <Ionicons name="search" size={20} color="#FF9500" />
+                  <Text style={styles.zoomInstructionButtonText}>
+                    Zoom in to place pin at exact location
+                  </Text>
+                </TouchableOpacity>
+              ) : selectedLocation.isServiceable ? (
+                <TouchableOpacity
+                  style={styles.confirmButton}
+                  onPress={handleConfirmLocation}
+                >
+                  <Text style={styles.confirmButtonText}>Confirm Location</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.notifyButton}
+                  onPress={() => {
+                    // Ensure no other modals are open
+                    if (showSearchDrawer) {
+                      setShowSearchDrawer(false);
+                      setSearchQuery('');
+                      setSearchResults([]);
+                      setTimeout(() => {
+                        setShowNotifyModal(true);
+                      }, 300);
+                    } else {
+                      setShowNotifyModal(true);
+                    }
+                  }}
+                  disabled={isModalTransitioning}
+                >
+                  <Text style={styles.notifyButtonText}>Notify Me</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
+        {renderSearchDrawer()}
+      </SafeAreaView>
+    );
+  }
+
+  // Main selection screen
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: 'Select Location',
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={24} color="#000" />
-            </TouchableOpacity>
-          ),
-        }}
-      />
-
+      <Stack.Screen options={{ title: 'Select Location', headerShown: true }} />
+      
       <ScrollView style={styles.content}>
-        {/* Search Bar */}
+        {/* Use Current Location */}
         <TouchableOpacity
-          style={styles.searchBar}
-          onPress={() => setShowSearchModal(true)}
-        >
-          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-          <Text style={styles.searchPlaceholder}>Search Address</Text>
-        </TouchableOpacity>
-
-        {/* Current Location Option */}
-        <TouchableOpacity
-          style={styles.optionItem}
-          onPress={() => {
-            getCurrentLocation();
-            setShowMapView(true);
-          }}
+          style={styles.optionCard}
+          onPress={handleUseCurrentLocation}
           disabled={isLoadingLocation}
         >
-          <Ionicons name="locate" size={20} color="#E91E63" />
-          <Text style={styles.optionText}>Use my Current Location</Text>
-          {isLoadingLocation && <ActivityIndicator size="small" color="#E91E63" />}
+          <View style={styles.optionIcon}>
+            {isLoadingLocation ? (
+              <ActivityIndicator size="small" color="#007AFF" />
+            ) : (
+              <Ionicons name="locate" size={24} color="#007AFF" />
+            )}
+          </View>
+          <View style={styles.optionContent}>
+            <Text style={styles.optionTitle}>Use Current Location</Text>
+            <Text style={styles.optionSubtitle}>
+              {isLoadingLocation 
+                ? 'Detecting your location...'
+                : currentLocation && selectedLocation?.address 
+                  ? selectedLocation.address
+                  : 'Tap to detect your current location'
+              }
+            </Text>
+            {currentLocation && selectedLocation && !selectedLocation.isServiceable && (
+              <Text style={styles.notServiceableText}>
+                Not in serviceable area
+              </Text>
+            )}
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
         </TouchableOpacity>
 
         {/* Add New Address */}
         <TouchableOpacity
-          style={styles.optionItem}
-          onPress={() => setShowMapView(true)}
+          style={styles.optionCard}
+          onPress={handleAddNewAddress}
         >
-          <Ionicons name="add" size={20} color="#E91E63" />
-          <Text style={styles.optionText}>Add New Address</Text>
-          <Ionicons name="chevron-forward" size={20} color="#666" />
-        </TouchableOpacity>
-
-        {/* Request from Friend */}
-        <TouchableOpacity style={styles.optionItem}>
-          <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
-          <Text style={styles.optionText}>Request address from friend</Text>
-          <Ionicons name="chevron-forward" size={20} color="#666" />
+          <View style={styles.optionIcon}>
+            <Ionicons name="add-circle" size={24} color="#007AFF" />
+          </View>
+          <View style={styles.optionContent}>
+            <Text style={styles.optionTitle}>Add New Address</Text>
+            <Text style={styles.optionSubtitle}>
+              Use map to set location precisely
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
         </TouchableOpacity>
 
         {/* Saved Addresses */}
         {addresses.length > 0 && (
-          <>
+          <View style={styles.section}>
             <Text style={styles.sectionTitle}>Saved Addresses</Text>
-            {addresses.map((address) => (
-              <TouchableOpacity
-                key={address.id}
-                style={styles.addressItem}
-                onPress={() => {
-                  setSelectedLocation({
-                    latitude: address.coordinates.latitude,
-                    longitude: address.coordinates.longitude,
-                    address: address.addressText,
-                    name: address.name,
-                  });
-                  router.back();
-                }}
-              >
-                <View style={styles.addressIconContainer}>
-                  <Ionicons 
-                    name={address.type === 'home' ? 'home' : address.type === 'work' ? 'briefcase' : 'location'} 
-                    size={20} 
-                    color="#666" 
-                  />
-                </View>
-                <View style={styles.addressTextContainer}>
-                  <View style={styles.addressHeader}>
-                    <Text style={styles.addressType}>
-                      {address.type === 'home' ? 'Home' : address.type === 'work' ? 'Work' : 'Other'}
-                    </Text>
-                    <Text style={styles.addressDistance}>• 12 m</Text>
+            {addresses.map((address) => {
+              const isServiceable = findPolygonsContainingPoint(
+                address.coordinates,
+                polygons.filter(p => p.completed)
+              ).length > 0;
+              const isActive = isAddressActive(address.id);
+              
+              return (
+                <TouchableOpacity
+                  key={address.id}
+                  style={[
+                    styles.addressCard,
+                    isActive && styles.activeAddressCard
+                  ]}
+                  onPress={() => handleSelectSavedAddress(address)}
+                >
+                  <View style={styles.addressIcon}>
+                    <Ionicons 
+                      name={address.type === 'home' ? "home" : address.type === 'work' ? "business" : "location"} 
+                      size={20} 
+                      color={isActive ? "#FFFFFF" : isServiceable ? "#007AFF" : "#8E8E93"} 
+                    />
                   </View>
-                  <Text style={styles.addressText} numberOfLines={2}>
-                    {address.addressText}
-                  </Text>
-                </View>
-                <View style={styles.addressActions}>
-                  <TouchableOpacity style={styles.shareButton}>
-                    <Ionicons name="share-outline" size={16} color="#666" />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.moreButton}>
-                    <Ionicons name="ellipsis-vertical" size={16} color="#666" />
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </>
+                  <View style={styles.addressContent}>
+                    <View style={styles.addressTitleContainer}>
+                      <Text style={[
+                        styles.addressTitle,
+                        isActive && styles.activeAddressTitle
+                      ]}>
+                        {address.name}
+                      </Text>
+                      {isActive && (
+                        <View style={styles.activeBadge}>
+                          <Text style={styles.activeBadgeText}>Active</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={[
+                      styles.addressSubtitle,
+                      isActive && styles.activeAddressSubtitle
+                    ]}>
+                      {address.addressLine}, {address.addressText}
+                    </Text>
+                    {!isServiceable && (
+                      <Text style={styles.notServiceableText}>
+                        Not in serviceable area
+                      </Text>
+                    )}
+                  </View>
+                  <Ionicons 
+                    name={isActive ? "checkmark-circle" : "chevron-forward"} 
+                    size={20} 
+                    color={isActive ? "#FFFFFF" : "#C7C7CC"} 
+                  />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         )}
       </ScrollView>
-
-      {/* Modals */}
-      {renderSearchModal()}
-      {renderMapView()}
-      {renderAddressForm()}
+      {renderNotifyModal()}
+      {renderSearchDrawer()}
     </SafeAreaView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#F2F2F7',
   },
   content: {
     flex: 1,
     padding: 16,
   },
+  
+  // Option cards for main selection
+  optionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  optionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F2F2F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  optionContent: {
+    flex: 1,
+  },
+  optionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1C1C1E',
+    marginBottom: 4,
+  },
+  optionSubtitle: {
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  notServiceableText: {
+    fontSize: 12,
+    color: '#FF3B30',
+    marginTop: 4,
+  },
+  
+  // Saved addresses section
+  section: {
+    marginTop: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1C1C1E',
+    marginBottom: 16,
+  },
+  addressCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  activeAddressCard: {
+    backgroundColor: '#007AFF',
+    borderWidth: 2,
+    borderColor: '#007AFF',
+  },
+  addressIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F2F2F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  addressContent: {
+    flex: 1,
+  },
+  addressTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  addressTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1C1C1E',
+    flex: 1,
+  },
+  activeAddressTitle: {
+    color: '#FFFFFF',
+  },
+  activeBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+  activeBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  addressSubtitle: {
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  activeAddressSubtitle: {
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  
+  // Map view styles
+  mapContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
   searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1C1C1E',
+    marginLeft: 8,
+  },
+  searchPlaceholder: {
+    flex: 1,
+    fontSize: 16,
+    color: '#8E8E93',
+    marginLeft: 8,
+  },
+  searchResultsContainer: {
+    backgroundColor: '#FFFFFF',
+    maxHeight: 200,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  searchResults: {
+    flex: 1,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2F2F7',
+  },
+  searchResultContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  searchResultTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1C1C1E',
+  },
+  searchResultSubtitle: {
+    fontSize: 14,
+    color: '#8E8E93',
+    marginTop: 2,
+  },
+
+  // Search Drawer Styles
+  searchDrawerContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  searchDrawerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  searchDrawerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1C1C1E',
+  },
+  searchDrawerCloseButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchInputContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  searchDrawerBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  searchDrawerInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1C1C1E',
+    marginLeft: 8,
+  },
+  searchDrawerResults: {
+    flex: 1,
+    backgroundColor: '#F2F2F7',
+  },
+  searchDrawerResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginVertical: 4,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  searchResultIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F2F2F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchDrawerResultContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  searchDrawerResultTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1C1C1E',
+    marginBottom: 4,
+  },
+  searchDrawerResultSubtitle: {
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  searchLoadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginTop: 20,
+    borderRadius: 12,
+  },
+  searchLoadingText: {
+    fontSize: 16,
+    color: '#8E8E93',
+    marginTop: 16,
+  },
+  searchEmptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 32,
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginTop: 20,
+    borderRadius: 12,
+  },
+  searchEmptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1C1C1E',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  searchEmptySubtitle: {
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
+  },
+  searchHintContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 32,
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginTop: 20,
+    borderRadius: 12,
+  },
+  searchHintText: {
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
+  },
+  map: {
+    flex: 1,
+  },
+  webMapPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+  },
+  locationMarker: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  centerMarker: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginLeft: -15,
+    marginTop: -30,
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  pinContainer: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  pinShadow: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    marginTop: 2,
+  },
+  mapControls: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    gap: 12,
+  },
+  mapControlButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  useCurrentLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  useCurrentLocationText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#007AFF',
+    marginLeft: 6,
+  },
+  locationInfoPanel: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  mapInstructions: {
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingVertical: 8,
+  },
+  mapInstructionsText: {
+    fontSize: 12,
+    color: '#8E8E93',
+    fontStyle: 'italic',
+  },
+  distanceText: {
+    fontSize: 11,
+    color: '#FF9500',
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  locationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  locationTextInfo: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  locationInfoAddress: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1C1C1E',
+    marginBottom: 4,
+  },
+  locationInfoStatus: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  confirmButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  notifyButton: {
+    backgroundColor: '#FF9500',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  notifyButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  zoomInstructionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF3E0',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: '#FF9500',
+  },
+  zoomInstructionButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FF9500',
+    marginLeft: 8,
+    textAlign: 'center',
+  },
+  
+  // Address form styles
+  locationPreview: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
   },
-  searchIcon: {
-    marginRight: 12,
-  },
-  searchPlaceholder: {
-    fontSize: 16,
-    color: '#666',
-    flex: 1,
-  },
-  optionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    marginBottom: 12,
-    borderRadius: 12,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 1,
-  },
-  optionText: {
-    fontSize: 16,
-    color: '#333',
-    flex: 1,
-    marginLeft: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  addressItem: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    marginBottom: 12,
-    borderRadius: 12,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 1,
-  },
-  addressIconContainer: {
-    marginRight: 12,
-  },
-  addressTextContainer: {
-    flex: 1,
-  },
-  addressHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  addressType: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  addressDistance: {
+  locationPreviewText: {
     fontSize: 14,
-    color: '#666',
+    color: '#1C1C1E',
     marginLeft: 8,
-  },
-  addressText: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-  },
-  addressActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  shareButton: {
-    padding: 8,
-    marginRight: 4,
-  },
-  moreButton: {
-    padding: 8,
-  },
-
-  // Modal Styles
-  modalContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  modalCloseButton: {
-    padding: 4,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    margin: 16,
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-  },
-  searchInput: {
-    flex: 1,
-    padding: 12,
-    fontSize: 16,
-    color: '#333',
-  },
-  clearButton: {
-    padding: 4,
-  },
-  currentLocationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    marginHorizontal: 16,
-    backgroundColor: '#FFF5F8',
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  currentLocationText: {
-    fontSize: 16,
-    color: '#E91E63',
-    flex: 1,
-    marginLeft: 12,
-  },
-  suggestionsContainer: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginLeft: 8,
-    fontSize: 16,
-    color: '#666',
-  },
-  suggestionItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  suggestionTextContainer: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  suggestionMainText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 4,
-  },
-  suggestionSecondaryText: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-  },
-
-  // Map View Styles
-  mapContainer: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  mapHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  backButton: {
-    padding: 4,
-    marginRight: 12,
-  },
-  mapTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  mapSearchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    margin: 16,
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-  },
-  mapSearchInput: {
-    flex: 1,
-    padding: 12,
-    fontSize: 16,
-    color: '#333',
-  },
-  mapViewContainer: {
-    flex: 1,
-    position: 'relative',
-  },
-  map: {
-    flex: 1,
-  },
-  locationTooltip: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    right: 20,
-    backgroundColor: '#333',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-  },
-  tooltipText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  tooltipSubtext: {
-    color: '#CCCCCC',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  locationDetails: {
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-  },
-  locationName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  locationAddress: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  confirmButton: {
-    backgroundColor: '#E91E63',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  confirmButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-
-  // Address Form Styles
-  formContainer: {
-    flex: 1,
-  },
-  miniMapContainer: {
-    height: 200,
-    position: 'relative',
-    margin: 16,
-    marginBottom: 0,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  miniMap: {
-    flex: 1,
-  },
-  miniMapOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-  },
-  detectedLocation: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  detectedAddress: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
-  changeLocationButton: {
-    alignSelf: 'flex-end',
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  changeLocationText: {
-    fontSize: 14,
-    color: '#333',
   },
   formSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     padding: 16,
   },
-  formSectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
-  },
-  inputContainer: {
-    marginBottom: 16,
+  inputGroup: {
+    marginBottom: 20,
   },
   inputLabel: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1C1C1E',
     marginBottom: 8,
   },
   textInput: {
     borderWidth: 1,
     borderColor: '#E5E5EA',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     fontSize: 16,
-    color: '#333',
+    color: '#1C1C1E',
     backgroundColor: '#FFFFFF',
   },
-  labelContainer: {
+  labelOptions: {
     flexDirection: 'row',
     gap: 12,
   },
-  labelButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 20,
+  labelOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#F2F2F7',
     borderWidth: 1,
     borderColor: '#E5E5EA',
-    backgroundColor: '#FFFFFF',
   },
-  labelButtonActive: {
-    backgroundColor: '#E91E63',
-    borderColor: '#E91E63',
+  labelOptionActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
   },
-  labelButtonText: {
+  labelOptionText: {
     fontSize: 14,
-    color: '#666',
+    fontWeight: '500',
+    color: '#1C1C1E',
   },
-  labelButtonTextActive: {
+  labelOptionTextActive: {
     color: '#FFFFFF',
   },
-  formFooter: {
+  bottomActions: {
+    flexDirection: 'row',
+    gap: 12,
     padding: 16,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E5E5EA',
   },
-  saveAddressButton: {
-    backgroundColor: '#CCCCCC',
+  actionButton: {
+    flex: 1,
+    paddingVertical: 16,
     borderRadius: 12,
-    padding: 16,
     alignItems: 'center',
   },
-  saveAddressButtonActive: {
-    backgroundColor: '#E91E63',
+  primaryButton: {
+    backgroundColor: '#007AFF',
   },
-  saveAddressButtonText: {
-    color: '#666',
+  secondaryButton: {
+    backgroundColor: '#F2F2F7',
+  },
+  primaryButtonText: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  saveAddressButtonTextActive: {
     color: '#FFFFFF',
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+
+  // Modal styles
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+    backgroundColor: '#FFFFFF',
+  },
+  modalCloseButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1C1C1E',
+  },
+  notifyInfo: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 16,
+  },
+  notifyInfoTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1C1C1E',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  notifyInfoDescription: {
+    fontSize: 16,
+    color: '#8E8E93',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  selectedLocationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 24,
+  },
+  selectedLocationText: {
+    fontSize: 14,
+    color: '#1C1C1E',
+    marginLeft: 8,
+    flex: 1,
+  },
+  notifyDisclaimer: {
+    fontSize: 12,
+    color: '#8E8E93',
+    lineHeight: 16,
+    marginTop: 8,
   },
 });

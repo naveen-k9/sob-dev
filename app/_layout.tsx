@@ -6,6 +6,7 @@ import React, { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LocationProvider } from "@/contexts/LocationContext";
+import { ActiveAddressProvider } from "@/contexts/ActiveAddressContext";
 import SplashScreenComponent from "@/components/SplashScreen";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import OTAUpdater from "@/components/OTAUpdater";
@@ -135,10 +136,12 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <LocationProvider>
-              <GestureHandlerRootView style={styles.flex1}>
-                <OTAUpdater />
-                <RootLayoutNav />
-              </GestureHandlerRootView>
+              <ActiveAddressProvider>
+                <GestureHandlerRootView style={styles.flex1}>
+                  <OTAUpdater />
+                  <RootLayoutNav />
+                </GestureHandlerRootView>
+              </ActiveAddressProvider>
             </LocationProvider>
           </AuthProvider>
         </QueryClientProvider>
