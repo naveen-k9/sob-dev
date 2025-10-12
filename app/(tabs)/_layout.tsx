@@ -5,6 +5,7 @@ import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Colors } from "@/constants/colors";
 import { FlipCircle } from "@/components/FlipCircle";
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const styles = StyleSheet.create({
   scene: { backgroundColor: '#FFFFFF' },
@@ -97,7 +98,7 @@ export default function TabLayout() {
       />
 
       {/* Detection Tab */}
-      {!isAdmin() && !isKitchen() && !isDelivery() && (
+      {/* {!isAdmin() && !isKitchen() && !isDelivery() && (
         <Tabs.Screen
           name="detection"
           options={{
@@ -105,10 +106,10 @@ export default function TabLayout() {
             tabBarIcon: ({ color, size }) => <MapPin color={color} size={size} />,
           }}
         />
-      )}
+      )} */}
 
       {/* Addresses Tab */}
-      {!isAdmin() && !isKitchen() && !isDelivery() && (
+      {/* {!isAdmin() && !isKitchen() && !isDelivery() && (
         <Tabs.Screen
           name="addresses"
           options={{
@@ -116,7 +117,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
           }}
         />
-      )}
+      )} */}
 
       {/* Right Tab 2 */}
      

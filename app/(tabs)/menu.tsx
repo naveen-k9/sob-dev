@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, FlatList, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCategories, fetchMeals } from '@/services/firebase';
@@ -13,9 +13,9 @@ import { LayoutGrid, Rows } from 'lucide-react-native';
 
 import { offers as offersSeed } from '@/constants/data';
 import { Colors } from '@/constants/colors';
-import { StatusBar } from 'expo-status-bar';
 import MealCard from '@/components/MealCard';
 import MenuOffers from '@/components/MenuOffers';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function CategoryBrowserScreen() {
   const params = useLocalSearchParams<{ categoryId?: string }>();
@@ -168,14 +168,12 @@ export default function CategoryBrowserScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* StatusBar light style */}
-      <StatusBar style="light" />
 
       <Stack.Screen
         options={{
           title: 'Menu',
           headerShown: true,
-          headerStyle: { backgroundColor: Colors.primary },
+          headerStyle: { backgroundColor: Colors.accent },
           headerTitleStyle: { color: Colors.background, fontSize: 22, fontWeight: '700' },
           headerRight: () => (
             <View style={styles.filtersBar}>
@@ -315,11 +313,11 @@ const styles = StyleSheet.create({
   menuText: { backgroundColor: '#A3D397', color: '#111827', fontSize: 22, fontWeight: '700', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: '#333', paddingHorizontal: 20, marginTop: 16, marginBottom: 12 },
   sectionTitleSmall: { fontSize: 16, fontWeight: '700', color: '#333' },
-  horizontalScroll: { paddingVertical: 12 },
+  horizontalScroll: { paddingVertical: 0 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginTop: 12 },
-  sectionMain: { marginTop: 20 },
+  sectionMain: {  },
   clearText: { color: '#48479B', fontWeight: '600' },
-  mealGrid: { paddingHorizontal: 20, marginTop: 12 },
+  mealGrid: { paddingHorizontal:16, marginTop: 12 },
   gridRow: { justifyContent: 'space-between' },
   empty: { color: '#666', paddingHorizontal: 20, paddingVertical: 12 },
   filtersBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 8 },
@@ -332,7 +330,7 @@ const styles = StyleSheet.create({
   retryBtn: { backgroundColor: '#111', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
   retryText: { color: 'white', fontWeight: '600' },
   offersRow: { paddingLeft: 20, paddingVertical: 8 },
-  horizontalContent: { paddingHorizontal: 20 },
+  horizontalContent: { paddingHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.7)', paddingVertical: 9 },
   activeCategoryNameWrap: { alignItems: 'center', marginTop: 8, marginBottom: 4 },
   activeCategoryNameText: { fontSize: 16, fontWeight: '700', color: '#000' },
 });

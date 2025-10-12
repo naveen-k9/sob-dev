@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -25,7 +25,7 @@ import LocationService from '@/components/LocationService';
 import { offers, PromotionalItem } from '@/constants/data';
 import { useAsyncStorage } from '@/hooks/useStorage';
 import { Banner, Offer, Subscription, Category, Meal, Testimonial, Polygon } from '@/types';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import db from '@/db';
 import { useQuery } from '@tanstack/react-query';
 import { fetchBanners, fetchCategories, fetchMeals, fetchTestimonials } from '@/services/firebase';
@@ -33,6 +33,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MealCard from '@/components/MealCard';
 import CategorySquareCard from '@/components/CategorySquareCard';
 import RoleSelector from '@/components/RoleSelector';
+import { Colors } from '@/constants/colors';
 
 const TOP_BG_HEIGHT = Math.round(Dimensions.get('window').height * 0.36);
 
@@ -40,7 +41,9 @@ export default function HomeScreen() {
   const { user, isGuest, isAdmin, isKitchen, isDelivery } = useAuth();
   const [polygons] = useAsyncStorage<Polygon[]>('polygons', []);
 
-  const [barStyle, setBarStyle] = useState<'light' | 'dark'>('dark');
+  const [barStyle, setBarStyle] = useState<'light' | 'dark'>('light'); // Start with light for banner
+  const [isScrolled, setIsScrolled] = useState(false); // Track if user has scrolled past banner
+  const [isFocused, setIsFocused] = useState(true); // Track if page is focused
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showFilterModal, setShowFilterModal] = useState<boolean>(false);
   const [selectedQuickCategory, setSelectedQuickCategory] = useState<string>('all');
@@ -50,6 +53,22 @@ export default function HomeScreen() {
   const [mySubscriptions, setMySubscriptions] = useState<Subscription[]>([]);
   const [subsLoading, setSubsLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+
+  // Handle StatusBar changes only when this screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      // This will run when screen comes into focus
+      console.log('[HomeScreen] Focused - enabling dynamic StatusBar');
+      setIsFocused(true);
+      
+      return () => {
+        // This cleanup will run when screen loses focus
+        console.log('[HomeScreen] Unfocused - resetting StatusBar to dark');
+        setIsFocused(false);
+        setBarStyle('dark'); // Reset to dark when leaving
+      };
+    }, [])
+  );
 
   const [filterSections, setFilterSections] = useState([
     {
@@ -166,7 +185,20 @@ export default function HomeScreen() {
 
   return (
     <>
-      <StatusBar translucent backgroundColor="transparent" style={barStyle} />
+      {/* 
+        SPECIAL STATUS BAR HANDLING FOR INDEX PAGE:
+        - Override global StatusBar to allow banner image behind status bar
+        - Dynamic style changes based on scroll position (light when banner visible, dark when scrolled)
+        - Translucent background allows hero image to extend behind status bar cameras
+        - This creates an immersive experience for the main landing page
+      */}
+      {isFocused && (
+        <StatusBar 
+          style={barStyle} 
+          backgroundColor="transparent" 
+          translucent 
+        />
+      )}
       
       <CustomerHomeScreen
         user={user}
@@ -191,11 +223,16 @@ export default function HomeScreen() {
         onRefresh={onRefresh}
         selectedCategoryId={selectedCategoryId}
         barStyle={barStyle}
-        onScrollStatusChange={(next: 'light' | 'dark') => setBarStyle(next)}
+        onScrollStatusChange={(next: 'light' | 'dark', scrolled: boolean) => {
+          if (isFocused) { // Only update if page is focused
+            setBarStyle(next);
+            setIsScrolled(scrolled);
+          }
+        }}
         polygons={polygons.filter(p => p.completed)}
       />
        <RoleSelector currentRole="admin" />
-       <TouchableOpacity onPress={() => router.push('/location/selector')} style={{position: 'absolute', bottom: 50, right: 20, backgroundColor: '#007AFF', padding: 10, borderRadius: 5}}>
+       <TouchableOpacity onPress={() => router.push('/location/select')} style={{position: 'absolute', bottom: 50, right: 20, backgroundColor: '#007AFF', padding: 10, borderRadius: 5}}>
         <Text>Switch to Admin</Text>
        </TouchableOpacity>
     </>
@@ -250,16 +287,51 @@ function CustomerHomeScreen({
   onRefresh: () => void;
   selectedCategoryId: string | null;
   barStyle: 'light' | 'dark';
-  onScrollStatusChange: (next: 'light' | 'dark') => void;
+  onScrollStatusChange: (next: 'light' | 'dark', scrolled: boolean) => void;
   polygons: Polygon[];
 }) {
   const { locationState } = useLocation();
   const insets = useSafeAreaInsets();
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isScrolling, setIsScrolling] = useState(false); // Track active scrolling
+  const [hasLocationBeenDetected, setHasLocationBeenDetected] = useState(false); // Track if location was already detected
+  const [locationDetectionSession] = useAsyncStorage<boolean>('locationDetectionSession', false);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const bannersQuery = useQuery({ queryKey: ['banners'], queryFn: fetchBanners });
   const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
   const mealsQuery = useQuery({ queryKey: ['meals'], queryFn: fetchMeals });
   const testimonialsQuery = useQuery({ queryKey: ['testimonials'], queryFn: fetchTestimonials });
+
+  // Cleanup scroll timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Initialize location detection state from storage
+  useEffect(() => {
+    if (locationDetectionSession) {
+      setHasLocationBeenDetected(true);
+    }
+  }, [locationDetectionSession]);
+
+  // Function to handle location detection and update storage
+  const handleLocationSet = useCallback(async (location: any) => {
+    console.log('Location set:', location);
+    setHasLocationBeenDetected(true);
+    // Update storage to remember that location was detected in this session
+    try {
+      await import('@react-native-async-storage/async-storage').then(({ default: AsyncStorage }) => 
+        AsyncStorage.setItem('locationDetectionSession', 'true')
+      );
+    } catch (error) {
+      console.log('Failed to save location detection session:', error);
+    }
+  }, []);
 
   const featuredMeals: Meal[] = useMemo(() => {
     const meals: Meal[] = mealsQuery.data ?? [];
@@ -283,6 +355,32 @@ function CustomerHomeScreen({
 
   return (
     <View style={styles.container}>
+      {/* Sticky Header - appears on top when scrolled */}
+      {isScrolled && (
+        <View style={[
+          styles.stickyHeader,
+          {
+            paddingTop: insets.top,
+            paddingBottom: 12,
+          }
+        ]}>
+          <LocationService 
+            polygons={polygons}
+            onLocationSet={handleLocationSet}
+            disableAutoDetection={isScrolling || hasLocationBeenDetected} // Disable if scrolling OR already detected
+          />
+          <View style={styles.headerActions}>
+            <View style={styles.walletPillSticky} testID="wallet-pill-sticky">
+              <View style={styles.walletIconSticky} />
+              <Text style={styles.walletTextSticky}>Rs 0</Text>
+            </View>
+            <TouchableOpacity style={styles.profileCircleSticky} onPress={() => router.push('/profile')} testID="profile-button-sticky">
+              <User2 size={24} color="#48489B" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}
@@ -291,7 +389,30 @@ function CustomerHomeScreen({
           const y = e.nativeEvent.contentOffset?.y ?? 0;
           const threshold = TOP_BG_HEIGHT * 0.6;
           const next: 'light' | 'dark' = y < threshold ? 'light' : 'dark';
-          if (next !== barStyle) onScrollStatusChange(next);
+          const currentlyScrolled = y > (TOP_BG_HEIGHT - 60); // Show sticky header when banner is mostly scrolled out
+          
+          // Track scrolling state to prevent location detection during scroll
+          setIsScrolling(true);
+          
+          // Clear existing timeout
+          if (scrollTimeoutRef.current) {
+            clearTimeout(scrollTimeoutRef.current);
+          }
+          
+          // Set timeout to detect when scrolling stops
+          scrollTimeoutRef.current = setTimeout(() => {
+            setIsScrolling(false);
+          }, 300); // 300ms after scroll stops
+          
+          // Update local scroll state
+          if (currentlyScrolled !== isScrolled) {
+            setIsScrolled(currentlyScrolled);
+          }
+          
+          // Update parent's StatusBar style
+          if (next !== barStyle) {
+            onScrollStatusChange(next, currentlyScrolled);
+          }
         }}
         scrollEventThrottle={16}
       >
@@ -303,12 +424,17 @@ function CustomerHomeScreen({
             transition={200}
             testID="bg-image"
           />
-          <View style={[styles.header, { paddingTop: insets.top }]}>
+          <View style={[
+            styles.header, 
+            { 
+              paddingTop: insets.top + 8, // Always maintain safe area + small padding for header content
+              paddingBottom: 16,
+            }
+          ]}>
             <LocationService 
               polygons={polygons}
-              onLocationSet={(location) => {
-                console.log('Location set:', location);
-              }}
+              onLocationSet={handleLocationSet}
+              disableAutoDetection={isScrolled || isScrolling || hasLocationBeenDetected} // Disable if scrolled, scrolling, OR already detected
             />
             <View style={styles.headerActions}>
               <View style={styles.walletPill} testID="wallet-pill">
@@ -316,7 +442,7 @@ function CustomerHomeScreen({
                 <Text style={styles.walletText}>Rs 0</Text>
               </View>
               <TouchableOpacity style={styles.profileCircle} onPress={() => router.push('/profile')} testID="profile-button">
-                <User2 size={27} color="#48479B" />
+                <User2 size={24} color="#48479B" />
               </TouchableOpacity>
             </View>
           </View>
@@ -488,20 +614,66 @@ const styles = StyleSheet.create({
   heroImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   bgImage: { resizeMode: 'cover' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 9, backgroundColor: 'transparent' },
+  stickyHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    backgroundColor:'rgba(163, 211, 151, 0.9)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(72, 72, 144, 0.09)',
+    // Add subtle shadow for elevation
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   location: { flexDirection: 'row', alignItems: 'center' },
   locationText: { marginLeft: 9, marginRight: 3, fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   walletPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(163, 211, 151, 0.27)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, marginRight: 8 },
   walletIcon: { width: 18, height: 18, backgroundColor: '#A3D397', borderRadius: 4, marginRight: 6 },
   walletText: { color: '#FFFFFF', fontWeight: '700' },
+  walletPillSticky: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: '#48489B', 
+    paddingHorizontal: 12, 
+    paddingVertical: 7, 
+    borderRadius: 12, 
+    marginRight: 8,
+    shadowColor: '#48489B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  walletIconSticky: { width: 16, height: 16, backgroundColor: '#A3D397', borderRadius: 4, marginRight: 6 },
+  walletTextSticky: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
   profileCircle: {
-    width: 45,
-    height: 45,
+    width: 40,
+    height: 40,
     borderRadius: 27,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 0,
     backgroundColor: '#ffffff'
+  },
+  profileCircleSticky: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: 'rgba(163, 211, 151, 0.3)',
   },
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 20 },

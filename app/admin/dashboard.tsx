@@ -861,6 +861,15 @@ export default function AdminDashboard() {
       onPress: () => router.push('/admin/subscriptions' as any),
       group: 'Primary',
     },
+    {
+      id: '22',
+      title: 'Service Area Requests',
+      description: 'Manage notify me requests from non-serviceable areas',
+      icon: Bell,
+      color: '#8B5CF6',
+      onPress: () => router.push('/admin/service-area-requests' as any),
+      group: 'Operations',
+    },
   ];
 
   const loadCategories = async () => {

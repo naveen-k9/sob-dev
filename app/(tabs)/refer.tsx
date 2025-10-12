@@ -8,7 +8,6 @@ import {
   Share,
   Alert,
   Clipboard,
-  SafeAreaView,
 } from 'react-native';
 import {
   Gift,
@@ -25,7 +24,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import db from '@/db';
 import { ReferralReward, StreakReward } from '@/types';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ReferScreen() {
   const { user } = useAuth();

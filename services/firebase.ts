@@ -1,4 +1,4 @@
-import { AddOn, Banner, Category, Meal, Testimonial, User, UserRole, Subscription } from '@/types';
+import { AddOn, Banner, Category, Meal, Testimonial, User, UserRole, Subscription, ServiceAreaNotificationRequest } from '@/types';
 import Constants from 'expo-constants';
 
 const FIREBASE_API_KEY = (process.env.EXPO_PUBLIC_FIREBASE_API_KEY || (Constants as any).expoConfig?.extra?.firebaseApiKey || '') as string;
@@ -216,6 +216,63 @@ export async function getUserDoc(id: string): Promise<User | null> {
 
 export async function updateUser(id: string, updates: Partial<User>): Promise<void> {
   await updateDocument('users', id, updates as Record<string, any>);
+}
+
+export async function createServiceAreaNotificationRequest(request: Omit<ServiceAreaNotificationRequest, 'id'>): Promise<string> {
+  const id = `notify_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const requestData: ServiceAreaNotificationRequest = {
+    ...request,
+    id,
+  };
+  
+  await createDocument('service-area-requests', id, requestData as unknown as Record<string, any>);
+  return id;
+}
+
+export async function fetchServiceAreaRequests(): Promise<ServiceAreaNotificationRequest[]> {
+  return await fetchCollection<ServiceAreaNotificationRequest>('service-area-requests');
+}
+
+export async function updateServiceAreaRequest(id: string, updates: Partial<ServiceAreaNotificationRequest>): Promise<void> {
+  await updateDocument('service-area-requests', id, updates as Record<string, any>);
+}
+
+export async function notifyServiceAreaAvailable(requestId: string, userEmail: string, userPhone: string, location: string): Promise<void> {
+  try {
+    // Here you would integrate with your email service (SendGrid, AWS SES, etc.)
+    // For now, we'll just log the notification and update the request status
+    
+    const emailData = {
+      to: userEmail,
+      subject: 'Great News! Delivery is now available in your area',
+      html: `
+        <h2>Delivery Service Now Available!</h2>
+        <p>We're excited to let you know that our meal delivery service is now available in your area:</p>
+        <p><strong>Location:</strong> ${location}</p>
+        <p>You can now place orders and enjoy fresh, healthy meals delivered to your doorstep!</p>
+        <p><a href="https://yourapp.com/download" style="background-color: #007AFF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px;">Download the App</a></p>
+        <br>
+        <p>Thank you for your patience!</p>
+        <p>The SameOldBox Team</p>
+      `,
+    };
+    
+    // In a real implementation, you would send the email here:
+    // await sendEmail(emailData);
+    
+    console.log('Email notification would be sent:', emailData);
+    
+    // Update the request to mark as resolved and add notification date
+    await updateServiceAreaRequest(requestId, {
+      status: 'resolved',
+      notifiedAt: new Date(),
+    });
+    
+    console.log(`Notification sent for request ${requestId} to ${userEmail}`);
+  } catch (error) {
+    console.error('Error sending service area notification:', error);
+    throw error;
+  }
 }
 
 export async function seedIfEmpty(): Promise<{ seeded: boolean }[]> {

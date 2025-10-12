@@ -15,10 +15,12 @@ import { Address, Polygon } from '@/types';
 import { findPolygonsContainingPoint } from '@/utils/polygonUtils';
 import { useActiveAddress } from '@/contexts/ActiveAddressContext';
 import { router } from 'expo-router';
+import { Colors } from '@/constants/colors';
 
 interface LocationServiceProps {
   polygons: Polygon[];
   onLocationSet?: (location: { latitude: number; longitude: number; address: string; isServiceable: boolean }) => void;
+  disableAutoDetection?: boolean; // Prevent auto location detection
 }
 
 interface CurrentLocationState {
@@ -29,7 +31,7 @@ interface CurrentLocationState {
   serviceablePolygons: Array<{ id: string; name: string; color: string }>;
 }
 
-const LocationService: React.FC<LocationServiceProps> = ({ polygons, onLocationSet }) => {
+const LocationService: React.FC<LocationServiceProps> = ({ polygons, onLocationSet, disableAutoDetection = false }) => {
   const [addresses, setAddresses] = useAsyncStorage<Address[]>('addresses', []);
   const { getDisplayAddress, setCurrentLocationAddress } = useActiveAddress();
   const [currentLocation, setCurrentLocation] = useState<CurrentLocationState | null>(null);
@@ -38,10 +40,12 @@ const LocationService: React.FC<LocationServiceProps> = ({ polygons, onLocationS
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<string>('unknown');
 
-  // Auto-detect location on component mount
+  // Auto-detect location on component mount (only if not disabled)
   useEffect(() => {
-    detectCurrentLocation();
-  }, []);
+    if (!disableAutoDetection) {
+      detectCurrentLocation();
+    }
+  }, [disableAutoDetection]);
 
   // Check if current location matches any saved address
   useEffect(() => {
@@ -223,12 +227,12 @@ const LocationService: React.FC<LocationServiceProps> = ({ polygons, onLocationS
         <Ionicons 
           name="location" 
           size={16} 
-          color="#A3D397" 
+          color={Colors.primary} 
         />
         <Text style={styles.locationText} numberOfLines={1}>
           {displayAddress.name}
         </Text>
-        <Ionicons name="chevron-down" size={16} color="#A3D397" />
+        <Ionicons name="chevron-down" size={16} color={Colors.primary} />
         {!isServiceable && (
           <View style={styles.warningDot} />
         )}
@@ -303,15 +307,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderWidth: 2,
+    borderColor: 'rgba(163, 211, 151, 0.3)',
     maxWidth: 200,
   },
   locationText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#A3D397',
+    fontWeight: '800',
+    color: Colors.primary,
     marginHorizontal: 6,
     flex: 1,
   },
@@ -396,4 +400,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LocationService;
+export default React.memo(LocationService);

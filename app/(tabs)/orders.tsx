@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   Modal,
@@ -38,8 +37,7 @@ import { router } from 'expo-router';
 import { getUserSubscriptions, featuredMeals, addOns } from '@/constants/data';
 import { Subscription, Meal, AddOn, AppSettings, Order } from '@/types';
 import db from '@/db';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface CalendarDay {
   date: Date;
@@ -1071,10 +1069,8 @@ export default function OrdersScreen() {
 
   const insets = useSafeAreaInsets();
 
-  // StatusBar with light style and Colors.primary background
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar style="light" backgroundColor="#48479B" />
+    <SafeAreaView style={styles.container}>
       
       <ScrollView 
         style={styles.scrollView}

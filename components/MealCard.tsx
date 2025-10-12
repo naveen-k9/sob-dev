@@ -176,9 +176,11 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   subscribeBtn: {
-    backgroundColor: Colors.accent,
+    backgroundColor: 'rgba(72, 72, 144, 1)',
+    borderWidth: 2,
+    borderColor: Colors.accent,
     paddingVertical: 9,
-    borderRadius: 9,
+    borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -189,7 +191,7 @@ const styles = StyleSheet.create({
 
   },
   subscribeText: {
-    color:'#000000',
+    color:'#fff',
     fontWeight: '600',
     fontSize: 14,
   },

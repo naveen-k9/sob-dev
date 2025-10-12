@@ -12,11 +12,12 @@ import {
   Platform,
   Modal,
 } from 'react-native';
+import { useAsyncStorage } from '@/hooks/useStorage';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Region, Polygon as MapPolygon } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { useAsyncStorage } from '@/hooks/useStorage';
+import { useAuth } from '@/contexts/AuthContext';
 import { Address, Polygon } from '@/types';
 import { findPolygonsContainingPoint } from '@/utils/polygonUtils';
 import { useActiveAddress } from '@/contexts/ActiveAddressContext';
@@ -27,8 +28,14 @@ export default function LocationSelectScreen() {
   const showOnlyServiceable = params.showOnlyServiceable === 'true';
   const { setActiveAddress, setCurrentLocationAddress, isAddressActive } = useActiveAddress();
 
-  // State management
-  const [addresses, setAddresses] = useAsyncStorage<Address[]>('addresses', []);
+  // Auth context for user addresses
+  const { user, updateUserAddresses } = useAuth();
+  const [addresses, setAddresses] = useState<Address[]>(user?.addresses || []);
+  useEffect(() => {
+    if (user?.addresses) {
+      setAddresses(user.addresses);
+    }
+  }, [user?.addresses]);
   const [polygons] = useAsyncStorage<Polygon[]>('polygons', []);
   const [showMapView, setShowMapView] = useState(mode === 'pin');
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -154,13 +161,17 @@ export default function LocationSelectScreen() {
       if (data.result && data.result.geometry) {
         const location = data.result.geometry.location;
         
-        // Update map region
-        setMapRegion({
+        // Animate map to selected location
+        const newRegion = {
           latitude: location.lat,
           longitude: location.lng,
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
-        });
+        };
+        
+        if (mapRef.current) {
+          mapRef.current.animateToRegion(newRegion, 1000);
+        }
         
         // Check if location is serviceable
         const serviceablePolygons = findPolygonsContainingPoint(
@@ -168,6 +179,12 @@ export default function LocationSelectScreen() {
           polygons.filter(p => p.completed)
         );
         const isServiceable = serviceablePolygons.length > 0;
+        
+        console.log('Selected place location:', { latitude: location.lat, longitude: location.lng });
+        console.log('Available polygons:', polygons.length);
+        console.log('Completed polygons:', polygons.filter(p => p.completed).length);
+        console.log('Serviceable polygons for place:', serviceablePolygons.length);
+        console.log('Place is serviceable:', isServiceable);
         
         // Set selected location
         setSelectedLocation({
@@ -185,10 +202,14 @@ export default function LocationSelectScreen() {
         
         // If location is not serviceable, show notify modal after search drawer closes
         if (!isServiceable) {
+          console.log('Location not serviceable, showing notify modal in 300ms');
           // Use setTimeout to ensure search modal is fully closed first
           setTimeout(() => {
+            console.log('Opening notify modal now');
             setShowNotifyModal(true);
           }, 300); // Wait for modal close animation
+        } else {
+          console.log('Location is serviceable, not showing notify modal');
         }
       }
     } catch (error) {
@@ -225,6 +246,21 @@ export default function LocationSelectScreen() {
     console.log('Search drawer state changed:', showSearchDrawer);
   }, [showSearchDrawer]);
 
+  // Debug effect to track polygon loading
+  useEffect(() => {
+    console.log('Polygons loaded:', polygons.length);
+    console.log('Completed polygons:', polygons.filter(p => p.completed).length);
+    polygons.forEach((p, index) => {
+      console.log(`Polygon ${index}:`, {
+        id: p.id,
+        name: p.name,
+        completed: p.completed,
+        pointsCount: p.points.length,
+        color: p.color
+      });
+    });
+  }, [polygons]);
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
@@ -255,13 +291,17 @@ export default function LocationSelectScreen() {
 
       setCurrentLocation(coords);
       
-      // Update map region to center on current location
-      setMapRegion({
+      // Animate map to center on current location
+      const newRegion = {
         latitude: coords.latitude,
         longitude: coords.longitude,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
-      });
+      };
+      
+      if (mapRef.current) {
+        mapRef.current.animateToRegion(newRegion, 1000);
+      }
       
       // Reverse geocode to get address
       const reverseGeocode = await Location.reverseGeocodeAsync(coords);
@@ -270,8 +310,14 @@ export default function LocationSelectScreen() {
         const formattedAddress = `${address.name || ''} ${address.street || ''}, ${address.city || ''}, ${address.region || ''}`.trim();
         
         // Check if location is serviceable
-        const serviceablePolygons = findPolygonsContainingPoint(coords, polygons.filter(p => p.completed));
+        const serviceablePolygons = findPolygonsContainingPoint(coords, polygons.filter((p: Polygon) => p.completed));
         const isServiceable = serviceablePolygons.length > 0;
+        
+        console.log('Current location coords:', coords);
+        console.log('Available polygons:', polygons.length);
+        console.log('Completed polygons:', polygons.filter((p: Polygon) => p.completed).length);
+        console.log('Serviceable polygons found:', serviceablePolygons.length);
+        console.log('Is serviceable:', isServiceable);
         
         setSelectedLocation({
           latitude: coords.latitude,
@@ -324,7 +370,7 @@ export default function LocationSelectScreen() {
 
   const handleSelectSavedAddress = (address: Address) => {
     // Check if address is serviceable
-    const serviceablePolygons = findPolygonsContainingPoint(address.coordinates, polygons.filter(p => p.completed));
+  const serviceablePolygons = findPolygonsContainingPoint(address.coordinates, polygons.filter((p: Polygon) => p.completed));
     const isServiceable = serviceablePolygons.length > 0;
     
     if (showOnlyServiceable && !isServiceable) {
@@ -362,6 +408,8 @@ export default function LocationSelectScreen() {
   };
 
   const handleMapRegionChange = (region: Region) => {
+    // Update local mapRegion state for internal tracking
+    // but don't pass it back to the MapView (since we use initialRegion)
     setMapRegion(region);
     
     // Don't auto-close search drawer on map region changes
@@ -374,8 +422,12 @@ export default function LocationSelectScreen() {
     };
     
     // Check if the new location is serviceable
-    const serviceablePolygons = findPolygonsContainingPoint(centerCoordinate, polygons.filter(p => p.completed));
+    const serviceablePolygons = findPolygonsContainingPoint(centerCoordinate, polygons.filter((p: Polygon) => p.completed));
     const isServiceable = serviceablePolygons.length > 0;
+    
+    console.log('Map center changed to:', centerCoordinate);
+    console.log('Map center serviceable polygons found:', serviceablePolygons.length);
+    console.log('Map center is serviceable:', isServiceable);
     
     if (showOnlyServiceable && !isServiceable) {
       // Don't prevent map movement, just update the status
@@ -461,14 +513,14 @@ export default function LocationSelectScreen() {
       createdAt: new Date(),
     };
 
-    setAddresses([...addresses, newAddress]);
-    
+    const updatedAddresses = [...addresses, newAddress];
+    setAddresses(updatedAddresses);
+    updateUserAddresses(updatedAddresses);
     Alert.alert('Success', 'Address saved successfully!', [
       {
         text: 'OK',
         onPress: () => {
           router.back();
-          // TODO: Update location context with new address
         }
       }
     ]);
@@ -488,7 +540,9 @@ export default function LocationSelectScreen() {
     setIsSubmittingNotify(true);
 
     try {
-      // TODO: Replace with actual API call to save notification request
+      // Import Firebase function
+      const { createServiceAreaNotificationRequest } = await import('@/services/firebase');
+      
       const notifyRequest = {
         name: notifyName.trim(),
         phone: notifyPhone.trim(),
@@ -498,13 +552,14 @@ export default function LocationSelectScreen() {
           longitude: selectedLocation.longitude,
           address: selectedLocation.address,
         },
-        requestedAt: new Date().toISOString(),
+        status: 'pending' as const,
+        createdAt: new Date(),
       };
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Save to Firebase
+      const requestId = await createServiceAreaNotificationRequest(notifyRequest);
       
-      console.log('Notify request:', notifyRequest);
+      console.log('Notification request saved with ID:', requestId);
 
       Alert.alert(
         'Request Submitted!', 
@@ -870,7 +925,7 @@ export default function LocationSelectScreen() {
           {Platform.OS !== 'web' ? (
             <MapView
               style={styles.map}
-              region={mapRegion}
+              initialRegion={mapRegion}
               ref={mapRef}
               showsUserLocation={true}
               showsMyLocationButton={false}
@@ -878,8 +933,8 @@ export default function LocationSelectScreen() {
             >
               {/* Render serviceable area polygons */}
               {polygons
-                .filter(p => p.completed)
-                .map((polygon) => (
+                .filter((p: Polygon) => p.completed)
+                .map((polygon: Polygon) => (
                   <MapPolygon
                     key={polygon.id}
                     coordinates={polygon.points}
@@ -888,6 +943,19 @@ export default function LocationSelectScreen() {
                     strokeWidth={2}
                   />
                 ))}
+                
+              {/* Show current location marker if available */}
+              {currentLocation && (
+                <Marker
+                  coordinate={currentLocation}
+                  title="Current Location"
+                  pinColor="#007AFF"
+                >
+                  <View style={styles.currentLocationMarker}>
+                    <View style={styles.currentLocationDot} />
+                  </View>
+                </Marker>
+              )}
             </MapView>
           ) : (
             <View style={styles.webMapPlaceholder}>
@@ -958,11 +1026,14 @@ export default function LocationSelectScreen() {
                   style={styles.zoomInstructionButton}
                   onPress={() => {
                     // Zoom in to a more precise level
-                    setMapRegion({
-                      ...mapRegion,
-                      latitudeDelta: 0.002,
-                      longitudeDelta: 0.002,
-                    });
+                    if (mapRef.current) {
+                      const zoomedRegion = {
+                        ...mapRegion,
+                        latitudeDelta: 0.002,
+                        longitudeDelta: 0.002,
+                      };
+                      mapRef.current.animateToRegion(zoomedRegion, 500);
+                    }
                   }}
                 >
                   <Ionicons name="search" size={20} color="#FF9500" />
@@ -981,15 +1052,19 @@ export default function LocationSelectScreen() {
                 <TouchableOpacity
                   style={styles.notifyButton}
                   onPress={() => {
+                    console.log('Notify Me button pressed');
                     // Ensure no other modals are open
                     if (showSearchDrawer) {
+                      console.log('Search drawer is open, closing first');
                       setShowSearchDrawer(false);
                       setSearchQuery('');
                       setSearchResults([]);
                       setTimeout(() => {
+                        console.log('Opening notify modal after search drawer closes');
                         setShowNotifyModal(true);
                       }, 300);
                     } else {
+                      console.log('Opening notify modal immediately');
                       setShowNotifyModal(true);
                     }
                   }}
@@ -1068,7 +1143,7 @@ export default function LocationSelectScreen() {
             {addresses.map((address) => {
               const isServiceable = findPolygonsContainingPoint(
                 address.coordinates,
-                polygons.filter(p => p.completed)
+                polygons.filter((p: Polygon) => p.completed)
               ).length > 0;
               const isActive = isAddressActive(address.id);
               
@@ -1476,6 +1551,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: '#FFFFFF',
+  },
+  currentLocationMarker: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  currentLocationDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#007AFF',
   },
   centerMarker: {
     position: 'absolute',

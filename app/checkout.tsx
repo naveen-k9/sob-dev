@@ -4,7 +4,6 @@ import {
   ScrollView,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   TextInput,
   Alert,
@@ -19,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import db from '@/db';
 import RazorpayCheckout from 'react-native-razorpay';
 import { Colors } from '@/constants/colors';
+import { SafeAreaView } from 'react-native-safe-area-context';
 export default function CheckoutScreen() {
   const { user, isGuest, updateUser } = useAuth();
   const { subscriptionData } = useLocalSearchParams();
@@ -89,8 +89,22 @@ export default function CheckoutScreen() {
 
   useEffect(() => {
     if (user?.addresses && user.addresses.length > 0) {
-      const defaultAddress = user.addresses.find(addr => addr.isDefault) || user.addresses[0];
-      setSelectedAddress(defaultAddress);
+      // If no address is currently selected, or if new addresses were added
+      if (!selectedAddress) {
+        const defaultAddress = user.addresses.find(addr => addr.isDefault) || user.addresses[0];
+        setSelectedAddress(defaultAddress);
+      } else {
+        // Check if the current selected address still exists
+        const currentAddressExists = user.addresses.find(addr => addr.id === selectedAddress.id);
+        if (!currentAddressExists) {
+          // If current address was deleted, select default or first
+          const defaultAddress = user.addresses.find(addr => addr.isDefault) || user.addresses[0];
+          setSelectedAddress(defaultAddress);
+        }
+      }
+    } else if (user?.addresses && user.addresses.length === 0) {
+      // No addresses available, clear selection
+      setSelectedAddress(null);
     }
   }, [user?.addresses]);
 
@@ -612,11 +626,23 @@ export default function CheckoutScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Delivery Address</Text>
               {selectedAddress ? (
-                <View style={styles.addressCard}>
-                  <MapPin size={20} color="#48479B" />
+                <TouchableOpacity
+                  style={styles.addressCard}
+                  onPress={() => setShowAddressBook(true)}
+                >
+                  <View style={styles.addressIconContainer}>
+                    <MapPin size={20} color="#48479B" />
+                  </View>
                   <View style={styles.addressContent}>
+                    <View style={styles.addressHeader}>
+                      <Text style={styles.addressLabel}>{selectedAddress.label}</Text>
+                      {selectedAddress.isDefault && (
+                        <View style={styles.defaultBadge}>
+                          <Text style={styles.defaultBadgeText}>Default</Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={styles.addressName}>{selectedAddress.name}</Text>
-                    <Text style={styles.addressPhone}>{selectedAddress.phone}</Text>
                     <Text style={styles.addressText}>
                       {selectedAddress.addressLine}
                     </Text>
@@ -624,24 +650,28 @@ export default function CheckoutScreen() {
                       {selectedAddress.city}, {selectedAddress.state} - {selectedAddress.pincode}
                     </Text>
                   </View>
-                  <TouchableOpacity
-                    style={styles.changeButton}
-                    onPress={() => setShowAddressBook(true)}
-                  >
+                  <View style={styles.addressActions}>
                     <Text style={styles.changeButtonText}>Change</Text>
-                  </TouchableOpacity>
-                </View>
+                    <Text style={styles.chevron}>›</Text>
+                  </View>
+                </TouchableOpacity>
               ) : (
                 <TouchableOpacity
                   style={styles.addAddressCard}
                   onPress={() => setShowAddressBook(true)}
                 >
-                  <MapPin size={20} color="#48479B" />
+                  <View style={styles.addAddressIconContainer}>
+                    <MapPin size={24} color="#48479B" />
+                  </View>
                   <View style={styles.addressContent}>
                     <Text style={styles.addAddressText}>Add Delivery Address</Text>
                     <Text style={styles.addAddressSubtext}>
                       Please add an address to continue with your order
                     </Text>
+                  </View>
+                  <View style={styles.addressActions}>
+                    <Text style={styles.addButtonText}>Add</Text>
+                    <Text style={styles.chevron}>›</Text>
                   </View>
                 </TouchableOpacity>
               )}
@@ -1620,5 +1650,61 @@ const styles = StyleSheet.create({
   datePickerNoteText: {
     fontSize: 14,
     color: '#666',
+  },
+  // Enhanced address styles for Zomato/Blinkit-like experience
+  addressIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  addAddressIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  addressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  addressLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#48479B',
+    marginRight: 8,
+  },
+  defaultBadge: {
+    backgroundColor: '#34C759',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  defaultBadgeText: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: '500',
+  },
+  addressActions: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chevron: {
+    fontSize: 24,
+    color: '#C7C7CC',
+    fontWeight: '300',
+  },
+  addButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#48479B',
+    marginBottom: 2,
   },
 });

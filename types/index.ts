@@ -349,6 +349,21 @@ export interface CorporateCateringRequest {
   createdAt: Date;
 }
 
+export interface ServiceAreaNotificationRequest {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  location: {
+    latitude: number;
+    longitude: number;
+    address: string;
+  };
+  status: 'pending' | 'contacted' | 'resolved';
+  createdAt: Date;
+  notifiedAt?: Date;
+}
+
 export interface NutritionistContact {
   id: string;
   name: string;

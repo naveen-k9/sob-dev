@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -13,6 +12,8 @@ import { ArrowLeft, Plus, MessageCircle, Clock, CheckCircle, XCircle } from 'luc
 import { useAuth } from '@/contexts/AuthContext';
 import { SupportTicket } from '@/types';
 import db from '@/db';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LayoutStyles } from '@/constants/layout';
 
 const SupportScreen: React.FC = () => {
   const { user } = useAuth();

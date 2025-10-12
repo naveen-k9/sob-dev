@@ -13,6 +13,8 @@ import OTAUpdater from "@/components/OTAUpdater";
 import { seedIfEmpty } from "@/services/firebase";
 import { StyleSheet } from "react-native";
 import * as SystemUI from "expo-system-ui";
+import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -132,20 +134,36 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <trpc.Provider client={trpcClient} queryClient={queryClient}>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <LocationProvider>
-              <ActiveAddressProvider>
-                <GestureHandlerRootView style={styles.flex1}>
-                  <OTAUpdater />
-                  <RootLayoutNav />
-                </GestureHandlerRootView>
-              </ActiveAddressProvider>
-            </LocationProvider>
-          </AuthProvider>
-        </QueryClientProvider>
-      </trpc.Provider>
+      <SafeAreaProvider>
+        {/* 
+          CENTRALIZED STATUS BAR STRATEGY:
+          - Global StatusBar is set to 'dark' style by default with transparent background
+          - This provides consistent behavior across all pages during navigation
+          - Individual pages can override the StatusBar style if needed (like index page with focus isolation)
+          - The translucent prop allows content to extend behind the status bar
+          - SafeAreaProvider ensures all child components respect device safe areas
+          
+          SPECIAL CASES:
+          - Index page: Uses translucent StatusBar with dynamic style (light/dark) based on scroll, only when focused
+          - Other pages: Inherit the global dark StatusBar style for consistency
+          - Focus isolation prevents index page StatusBar changes from affecting other pages
+        */}
+        <StatusBar style="dark" backgroundColor="transparent" translucent />
+        <trpc.Provider client={trpcClient} queryClient={queryClient}>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <LocationProvider>
+                <ActiveAddressProvider>
+                  <GestureHandlerRootView style={styles.flex1}>
+                    <OTAUpdater />
+                    <RootLayoutNav />
+                  </GestureHandlerRootView>
+                </ActiveAddressProvider>
+              </LocationProvider>
+            </AuthProvider>
+          </QueryClientProvider>
+        </trpc.Provider>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }

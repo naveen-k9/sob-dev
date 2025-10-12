@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   FlatList,
@@ -31,6 +30,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { router } from 'expo-router';
 import db from '@/db';
 import { Subscription } from '@/types';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ProfileScreen() {
   const { user, isGuest, logout } = useAuth();
