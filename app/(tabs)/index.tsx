@@ -1,53 +1,81 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import {
   View,
   ScrollView,
   Text,
   StyleSheet,
-
   TouchableOpacity,
   FlatList,
-
   Image,
-} from 'react-native';
-import { Dimensions } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
-import { MapPin, ChevronDown, Calendar, Clock, Package, User, User2 } from 'lucide-react-native';
-import { StatusBar } from 'expo-status-bar';
-import { useAuth } from '@/contexts/AuthContext';
-import { useLocation } from '@/contexts/LocationContext';
-import CategoryCard from '@/components/CategoryCard';
-import TestimonialCard from '@/components/TestimonialCard';
-import OfferCard from '@/components/OfferCard';
-import OfferDetailModal from '@/components/OfferDetailModal';
-import FilterModal from '@/components/FilterModal';
-import LocationService from '@/components/LocationService';
-import { offers, PromotionalItem } from '@/constants/data';
-import { useAsyncStorage } from '@/hooks/useStorage';
-import { Banner, Offer, Subscription, Category, Meal, Testimonial, Polygon } from '@/types';
-import { router, useFocusEffect } from 'expo-router';
-import db from '@/db';
-import { useQuery } from '@tanstack/react-query';
-import { fetchBanners, fetchCategories, fetchMeals, fetchTestimonials } from '@/services/firebase';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MealCard from '@/components/MealCard';
-import CategorySquareCard from '@/components/CategorySquareCard';
-import RoleSelector from '@/components/RoleSelector';
-import { Colors } from '@/constants/colors';
+} from "react-native";
+import { Dimensions } from "react-native";
+import { Image as ExpoImage } from "expo-image";
+import {
+  MapPin,
+  ChevronDown,
+  Calendar,
+  Clock,
+  Package,
+  User,
+  User2,
+} from "lucide-react-native";
+import { StatusBar } from "expo-status-bar";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "@/contexts/LocationContext";
+import CategoryCard from "@/components/CategoryCard";
+import TestimonialCard from "@/components/TestimonialCard";
+import OfferCard from "@/components/OfferCard";
+import OfferDetailModal from "@/components/OfferDetailModal";
+import FilterModal from "@/components/FilterModal";
+import LocationService from "@/components/LocationService";
+import { offers, PromotionalItem } from "@/constants/data";
+import { useAsyncStorage } from "@/hooks/useStorage";
+import {
+  Banner,
+  Offer,
+  Subscription,
+  Category,
+  Meal,
+  Testimonial,
+  Polygon,
+} from "@/types";
+import { router, useFocusEffect } from "expo-router";
+import db from "@/db";
+import { useQuery } from "@tanstack/react-query";
+import {
+  fetchBanners,
+  fetchCategories,
+  fetchMeals,
+  fetchTestimonials,
+} from "@/services/firebase";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import MealCard from "@/components/MealCard";
+import CategorySquareCard from "@/components/CategorySquareCard";
+import RoleSelector from "@/components/RoleSelector";
+import { Colors } from "@/constants/colors";
 
-const TOP_BG_HEIGHT = Math.round(Dimensions.get('window').height * 0.36);
+const TOP_BG_HEIGHT = Math.round(Dimensions.get("window").height * 0.36);
 
 export default function HomeScreen() {
   const { user, isGuest, isAdmin, isKitchen, isDelivery } = useAuth();
-  const [polygons] = useAsyncStorage<Polygon[]>('polygons', []);
+  const [polygons] = useAsyncStorage<Polygon[]>("polygons", []);
 
-  const [barStyle, setBarStyle] = useState<'light' | 'dark'>('light'); // Start with light for banner
+  const [barStyle, setBarStyle] = useState<"light" | "dark">("light"); // Start with light for banner
   const [isScrolled, setIsScrolled] = useState(false); // Track if user has scrolled past banner
   const [isFocused, setIsFocused] = useState(true); // Track if page is focused
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [showFilterModal, setShowFilterModal] = useState<boolean>(false);
-  const [selectedQuickCategory, setSelectedQuickCategory] = useState<string>('all');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedQuickCategory, setSelectedQuickCategory] =
+    useState<string>("all");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+    null
+  );
   const [showOfferModal, setShowOfferModal] = useState<boolean>(false);
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [mySubscriptions, setMySubscriptions] = useState<Subscription[]>([]);
@@ -58,27 +86,27 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       // This will run when screen comes into focus
-      console.log('[HomeScreen] Focused - enabling dynamic StatusBar');
+      console.log("[HomeScreen] Focused - enabling dynamic StatusBar");
       setIsFocused(true);
-      
+
       return () => {
         // This cleanup will run when screen loses focus
-        console.log('[HomeScreen] Unfocused - resetting StatusBar to dark');
+        console.log("[HomeScreen] Unfocused - resetting StatusBar to dark");
         setIsFocused(false);
-        setBarStyle('dark'); // Reset to dark when leaving
+        setBarStyle("dark"); // Reset to dark when leaving
       };
     }, [])
   );
 
   const [filterSections, setFilterSections] = useState([
     {
-      id: 'dietary',
-      title: 'Dietary Preferences',
+      id: "dietary",
+      title: "Dietary Preferences",
       options: [
-        { id: 'veg', label: 'Vegetarian', selected: false },
-        { id: 'non-veg', label: 'Non-Vegetarian', selected: false },
-        { id: 'vegan', label: 'Vegan', selected: false },
-        { id: 'gluten-free', label: 'Gluten Free', selected: false },
+        { id: "veg", label: "Vegetarian", selected: false },
+        { id: "non-veg", label: "Non-Vegetarian", selected: false },
+        { id: "vegan", label: "Vegan", selected: false },
+        { id: "gluten-free", label: "Gluten Free", selected: false },
       ],
     },
   ]);
@@ -90,7 +118,7 @@ export default function HomeScreen() {
       const subs = await db.getUserSubscriptions(user.id);
       setMySubscriptions(subs);
     } catch (e) {
-      console.log('loadSubscriptions error', e);
+      console.log("loadSubscriptions error", e);
     } finally {
       setSubsLoading(false);
     }
@@ -111,11 +139,11 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (isAdmin()) {
-      router.replace('/admin/dashboard');
+      router.replace("/admin/dashboard");
     } else if (isKitchen()) {
-      router.replace('/kitchen/dashboard');
+      router.replace("/kitchen/dashboard");
     } else if (isDelivery()) {
-      router.replace('/delivery/dashboard');
+      router.replace("/delivery/dashboard");
     }
   }, [isAdmin, isKitchen, isDelivery]);
 
@@ -132,7 +160,7 @@ export default function HomeScreen() {
   };
 
   const handleOfferPress = (offerId: string) => {
-    const offer = offers.find(o => o.id === offerId);
+    const offer = offers.find((o) => o.id === offerId);
     if (offer) {
       setSelectedOffer(offer);
       setShowOfferModal(true);
@@ -150,16 +178,22 @@ export default function HomeScreen() {
 
   const handleBannerPress = (banner: Banner) => {
     switch (banner.actionType) {
-      case 'category':
-        router.push(`/menu?categoryId=${encodeURIComponent(String(banner.actionValue))}`);
+      case "category":
+        router.push(
+          `/menu?categoryId=${encodeURIComponent(String(banner.actionValue))}`
+        );
         break;
-      case 'meal':
+      case "meal":
         router.push(`/meal/${banner.actionValue}`);
         break;
-      case 'external':
-        router.push(`/webview?url=${encodeURIComponent(banner.actionValue)}&title=${encodeURIComponent(banner.title)}`);
+      case "external":
+        router.push(
+          `/webview?url=${encodeURIComponent(
+            banner.actionValue
+          )}&title=${encodeURIComponent(banner.title)}`
+        );
         break;
-      case 'offer':
+      case "offer":
         router.push(`/subscription?offerId=${banner.actionValue}`);
         break;
       default:
@@ -179,7 +213,6 @@ export default function HomeScreen() {
     <CategorySquareCard
       category={item}
       onPress={() => handleCategoryPress(item.id)}
-     
     />
   );
 
@@ -193,13 +226,9 @@ export default function HomeScreen() {
         - This creates an immersive experience for the main landing page
       */}
       {isFocused && (
-        <StatusBar 
-          style={barStyle} 
-          backgroundColor="transparent" 
-          translucent 
-        />
+        <StatusBar style={barStyle} backgroundColor="transparent" translucent />
       )}
-      
+
       <CustomerHomeScreen
         user={user}
         isGuest={isGuest}
@@ -212,7 +241,7 @@ export default function HomeScreen() {
         handleOfferPress={handleOfferPress}
         handleBannerPress={handleBannerPress}
         renderMealGrid={renderMealGrid}
-         renderCollectionsGrid={renderCollectionsGrid}
+        renderCollectionsGrid={renderCollectionsGrid}
         showOfferModal={showOfferModal}
         selectedOffer={selectedOffer}
         handleUseOffer={handleUseOffer}
@@ -223,18 +252,29 @@ export default function HomeScreen() {
         onRefresh={onRefresh}
         selectedCategoryId={selectedCategoryId}
         barStyle={barStyle}
-        onScrollStatusChange={(next: 'light' | 'dark', scrolled: boolean) => {
-          if (isFocused) { // Only update if page is focused
+        onScrollStatusChange={(next: "light" | "dark", scrolled: boolean) => {
+          if (isFocused) {
+            // Only update if page is focused
             setBarStyle(next);
             setIsScrolled(scrolled);
           }
         }}
-        polygons={polygons.filter(p => p.completed)}
+        polygons={polygons.filter((p) => p.completed)}
       />
-       <RoleSelector currentRole="admin" />
-       <TouchableOpacity onPress={() => router.push('/location/select')} style={{position: 'absolute', bottom: 50, right: 20, backgroundColor: '#007AFF', padding: 10, borderRadius: 5}}>
+      <RoleSelector currentRole="admin" />
+      <TouchableOpacity
+        onPress={() => router.push("/location/select")}
+        style={{
+          position: "absolute",
+          bottom: 50,
+          right: 20,
+          backgroundColor: "#007AFF",
+          padding: 10,
+          borderRadius: 5,
+        }}
+      >
         <Text>Switch to Admin</Text>
-       </TouchableOpacity>
+      </TouchableOpacity>
     </>
   );
 }
@@ -286,8 +326,8 @@ function CustomerHomeScreen({
   refreshing: boolean;
   onRefresh: () => void;
   selectedCategoryId: string | null;
-  barStyle: 'light' | 'dark';
-  onScrollStatusChange: (next: 'light' | 'dark', scrolled: boolean) => void;
+  barStyle: "light" | "dark";
+  onScrollStatusChange: (next: "light" | "dark", scrolled: boolean) => void;
   polygons: Polygon[];
 }) {
   const { locationState } = useLocation();
@@ -295,13 +335,25 @@ function CustomerHomeScreen({
   const [isScrolled, setIsScrolled] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false); // Track active scrolling
   const [hasLocationBeenDetected, setHasLocationBeenDetected] = useState(false); // Track if location was already detected
-  const [locationDetectionSession] = useAsyncStorage<boolean>('locationDetectionSession', false);
+  const [locationDetectionSession] = useAsyncStorage<boolean>(
+    "locationDetectionSession",
+    false
+  );
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const bannersQuery = useQuery({ queryKey: ['banners'], queryFn: fetchBanners });
-  const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
-  const mealsQuery = useQuery({ queryKey: ['meals'], queryFn: fetchMeals });
-  const testimonialsQuery = useQuery({ queryKey: ['testimonials'], queryFn: fetchTestimonials });
+  const bannersQuery = useQuery({
+    queryKey: ["banners"],
+    queryFn: fetchBanners,
+  });
+  const categoriesQuery = useQuery({
+    queryKey: ["categories"],
+    queryFn: fetchCategories,
+  });
+  const mealsQuery = useQuery({ queryKey: ["meals"], queryFn: fetchMeals });
+  const testimonialsQuery = useQuery({
+    queryKey: ["testimonials"],
+    queryFn: fetchTestimonials,
+  });
 
   // Cleanup scroll timeout on unmount
   useEffect(() => {
@@ -321,15 +373,16 @@ function CustomerHomeScreen({
 
   // Function to handle location detection and update storage
   const handleLocationSet = useCallback(async (location: any) => {
-    console.log('Location set:', location);
+    console.log("Location set:", location);
     setHasLocationBeenDetected(true);
     // Update storage to remember that location was detected in this session
     try {
-      await import('@react-native-async-storage/async-storage').then(({ default: AsyncStorage }) => 
-        AsyncStorage.setItem('locationDetectionSession', 'true')
+      await import("@react-native-async-storage/async-storage").then(
+        ({ default: AsyncStorage }) =>
+          AsyncStorage.setItem("locationDetectionSession", "true")
       );
     } catch (error) {
-      console.log('Failed to save location detection session:', error);
+      console.log("Failed to save location detection session:", error);
     }
   }, []);
 
@@ -338,33 +391,68 @@ function CustomerHomeScreen({
     return meals.filter((m: Meal) => m.isFeatured === true);
   }, [mealsQuery.data]);
 
-  const categories: Category[] = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
-  const mealTimeCategories: Category[] = useMemo(() => categories.filter((c) => c.group === 'meal-time'), [categories]);
-  const collectionCategories: Category[] = useMemo(() => categories.filter((c) => c.group === 'collection'), [categories]);
+  const categories: Category[] = useMemo(
+    () => categoriesQuery.data ?? [],
+    [categoriesQuery.data]
+  );
+  const collectionCategories: Category[] = useMemo(
+    () => categories.filter((c) => c.group === "collection"),
+    [categories]
+  );
+
+  const popularMeals: Meal[] = useMemo(() => {
+    const meals = mealsQuery.data ?? [];
+    return meals
+      .filter(
+        (meal) =>
+          meal &&
+          typeof meal.id === "string" &&
+          meal.isActive !== false &&
+          !meal.isDraft &&
+          (meal.isFeatured || (meal.rating ?? 0) >= 4.0) // Featured or highly rated
+      )
+      .sort((a, b) => {
+        // Sort by featured status first, then by rating
+        if (a.isFeatured && !b.isFeatured) return -1;
+        if (!a.isFeatured && b.isFeatured) return 1;
+        return (b.rating ?? 0) - (a.rating ?? 0);
+      })
+      .slice(0, 6); // Show top 6 meals
+  }, [mealsQuery.data]);
 
   const displayedMeals: Meal[] = useMemo(() => {
     const meals: Meal[] = mealsQuery.data ?? [];
     if (!selectedCategoryId) return featuredMeals;
     return meals.filter((m) => {
-      const ids = (m.categoryIds ?? []).concat(m.categoryId ? [m.categoryId] : []);
+      const ids = (m.categoryIds ?? []).concat(
+        m.categoryId ? [m.categoryId] : []
+      );
       return ids.includes(selectedCategoryId);
     });
   }, [mealsQuery.data, featuredMeals, selectedCategoryId]);
-  const banners: Banner[] = useMemo(() => bannersQuery.data ?? [], [bannersQuery.data]);
-  const testimonials: Testimonial[] = useMemo(() => testimonialsQuery.data ?? [], [testimonialsQuery.data]);
+  const banners: Banner[] = useMemo(
+    () => bannersQuery.data ?? [],
+    [bannersQuery.data]
+  );
+  const testimonials: Testimonial[] = useMemo(
+    () => testimonialsQuery.data ?? [],
+    [testimonialsQuery.data]
+  );
 
   return (
     <View style={styles.container}>
       {/* Sticky Header - appears on top when scrolled */}
       {isScrolled && (
-        <View style={[
-          styles.stickyHeader,
-          {
-            paddingTop: insets.top,
-            paddingBottom: 12,
-          }
-        ]}>
-          <LocationService 
+        <View
+          style={[
+            styles.stickyHeader,
+            {
+              paddingTop: insets.top,
+              paddingBottom: 12,
+            },
+          ]}
+        >
+          <LocationService
             polygons={polygons}
             onLocationSet={handleLocationSet}
             disableAutoDetection={isScrolling || hasLocationBeenDetected} // Disable if scrolling OR already detected
@@ -374,7 +462,11 @@ function CustomerHomeScreen({
               <View style={styles.walletIconSticky} />
               <Text style={styles.walletTextSticky}>Rs 0</Text>
             </View>
-            <TouchableOpacity style={styles.profileCircleSticky} onPress={() => router.push('/profile')} testID="profile-button-sticky">
+            <TouchableOpacity
+              style={styles.profileCircleSticky}
+              onPress={() => router.push("/profile")}
+              testID="profile-button-sticky"
+            >
               <User2 size={24} color="#48489B" />
             </TouchableOpacity>
           </View>
@@ -388,27 +480,27 @@ function CustomerHomeScreen({
         onScroll={(e) => {
           const y = e.nativeEvent.contentOffset?.y ?? 0;
           const threshold = TOP_BG_HEIGHT * 0.6;
-          const next: 'light' | 'dark' = y < threshold ? 'light' : 'dark';
-          const currentlyScrolled = y > (TOP_BG_HEIGHT - 60); // Show sticky header when banner is mostly scrolled out
-          
+          const next: "light" | "dark" = y < threshold ? "light" : "dark";
+          const currentlyScrolled = y > TOP_BG_HEIGHT - 60; // Show sticky header when banner is mostly scrolled out
+
           // Track scrolling state to prevent location detection during scroll
           setIsScrolling(true);
-          
+
           // Clear existing timeout
           if (scrollTimeoutRef.current) {
             clearTimeout(scrollTimeoutRef.current);
           }
-          
+
           // Set timeout to detect when scrolling stops
           scrollTimeoutRef.current = setTimeout(() => {
             setIsScrolling(false);
           }, 300); // 300ms after scroll stops
-          
+
           // Update local scroll state
           if (currentlyScrolled !== isScrolled) {
             setIsScrolled(currentlyScrolled);
           }
-          
+
           // Update parent's StatusBar style
           if (next !== barStyle) {
             onScrollStatusChange(next, currentlyScrolled);
@@ -418,30 +510,40 @@ function CustomerHomeScreen({
       >
         <View style={[styles.topBg, { height: TOP_BG_HEIGHT }]}>
           <ExpoImage
-            source={{ uri: 'https://i0.wp.com/bestgrafix.com/wp-content/uploads/2024/09/Halloween-GIF-7.gif' }}
+            source={{
+              uri: "https://i0.wp.com/bestgrafix.com/wp-content/uploads/2024/09/Halloween-GIF-7.gif",
+            }}
             style={styles.heroImage}
             contentFit="cover"
             transition={200}
             testID="bg-image"
           />
-          <View style={[
-            styles.header, 
-            { 
-              paddingTop: insets.top + 8, // Always maintain safe area + small padding for header content
-              paddingBottom: 16,
-            }
-          ]}>
-            <LocationService 
+          <View
+            style={[
+              styles.header,
+              {
+                paddingTop: insets.top + 8, // Always maintain safe area + small padding for header content
+                paddingBottom: 16,
+              },
+            ]}
+          >
+            <LocationService
               polygons={polygons}
               onLocationSet={handleLocationSet}
-              disableAutoDetection={isScrolled || isScrolling || hasLocationBeenDetected} // Disable if scrolled, scrolling, OR already detected
+              disableAutoDetection={
+                isScrolled || isScrolling || hasLocationBeenDetected
+              } // Disable if scrolled, scrolling, OR already detected
             />
             <View style={styles.headerActions}>
               <View style={styles.walletPill} testID="wallet-pill">
                 <View style={styles.walletIcon} />
                 <Text style={styles.walletText}>Rs 0</Text>
               </View>
-              <TouchableOpacity style={styles.profileCircle} onPress={() => router.push('/profile')} testID="profile-button">
+              <TouchableOpacity
+                style={styles.profileCircle}
+                onPress={() => router.push("/profile")}
+                testID="profile-button"
+              >
                 <User2 size={24} color="#48479B" />
               </TouchableOpacity>
             </View>
@@ -470,7 +572,10 @@ function CustomerHomeScreen({
                     style={styles.bannerCard}
                     testID={`banner-${banner.id}`}
                   >
-                    <Image source={{ uri: banner.image }} style={styles.bannerImage} />
+                    <Image
+                      source={{ uri: banner.image }}
+                      style={styles.bannerImage}
+                    />
                     <View style={styles.bannerOverlay} />
                     <Text numberOfLines={1} style={styles.bannerTitle}>
                       {banner.title}
@@ -482,24 +587,36 @@ function CustomerHomeScreen({
           )}
         </View>
 
-
-
-        <View style={[styles.section]}>
-          <Text style={styles.sectionTitle}>Meal Time</Text>
-          {categoriesQuery.isLoading ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Popular Meals</Text>
+          {mealsQuery.isLoading ? (
             <View style={styles.pad20}>
-              <Text style={styles.whiteText}>Loading categories...</Text>
+              <Text style={styles.whiteText}>Loading popular meals...</Text>
             </View>
-          ) : categoriesQuery.isError ? (
+          ) : mealsQuery.isError ? (
             <View style={styles.pad20}>
-              <Text style={styles.errorText}>Failed to load categories</Text>
+              <Text style={styles.errorText}>Failed to load meals</Text>
             </View>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-              {mealTimeCategories.map((category: Category) => (
-                <CategoryCard key={category.id} category={category} onPress={() => handleCategoryPress(category.id)} />
+          ) : popularMeals.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.horizontalMealScroll}
+            >
+              {popularMeals.map((meal: Meal) => (
+                <View key={meal.id} style={styles.popularMealWrapper}>
+                  <MealCard
+                    meal={meal}
+                    onPress={() => handleMealPress(meal.id)}
+                    onTryNow={() => handleMealPress(meal.id)}
+                  />
+                </View>
               ))}
             </ScrollView>
+          ) : (
+            <View style={styles.pad20}>
+              <Text style={styles.whiteText}>No popular meals found</Text>
+            </View>
           )}
         </View>
 
@@ -507,18 +624,13 @@ function CustomerHomeScreen({
           <Text style={styles.sectionTitle}>Collections</Text>
           {categoriesQuery.isLoading ? (
             <View style={styles.pad20}>
-              <Text style={styles.whiteText}>Loading categories...</Text>
+              <Text style={styles.whiteText}>Loading collections...</Text>
             </View>
           ) : categoriesQuery.isError ? (
             <View style={styles.pad20}>
-              <Text style={styles.errorText}>Failed to load categories</Text>
+              <Text style={styles.errorText}>Failed to load collections</Text>
             </View>
           ) : (
-            // <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-            //   {collectionCategories.map((category: Category) => (
-            //     <CategoryCard key={category.id} category={category} onPress={() => handleCategoryPress(category.id)} />
-            //   ))}
-            // </ScrollView>
             <View style={styles.mealGrid}>
               <FlatList
                 data={collectionCategories}
@@ -534,8 +646,13 @@ function CustomerHomeScreen({
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{selectedCategoryId ? 'Meals' : 'Popular Meals'}</Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/menu')} testID="see-all-meals">
+            <Text style={styles.sectionTitle}>
+              {selectedCategoryId ? "Meals" : "Popular Meals"}
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)/menu")}
+              testID="see-all-meals"
+            >
               <Text style={styles.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -563,9 +680,17 @@ function CustomerHomeScreen({
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Special Offers</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.horizontalScroll}
+          >
             {offers.map((offer) => (
-              <OfferCard key={offer.id} offer={offer} onPress={() => handleOfferPress(offer.id)} />
+              <OfferCard
+                key={offer.id}
+                offer={offer}
+                onPress={() => handleOfferPress(offer.id)}
+              />
             ))}
           </ScrollView>
         </View>
@@ -581,9 +706,16 @@ function CustomerHomeScreen({
               <Text style={styles.errorText}>Failed to load testimonials</Text>
             </View>
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.horizontalScroll}
+            >
               {testimonials.map((testimonial: Testimonial) => (
-                <TestimonialCard key={testimonial.id} testimonial={testimonial} />
+                <TestimonialCard
+                  key={testimonial.id}
+                  testimonial={testimonial}
+                />
               ))}
             </ScrollView>
           )}
@@ -597,112 +729,242 @@ function CustomerHomeScreen({
         onClose={() => setShowFilterModal(false)}
         sections={filterSections}
         onOptionToggle={(sectionId: string, optionId: string) => {
-          setFilterSections((prev: any[]) => prev.map((section: any) => section.id === sectionId ? { ...section, options: section.options.map((o: any) => o.id === optionId ? { ...o, selected: !o.selected } : o) } : section));
+          setFilterSections((prev: any[]) =>
+            prev.map((section: any) =>
+              section.id === sectionId
+                ? {
+                    ...section,
+                    options: section.options.map((o: any) =>
+                      o.id === optionId ? { ...o, selected: !o.selected } : o
+                    ),
+                  }
+                : section
+            )
+          );
         }}
         onApply={() => setShowFilterModal(false)}
-        onClear={() => setFilterSections((prev: any[]) => prev.map((s: any) => ({ ...s, options: s.options.map((o: any) => ({ ...o, selected: false })) })))}
+        onClear={() =>
+          setFilterSections((prev: any[]) =>
+            prev.map((s: any) => ({
+              ...s,
+              options: s.options.map((o: any) => ({ ...o, selected: false })),
+            }))
+          )
+        }
       />
 
-      <OfferDetailModal visible={showOfferModal} offer={selectedOffer} onClose={handleCloseOfferModal} onUseOffer={handleUseOffer} />
+      <OfferDetailModal
+        visible={showOfferModal}
+        offer={selectedOffer}
+        onClose={handleCloseOfferModal}
+        onUseOffer={handleUseOffer}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  topBg: { width: '100%', paddingTop: 9, position: 'relative', overflow: 'hidden' },
-  heroImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  bgImage: { resizeMode: 'cover' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 9, backgroundColor: 'transparent' },
+  container: { flex: 1, backgroundColor: "#FFFFFF" },
+  topBg: {
+    width: "100%",
+    paddingTop: 9,
+    position: "relative",
+    overflow: "hidden",
+  },
+  heroImage: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+  popularMealsSection: {
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  horizontalMealScroll: {
+    paddingHorizontal: 16,
+    marginTop: 12,
+  },
+  popularMealWrapper: {
+    marginRight: 16,
+    width: 280,
+  },
+  bgImage: { resizeMode: "cover" },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    backgroundColor: "transparent",
+  },
   stickyHeader: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     zIndex: 1000,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 18,
-    backgroundColor:'rgba(163, 211, 151, 0.9)',
+    backgroundColor: "rgba(163, 211, 151, 0.9)",
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(72, 72, 144, 0.09)',
+    borderBottomColor: "rgba(72, 72, 144, 0.09)",
     // Add subtle shadow for elevation
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 8,
   },
-  location: { flexDirection: 'row', alignItems: 'center' },
-  locationText: { marginLeft: 9, marginRight: 3, fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  walletPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(163, 211, 151, 0.27)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, marginRight: 8 },
-  walletIcon: { width: 18, height: 18, backgroundColor: '#A3D397', borderRadius: 4, marginRight: 6 },
-  walletText: { color: '#FFFFFF', fontWeight: '700' },
-  walletPillSticky: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: '#48489B', 
-    paddingHorizontal: 12, 
-    paddingVertical: 7, 
-    borderRadius: 12, 
+  location: { flexDirection: "row", alignItems: "center" },
+  locationText: {
+    marginLeft: 9,
+    marginRight: 3,
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 12 },
+  walletPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
     marginRight: 8,
-    shadowColor: '#48489B',
+  },
+  walletIcon: {
+    width: 18,
+    height: 18,
+    backgroundColor: "#A3D397",
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  walletText: { color: "#FFFFFF", fontWeight: "700" },
+  walletPillSticky: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#48489B",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    marginRight: 8,
+    shadowColor: "#48489B",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
   },
-  walletIconSticky: { width: 16, height: 16, backgroundColor: '#A3D397', borderRadius: 4, marginRight: 6 },
-  walletTextSticky: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
+  walletIconSticky: {
+    width: 16,
+    height: 16,
+    backgroundColor: "#A3D397",
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  walletTextSticky: { color: "#FFFFFF", fontWeight: "700", fontSize: 13 },
   profileCircle: {
     width: 40,
     height: 40,
     borderRadius: 27,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 0,
-    backgroundColor: '#ffffff'
+    backgroundColor: "#ffffff",
   },
   profileCircleSticky: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
     borderWidth: 1,
-    borderColor: 'rgba(163, 211, 151, 0.3)',
+    borderColor: "rgba(163, 211, 151, 0.3)",
   },
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 20 },
   section: { marginBottom: 9, marginTop: 18 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, marginBottom: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#000000', paddingHorizontal: 18, paddingBottom: 9 },
-  seeAll: { fontSize: 14, color: '#A3D397', fontWeight: '700' },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 18,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#000000",
+    paddingHorizontal: 18,
+    paddingBottom: 9,
+  },
+  seeAll: { fontSize: 14, color: "#A3D397", fontWeight: "700" },
   horizontalScroll: { paddingLeft: 18 },
   mealGrid: { paddingHorizontal: 18 },
-  gridRow: { justifyContent: 'space-between' },
-  row: { flexDirection: 'row', alignItems: 'center' },
-  rowMB6: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  textLeft: { textAlign: 'left' as const },
+  gridRow: { justifyContent: "space-between" },
+  row: { flexDirection: "row", alignItems: "center" },
+  rowMB6: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
+  textLeft: { textAlign: "left" as const },
   pad20v24: { paddingHorizontal: 20, paddingVertical: 24 },
   pad20: { paddingHorizontal: 20 },
-  textMuted: { color: '#E9EAF6' },
-  whiteText: { color: '#FFFFFF' },
-  errorText: { color: '#EF4444' },
+  textMuted: { color: "#E9EAF6" },
+  whiteText: { color: "#FFFFFF" },
+  errorText: { color: "#EF4444" },
   mt8: { marginTop: 8 },
   bannersRow: { paddingRight: 20 },
-  bannersContainer: { position: 'absolute', left: 0, right: 0, bottom: 18 },
-  bannerCard: { width: 117, height: 108, marginRight: 18, borderRadius: 18, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.27)' },
-  bannerImage: { width: '100%', height: '100%' },
-  bannerOverlay: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(72,72,135,0.27)' },
-  bannerTitle: { position: 'absolute', bottom: 9, left: 9, right: 9, color: '#fff', fontWeight: '900', fontSize: 14 },
+  bannersContainer: { position: "absolute", left: 0, right: 0, bottom: 18 },
+  bannerCard: {
+    width: 117,
+    height: 108,
+    marginRight: 18,
+    borderRadius: 18,
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.27)",
+  },
+  bannerImage: { width: "100%", height: "100%" },
+  bannerOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: "rgba(72,72,135,0.27)",
+  },
+  bannerTitle: {
+    position: "absolute",
+    bottom: 9,
+    left: 9,
+    right: 9,
+    color: "#fff",
+    fontWeight: "900",
+    fontSize: 14,
+  },
   bottomSpacing: { height: 18 },
-  subscriptionCard: { backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 12, padding: 16, marginHorizontal: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(163,211,151,0.35)' },
-  subscriptionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  subscriptionTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
-  subscriptionStatus: { fontSize: 12, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: '#A3D397', color: '#1B1B1B' },
-  subscriptionDetails: { fontSize: 14, color: '#E9EAF6', marginBottom: 4 },
+  subscriptionCard: {
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(163,211,151,0.35)",
+  },
+  subscriptionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  subscriptionTitle: { fontSize: 16, fontWeight: "700", color: "#FFFFFF" },
+  subscriptionStatus: {
+    fontSize: 12,
+    fontWeight: "700",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: "#A3D397",
+    color: "#1B1B1B",
+  },
+  subscriptionDetails: { fontSize: 14, color: "#E9EAF6", marginBottom: 4 },
 });

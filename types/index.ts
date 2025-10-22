@@ -66,7 +66,7 @@ export interface Category {
   description: string;
   isActive: boolean;
   sortOrder: number;
-  group?: 'meal-time' | 'collection';
+  group?: string;
 }
 
 export interface TimeSlot {
@@ -115,7 +115,7 @@ export interface AddOn {
   description: string;
   image: string;
   price: number;
-  category: 'snack' | 'dessert' | 'beverage' | 'extra';
+  category:string;
   isVeg?: boolean;
   isActive?: boolean;
 }

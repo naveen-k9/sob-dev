@@ -1,12 +1,42 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  User, Address, Category, Meal, AddOn, Plan, Subscription, Order,
-  Banner, Testimonial, Offer, WalletTransaction, DeliveryPerson,
-  KitchenStaff, ServiceableLocation, Notification, FAQ, SupportTicket,
-  CorporateCateringRequest, NutritionistContact, CartItem, UserRole,
-  AppSettings, ReferralReward, StreakReward, UserStreak, SupportMessage, TimeSlot
-} from '@/types';
-import { fetchUsers as fbFetchUsers, createUser as fbCreateUser, updateUser as fbUpdateUser, fetchSubscriptions as fbFetchSubscriptions, createSubscription as fbCreateSubscription, updateSubscriptionDoc as fbUpdateSubscription } from '@/services/firebase';
+  User,
+  Address,
+  Category,
+  Meal,
+  AddOn,
+  Plan,
+  Subscription,
+  Order,
+  Banner,
+  Testimonial,
+  Offer,
+  WalletTransaction,
+  DeliveryPerson,
+  KitchenStaff,
+  ServiceableLocation,
+  Notification,
+  FAQ,
+  SupportTicket,
+  CorporateCateringRequest,
+  NutritionistContact,
+  CartItem,
+  UserRole,
+  AppSettings,
+  ReferralReward,
+  StreakReward,
+  UserStreak,
+  SupportMessage,
+  TimeSlot,
+} from "@/types";
+import {
+  fetchUsers as fbFetchUsers,
+  createUser as fbCreateUser,
+  updateUser as fbUpdateUser,
+  fetchSubscriptions as fbFetchSubscriptions,
+  createSubscription as fbCreateSubscription,
+  updateSubscriptionDoc as fbUpdateSubscription,
+} from "@/services/firebase";
 
 class Database {
   private static instance: Database;
@@ -22,51 +52,62 @@ class Database {
   async initialize() {
     if (this.initialized) return;
 
-    await this.seedData();
-    this.initialized = true;
-    console.log('Database initialized successfully');
+    try {
+      await this.seedData();
+      this.initialized = true;
+      console.log("Database initialized successfully");
+    } catch (error) {
+      console.error("Failed to initialize database:", error);
+      throw error;
+    }
   }
 
   private async seedData() {
-    const existingUsers = await this.getItem('users');
+    const existingUsers = await this.getItem("users");
     if (!existingUsers) {
-      console.log('Seeding initial data...');
-      await this.setItem('users', this.getInitialUsers());
-      await this.setItem('categories', this.getInitialCategories());
-      await this.setItem('meals', this.getInitialMeals());
-      await this.setItem('addOns', this.getInitialAddOns());
-      await this.setItem('plans', this.getInitialPlans());
-      await this.setItem('banners', this.getInitialBanners());
-      await this.setItem('testimonials', this.getInitialTestimonials());
-      await this.setItem('offers', this.getInitialOffers());
-      await this.setItem('timeSlots', this.getInitialTimeSlots());
-      await this.setItem('serviceableLocations', this.getInitialServiceableLocations());
-      await this.setItem('deliveryPersons', this.getInitialDeliveryPersons());
-      await this.setItem('kitchenStaff', this.getInitialKitchenStaff());
-      await this.setItem('faqs', this.getInitialFAQs());
+      console.log("Seeding initial data...");
+      await this.setItem("users", this.getInitialUsers());
+      await this.setItem("categories", this.getInitialCategories());
+      await this.setItem("meals", this.getInitialMeals());
+      await this.setItem("addOns", this.getInitialAddOns());
+      await this.setItem("plans", this.getInitialPlans());
+      await this.setItem("banners", this.getInitialBanners());
+      await this.setItem("testimonials", this.getInitialTestimonials());
+      await this.setItem("offers", this.getInitialOffers());
+      await this.setItem("timeSlots", this.getInitialTimeSlots());
+      await this.setItem(
+        "serviceableLocations",
+        this.getInitialServiceableLocations()
+      );
+      await this.setItem("deliveryPersons", this.getInitialDeliveryPersons());
+      await this.setItem("kitchenStaff", this.getInitialKitchenStaff());
+      await this.setItem("faqs", this.getInitialFAQs());
       const initialSettings = this.getInitialAppSettings();
-      await this.setItem('appSettings', initialSettings);
-      console.log('Initial app settings saved:', initialSettings);
-      await this.setItem('subscriptions', this.getInitialSubscriptions());
-      await this.setItem('orders', []);
-      await this.setItem('walletTransactions', []);
-      await this.setItem('notifications', []);
-      await this.setItem('supportTickets', this.getInitialSupportTickets());
-      await this.setItem('supportMessages', this.getInitialSupportMessages());
-      await this.setItem('corporateCateringRequests', []);
-      await this.setItem('nutritionistContacts', []);
-      await this.setItem('notifyRequests', []);
-      await this.setItem('referralRewards', []);
-      await this.setItem('streakRewards', []);
-      await this.setItem('userStreaks', []);
-      console.log('Initial data seeding completed');
+      await this.setItem("appSettings", initialSettings);
+      console.log("Initial app settings saved:", initialSettings);
+      await this.setItem("subscriptions", this.getInitialSubscriptions());
+      await this.setItem("orders", []);
+      await this.setItem("walletTransactions", []);
+      await this.setItem("notifications", []);
+      await this.setItem("supportTickets", this.getInitialSupportTickets());
+      await this.setItem("supportMessages", this.getInitialSupportMessages());
+      await this.setItem("corporateCateringRequests", []);
+      await this.setItem("nutritionistContacts", []);
+      await this.setItem("notifyRequests", []);
+      await this.setItem("referralRewards", []);
+      await this.setItem("streakRewards", []);
+      await this.setItem("userStreaks", []);
+      console.log("Initial data seeding completed");
     } else {
       // Ensure app settings exist even if users exist
-      const existingSettings = await this.getItem('appSettings');
+      const existingSettings = await this.getItem("appSettings");
       if (!existingSettings) {
         const initialSettings = this.getInitialAppSettings();
-        await this.setItem('appSettings', initialSettings);
-        console.log('App settings initialized for existing database:', initialSettings);
+        await this.setItem("appSettings", initialSettings);
+        console.log(
+          "App settings initialized for existing database:",
+          initialSettings
+        );
       }
     }
   }
@@ -95,22 +136,36 @@ class Database {
       const users = await fbFetchUsers();
       return users;
     } catch (e) {
-      console.log('[db] fetchUsers from firebase failed, falling back to local storage', e);
-      return await this.getItem('users') || [];
+      console.log(
+        "[db] fetchUsers from firebase failed, falling back to local storage",
+        e
+      );
+      return (await this.getItem("users")) || [];
     }
   }
 
   async getUserById(id: string): Promise<User | null> {
     const users = await this.getUsers();
-    return users.find(user => user.id === id) || null;
+    return users.find((user) => user.id === id) || null;
   }
 
   async getUserByPhone(phone: string): Promise<User | null> {
     const users = await this.getUsers();
-    return users.find(user => user.phone === phone) || null;
+    return users.find((user) => user.phone === phone) || null;
   }
 
-  async createUser(userData: Omit<User, 'id' | 'createdAt' | 'referralCode' | 'currentStreak' | 'longestStreak' | 'totalReferrals' | 'referralEarnings'>): Promise<User> {
+  async createUser(
+    userData: Omit<
+      User,
+      | "id"
+      | "createdAt"
+      | "referralCode"
+      | "currentStreak"
+      | "longestStreak"
+      | "totalReferrals"
+      | "referralEarnings"
+    >
+  ): Promise<User> {
     const newUser: User = {
       ...userData,
       id: Date.now().toString(),
@@ -125,10 +180,10 @@ class Database {
     try {
       await fbCreateUser(newUser);
     } catch (e) {
-      console.log('[db] createUser on firebase failed, caching locally', e);
-      const usersLocal = (await this.getItem('users')) || [];
+      console.log("[db] createUser on firebase failed, caching locally", e);
+      const usersLocal = (await this.getItem("users")) || [];
       usersLocal.push(newUser);
-      await this.setItem('users', usersLocal);
+      await this.setItem("users", usersLocal);
     }
 
     await this.initializeUserStreak(newUser.id);
@@ -144,24 +199,30 @@ class Database {
     try {
       await fbUpdateUser(id, updates);
       const refreshed = await this.getUsers();
-      const updated = refreshed.find(u => u.id === id) || null;
+      const updated = refreshed.find((u) => u.id === id) || null;
       return updated;
     } catch (e) {
-      console.log('[db] updateUser on firebase failed, updating local cache', e);
-      const users = (await this.getItem('users')) || [];
+      console.log(
+        "[db] updateUser on firebase failed, updating local cache",
+        e
+      );
+      const users = (await this.getItem("users")) || [];
       const index = users.findIndex((user: User) => user.id === id);
       if (index === -1) return null;
       users[index] = { ...users[index], ...updates };
-      await this.setItem('users', users);
+      await this.setItem("users", users);
       return users[index];
     }
   }
 
   // Address methods
-  async addAddress(userId: string, addressData: Omit<Address, 'id' | 'userId'>): Promise<Address> {
+  async addAddress(
+    userId: string,
+    addressData: Omit<Address, "id" | "userId">
+  ): Promise<Address> {
     const users = await this.getUsers();
-    const userIndex = users.findIndex(user => user.id === userId);
-    if (userIndex === -1) throw new Error('User not found');
+    const userIndex = users.findIndex((user) => user.id === userId);
+    if (userIndex === -1) throw new Error("User not found");
 
     const newAddress: Address = {
       ...addressData,
@@ -170,39 +231,62 @@ class Database {
     };
 
     users[userIndex].addresses.push(newAddress);
-    await this.setItem('users', users);
+    await this.setItem("users", users);
     return newAddress;
   }
 
-  async updateAddress(userId: string, addressId: string, updates: Partial<Address>): Promise<Address | null> {
+  async updateAddress(
+    userId: string,
+    addressId: string,
+    updates: Partial<Address>
+  ): Promise<Address | null> {
     const users = await this.getUsers();
-    const userIndex = users.findIndex(user => user.id === userId);
+    const userIndex = users.findIndex((user) => user.id === userId);
     if (userIndex === -1) return null;
 
-    const addressIndex = users[userIndex].addresses.findIndex(addr => addr.id === addressId);
+    const addressIndex = users[userIndex].addresses.findIndex(
+      (addr) => addr.id === addressId
+    );
     if (addressIndex === -1) return null;
 
-    users[userIndex].addresses[addressIndex] = { ...users[userIndex].addresses[addressIndex], ...updates };
-    await this.setItem('users', users);
+    users[userIndex].addresses[addressIndex] = {
+      ...users[userIndex].addresses[addressIndex],
+      ...updates,
+    };
+    await this.setItem("users", users);
     return users[userIndex].addresses[addressIndex];
   }
 
   // Category methods
   async getCategories(): Promise<Category[]> {
-    return await this.getItem('categories') || [];
+    try {
+      const stored = await this.getItem("categories");
+      if (stored && Array.isArray(stored)) {
+        return stored;
+      }
+      // Fallback to initial categories if storage fails
+      return this.getInitialCategories();
+    } catch (error) {
+      console.error("[db] Error getting categories:", error);
+      return this.getInitialCategories();
+    }
   }
 
   async getCategoryById(id: string): Promise<Category | null> {
     const categories = await this.getCategories();
-    return categories.find(cat => cat.id === id) || null;
+    return categories.find((cat) => cat.id === id) || null;
   }
 
   // Time slots methods
   async getTimeSlots(): Promise<TimeSlot[]> {
-    return await this.getItem('timeSlots') || [];
+    return (await this.getItem("timeSlots")) || [];
   }
 
-  async createTimeSlot(data: { time: string; label?: string; isActive?: boolean }): Promise<TimeSlot> {
+  async createTimeSlot(data: {
+    time: string;
+    label?: string;
+    isActive?: boolean;
+  }): Promise<TimeSlot> {
     const slots = await this.getTimeSlots();
     const newSlot: TimeSlot = {
       id: Date.now().toString(),
@@ -211,105 +295,160 @@ class Database {
       isActive: data.isActive ?? true,
     };
     slots.push(newSlot);
-    await this.setItem('timeSlots', slots);
+    await this.setItem("timeSlots", slots);
     return newSlot;
   }
 
-  async updateTimeSlot(id: string, updates: Partial<Omit<TimeSlot, 'id'>>): Promise<TimeSlot | null> {
+  async updateTimeSlot(
+    id: string,
+    updates: Partial<Omit<TimeSlot, "id">>
+  ): Promise<TimeSlot | null> {
     const slots = await this.getTimeSlots();
-    const idx = slots.findIndex(s => s.id === id);
+    const idx = slots.findIndex((s) => s.id === id);
     if (idx === -1) return null;
     slots[idx] = { ...slots[idx], ...updates } as TimeSlot;
-    await this.setItem('timeSlots', slots);
+    await this.setItem("timeSlots", slots);
     return slots[idx];
   }
 
   async toggleTimeSlotActive(id: string): Promise<TimeSlot | null> {
     const slots = await this.getTimeSlots();
-    const idx = slots.findIndex(s => s.id === id);
+    const idx = slots.findIndex((s) => s.id === id);
     if (idx === -1) return null;
     slots[idx].isActive = !(slots[idx].isActive ?? true);
-    await this.setItem('timeSlots', slots);
+    await this.setItem("timeSlots", slots);
     return slots[idx];
   }
 
-  async assignTimeSlotsToMeal(mealId: string, slotIds: string[]): Promise<Meal | null> {
+  async assignTimeSlotsToMeal(
+    mealId: string,
+    slotIds: string[]
+  ): Promise<Meal | null> {
     const meals = await this.getMeals();
-    const idx = meals.findIndex(m => m.id === mealId);
+    const idx = meals.findIndex((m) => m.id === mealId);
     if (idx === -1) return null;
     meals[idx].availableTimeSlotIds = slotIds;
-    await this.setItem('meals', meals);
+    await this.setItem("meals", meals);
     return meals[idx];
   }
 
   // Meal methods
   async getMeals(): Promise<Meal[]> {
-    const stored: Meal[] = await this.getItem('meals') || [];
     try {
-      const { featuredMeals, extraMeals } = await import('@/constants/data');
+      // First try to get stored meals
+      const stored: Meal[] = (await this.getItem("meals")) || [];
+
+      // Then try to get initial data
+      const initialMeals = this.getInitialMeals();
+
+      // Combine stored and initial data, preferring stored versions
       const combined: Meal[] = [...stored];
-      const seen = new Set(combined.map(m => m.id));
-      [...(featuredMeals || []), ...(extraMeals || [])].forEach((m) => {
-        if (m && typeof m.id === 'string' && !seen.has(m.id)) {
-          combined.push(m);
-          seen.add(m.id);
+      const seen = new Set(combined.map((m) => m.id));
+
+      initialMeals.forEach((meal) => {
+        if (!seen.has(meal.id)) {
+          combined.push(meal);
+          seen.add(meal.id);
         }
       });
-      return combined;
+
+      // Filter out invalid entries and return
+      return combined.filter(
+        (meal) =>
+          meal &&
+          typeof meal.id === "string" &&
+          typeof meal.name === "string" &&
+          typeof meal.price === "number"
+      );
     } catch (e) {
-      console.log('[db] merging constant meals failed, returning stored only', e);
-      return stored;
+      console.error("[db] Error loading meals:", e);
+      // On error, return just the initial meals as fallback
+      return this.getInitialMeals().filter(
+        (meal) =>
+          meal &&
+          typeof meal.id === "string" &&
+          typeof meal.name === "string" &&
+          typeof meal.price === "number"
+      );
     }
   }
 
   async getMealById(id: string): Promise<Meal | null> {
     const meals = await this.getMeals();
-    const found = meals.find(meal => meal.id === id) || null;
+    const found = meals.find((meal) => meal.id === id) || null;
     if (found) return found;
     try {
-      const { featuredMeals, extraMeals } = await import('@/constants/data');
-      const fallback = [...(featuredMeals || []), ...(extraMeals || [])].find(m => m.id === id) || null;
+      const { Meals } = await import("@/constants/data");
+      const fallback = [...(Meals || [])].find((m) => m.id === id) || null;
       return fallback;
     } catch (e) {
-      console.log('[db] getMealById fallback failed', e);
+      console.log("[db] getMealById fallback failed", e);
       return null;
     }
   }
 
   async getMealsByCategory(categoryId: string): Promise<Meal[]> {
     const meals = await this.getMeals();
-    return meals.filter(meal => (
-      meal.categoryId === categoryId || (Array.isArray(meal.categoryIds) && meal.categoryIds.includes(categoryId))
-    ) && meal.isActive && !meal.isDraft);
+    return meals.filter(
+      (meal) =>
+        (meal.categoryId === categoryId ||
+          (Array.isArray(meal.categoryIds) &&
+            meal.categoryIds.includes(categoryId))) &&
+        meal.isActive &&
+        !meal.isDraft
+    );
   }
 
   async getFeaturedMeals(): Promise<Meal[]> {
     const meals = await this.getMeals();
-    return meals.filter(meal => meal.isFeatured && meal.isActive && !meal.isDraft);
+    return meals.filter(
+      (meal) => meal.isFeatured && meal.isActive && !meal.isDraft
+    );
   }
 
   // AddOn methods
   async getAddOns(): Promise<AddOn[]> {
-    return await this.getItem('addOns') || [];
+    try {
+      const stored = await this.getItem("addOns");
+      if (stored && Array.isArray(stored)) {
+        return stored;
+      }
+      // Fallback to initial add-ons if storage fails
+      return this.getInitialAddOns();
+    } catch (error) {
+      console.error("[db] Error getting add-ons:", error);
+      return this.getInitialAddOns();
+    }
   }
 
   async getAddOnById(id: string): Promise<AddOn | null> {
     const addOns = await this.getAddOns();
-    return addOns.find(addOn => addOn.id === id) || null;
+    return addOns.find((addOn) => addOn.id === id) || null;
   }
 
-  async createAddOn(addonData: { name: string; description?: string; price: number; category?: string; image?: string; isVeg?: boolean; isActive?: boolean; }): Promise<AddOn> {
+  async createAddOn(addonData: {
+    name: string;
+    description?: string;
+    price: number;
+    category?: string;
+    image?: string;
+    isVeg?: boolean;
+    isActive?: boolean;
+  }): Promise<AddOn> {
     const addOns = await this.getAddOns();
-    const normalizedCategory: AddOn['category'] = (() => {
-      const c = (addonData.category || '').toLowerCase();
-      if (c === 'snack' || c === 'dessert' || c === 'beverage' || c === 'extra') return c as AddOn['category'];
-      return 'extra';
+    const normalizedCategory: AddOn["category"] = (() => {
+      const c = (addonData.category || "").toLowerCase();
+      if (c === "snack" || c === "dessert" || c === "beverage" || c === "extra")
+        return c as AddOn["category"];
+      return "extra";
     })();
-    const image = addonData.image || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=300&auto=format&fit=crop';
+    const image =
+      addonData.image ||
+      "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=300&auto=format&fit=crop";
     const newAddOn: AddOn = {
       id: Date.now().toString(),
       name: addonData.name,
-      description: addonData.description || '',
+      description: addonData.description || "",
       image,
       price: addonData.price,
       category: normalizedCategory,
@@ -317,58 +456,73 @@ class Database {
       isActive: addonData.isActive ?? true,
     };
     addOns.unshift(newAddOn);
-    await this.setItem('addOns', addOns);
+    await this.setItem("addOns", addOns);
     return newAddOn;
   }
 
-  async updateAddOn(id: string, updates: Partial<Omit<AddOn, 'id'>> & { category?: string; imageUrl?: string }): Promise<AddOn | null> {
+  async updateAddOn(
+    id: string,
+    updates: Partial<Omit<AddOn, "id">> & {
+      category?: string;
+      imageUrl?: string;
+    }
+  ): Promise<AddOn | null> {
     const addOns = await this.getAddOns();
-    const idx = addOns.findIndex(a => a.id === id);
+    const idx = addOns.findIndex((a) => a.id === id);
     if (idx === -1) return null;
     const next = { ...addOns[idx] } as AddOn;
-    if (typeof updates.name !== 'undefined') next.name = updates.name as string;
-    if (typeof updates.description !== 'undefined') next.description = updates.description as string;
-    if (typeof updates.price !== 'undefined') next.price = updates.price as number;
-    if (typeof updates.isVeg !== 'undefined') next.isVeg = updates.isVeg as boolean;
-    if (typeof updates.isActive !== 'undefined') next.isActive = updates.isActive as boolean;
-    if (typeof updates.image !== 'undefined') next.image = updates.image as string;
-    if (typeof updates.imageUrl !== 'undefined') next.image = updates.imageUrl as string;
-    if (typeof updates.category !== 'undefined') {
-      const c = (updates.category || '').toLowerCase();
-      next.category = (c === 'snack' || c === 'dessert' || c === 'beverage' || c === 'extra') ? (c as AddOn['category']) : 'extra';
+    if (typeof updates.name !== "undefined") next.name = updates.name as string;
+    if (typeof updates.description !== "undefined")
+      next.description = updates.description as string;
+    if (typeof updates.price !== "undefined")
+      next.price = updates.price as number;
+    if (typeof updates.isVeg !== "undefined")
+      next.isVeg = updates.isVeg as boolean;
+    if (typeof updates.isActive !== "undefined")
+      next.isActive = updates.isActive as boolean;
+    if (typeof updates.image !== "undefined")
+      next.image = updates.image as string;
+    if (typeof updates.imageUrl !== "undefined")
+      next.image = updates.imageUrl as string;
+    if (typeof updates.category !== "undefined") {
+      const c = (updates.category || "").toLowerCase();
+      next.category =
+        c === "snack" || c === "dessert" || c === "beverage" || c === "extra"
+          ? (c as AddOn["category"])
+          : "extra";
     }
     addOns[idx] = next;
-    await this.setItem('addOns', addOns);
+    await this.setItem("addOns", addOns);
     return next;
   }
 
   async deleteAddOn(id: string): Promise<boolean> {
     const addOns = await this.getAddOns();
-    const filtered = addOns.filter(a => a.id !== id);
+    const filtered = addOns.filter((a) => a.id !== id);
     const changed = filtered.length !== addOns.length;
     if (changed) {
-      await this.setItem('addOns', filtered);
+      await this.setItem("addOns", filtered);
     }
     return changed;
   }
 
   async toggleAddOnActive(id: string): Promise<AddOn | null> {
     const addOns = await this.getAddOns();
-    const idx = addOns.findIndex(a => a.id === id);
+    const idx = addOns.findIndex((a) => a.id === id);
     if (idx === -1) return null;
     addOns[idx].isActive = !addOns[idx].isActive;
-    await this.setItem('addOns', addOns);
+    await this.setItem("addOns", addOns);
     return addOns[idx];
   }
 
   // Plan methods
   async getPlans(): Promise<Plan[]> {
-    return await this.getItem('plans') || [];
+    return (await this.getItem("plans")) || [];
   }
 
   async getPlanById(id: string): Promise<Plan | null> {
     const plans = await this.getPlans();
-    return plans.find(plan => plan.id === id) || null;
+    return plans.find((plan) => plan.id === id) || null;
   }
 
   // Subscription methods
@@ -377,18 +531,23 @@ class Database {
       const subs = await fbFetchSubscriptions();
       return subs;
     } catch (e) {
-      console.log('[db] fetchSubscriptions from firebase failed, falling back to local storage', e);
-      return await this.getItem('subscriptions') || [];
+      console.log(
+        "[db] fetchSubscriptions from firebase failed, falling back to local storage",
+        e
+      );
+      return (await this.getItem("subscriptions")) || [];
     }
   }
 
   async getUserSubscriptions(userId: string): Promise<Subscription[]> {
     const subscriptions = await this.getSubscriptions();
-    return subscriptions.filter(sub => sub.userId === userId);
+    return subscriptions.filter((sub) => sub.userId === userId);
   }
 
-  async createSubscription(subscriptionData: Omit<Subscription, 'id' | 'createdAt'>): Promise<Subscription> {
-    const subscriptions = await this.getItem('subscriptions') || [];
+  async createSubscription(
+    subscriptionData: Omit<Subscription, "id" | "createdAt">
+  ): Promise<Subscription> {
+    const subscriptions = (await this.getItem("subscriptions")) || [];
     const newSubscription: Subscription = {
       ...subscriptionData,
       id: Date.now().toString(),
@@ -398,12 +557,15 @@ class Database {
     try {
       await fbCreateSubscription(newSubscription);
     } catch (e) {
-      console.log('[db] createSubscription on firebase failed, caching locally', e);
+      console.log(
+        "[db] createSubscription on firebase failed, caching locally",
+        e
+      );
       subscriptions.push(newSubscription);
-      await this.setItem('subscriptions', subscriptions);
+      await this.setItem("subscriptions", subscriptions);
     }
 
-    if (subscriptionData.planId === '4') {
+    if (subscriptionData.planId === "4") {
       await this.creditReferralReward(newSubscription.id);
     }
 
@@ -412,15 +574,17 @@ class Database {
 
   // Order methods
   async getOrders(): Promise<Order[]> {
-    return await this.getItem('orders') || [];
+    return (await this.getItem("orders")) || [];
   }
 
   async getUserOrders(userId: string): Promise<Order[]> {
     const orders = await this.getOrders();
-    return orders.filter(order => order.userId === userId);
+    return orders.filter((order) => order.userId === userId);
   }
 
-  async createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order> {
+  async createOrder(
+    orderData: Omit<Order, "id" | "createdAt" | "updatedAt">
+  ): Promise<Order> {
     const orders = await this.getOrders();
     const newOrder: Order = {
       ...orderData,
@@ -429,91 +593,109 @@ class Database {
       updatedAt: new Date(),
     };
     orders.push(newOrder);
-    await this.setItem('orders', orders);
+    await this.setItem("orders", orders);
 
     // Update streak when order is delivered
-    if (newOrder.status === 'delivered') {
+    if (newOrder.status === "delivered") {
       await this.updateUserStreak(newOrder.userId);
     }
 
     return newOrder;
   }
 
-  async updateOrder(id: string, updates: Partial<Order>): Promise<Order | null> {
+  async updateOrder(
+    id: string,
+    updates: Partial<Order>
+  ): Promise<Order | null> {
     const orders = await this.getOrders();
-    const index = orders.findIndex(order => order.id === id);
+    const index = orders.findIndex((order) => order.id === id);
     if (index === -1) return null;
 
     const previousStatus = orders[index].status;
     orders[index] = { ...orders[index], ...updates, updatedAt: new Date() };
-    await this.setItem('orders', orders);
+    await this.setItem("orders", orders);
 
     // Auto notifications on status changes
     if (updates.status && updates.status !== previousStatus) {
       const userId = orders[index].userId;
       const status = updates.status;
-      let notifTitle = '';
-      let notifMessage = '';
-      if (status === 'confirmed') {
-        notifTitle = 'Order Confirmed';
-        notifMessage = 'Your order has been confirmed.';
-      } else if (status === 'preparing') {
-        notifTitle = 'We started cooking!';
-        notifMessage = 'Your meal is being prepared.';
-      } else if (status === 'ready') {
-        notifTitle = 'Cooking completed';
-        notifMessage = 'Your meal is ready and will be dispatched shortly.';
-      } else if (status === 'out_for_delivery') {
-        notifTitle = 'Out for delivery';
-        notifMessage = 'Your order is on the way.';
-      } else if (status === 'waiting_for_ack') {
-        notifTitle = 'Please confirm delivery';
-        notifMessage = 'Your order has arrived. Tap to confirm you\'ve received it.';
-      } else if (status === 'delivered') {
-        notifTitle = 'Delivered';
-        notifMessage = 'Enjoy your meal! Order delivered successfully.';
-      } else if (status === 'cancelled') {
-        notifTitle = 'Order Cancelled';
-        notifMessage = 'Your order was cancelled. If this is a mistake, contact support.';
+      let notifTitle = "";
+      let notifMessage = "";
+      if (status === "confirmed") {
+        notifTitle = "Order Confirmed";
+        notifMessage = "Your order has been confirmed.";
+      } else if (status === "preparing") {
+        notifTitle = "We started cooking!";
+        notifMessage = "Your meal is being prepared.";
+      } else if (status === "ready") {
+        notifTitle = "Cooking completed";
+        notifMessage = "Your meal is ready and will be dispatched shortly.";
+      } else if (status === "out_for_delivery") {
+        notifTitle = "Out for delivery";
+        notifMessage = "Your order is on the way.";
+      } else if (status === "waiting_for_ack") {
+        notifTitle = "Please confirm delivery";
+        notifMessage =
+          "Your order has arrived. Tap to confirm you've received it.";
+      } else if (status === "delivered") {
+        notifTitle = "Delivered";
+        notifMessage = "Enjoy your meal! Order delivered successfully.";
+      } else if (status === "cancelled") {
+        notifTitle = "Order Cancelled";
+        notifMessage =
+          "Your order was cancelled. If this is a mistake, contact support.";
       }
       if (notifTitle) {
         await this.createNotification({
           userId,
           title: notifTitle,
           message: notifMessage,
-          type: status === 'out_for_delivery' || status === 'delivered' || status === 'waiting_for_ack' ? 'delivery' : 'order',
+          type:
+            status === "out_for_delivery" ||
+            status === "delivered" ||
+            status === "waiting_for_ack"
+              ? "delivery"
+              : "order",
           isRead: false,
           data: { orderId: id, status },
         });
       }
-      if (status === 'waiting_for_ack') {
+      if (status === "waiting_for_ack") {
         await this.scheduleDeliveryAckReminders(id, userId);
       }
-      if (status === 'delivered') {
+      if (status === "delivered") {
         await this.cancelDeliveryAckReminders(id);
       }
     }
 
     // Update streak when order status changes to delivered
-    if (previousStatus !== 'delivered' && updates.status === 'delivered') {
+    if (previousStatus !== "delivered" && updates.status === "delivered") {
       await this.updateUserStreak(orders[index].userId);
     }
 
     return orders[index];
   }
 
-  async updateSubscription(id: string, updates: Partial<Subscription>): Promise<Subscription | null> {
+  async updateSubscription(
+    id: string,
+    updates: Partial<Subscription>
+  ): Promise<Subscription | null> {
     try {
       await fbUpdateSubscription(id, updates);
       const refreshed = await this.getSubscriptions();
       return refreshed.find((s) => s.id === id) || null;
     } catch (e) {
-      console.log('[db] updateSubscription on firebase failed, updating local cache', e);
-      const subscriptions = await this.getItem('subscriptions') || [];
-      const index = subscriptions.findIndex((sub: Subscription) => sub.id === id);
+      console.log(
+        "[db] updateSubscription on firebase failed, updating local cache",
+        e
+      );
+      const subscriptions = (await this.getItem("subscriptions")) || [];
+      const index = subscriptions.findIndex(
+        (sub: Subscription) => sub.id === id
+      );
       if (index === -1) return null;
       subscriptions[index] = { ...subscriptions[index], ...updates };
-      await this.setItem('subscriptions', subscriptions);
+      await this.setItem("subscriptions", subscriptions);
       return subscriptions[index];
     }
   }
@@ -522,15 +704,18 @@ class Database {
   private isExcludedDay(subscription: Subscription, date: Date): boolean {
     const setting = subscription.weekendExclusion;
     const day = date.getDay();
-    if (setting === 'both' || (setting as any) === true) {
+    if (setting === "both" || (setting as any) === true) {
       return day === 0 || day === 6;
     }
-    if (setting === 'saturday') return day === 6;
-    if (setting === 'sunday') return day === 0;
+    if (setting === "saturday") return day === 6;
+    if (setting === "sunday") return day === 0;
     return false;
   }
 
-  private getNextDeliveryDate(subscription: Subscription, fromDate: Date): { nextDate: Date; endDateExtended: boolean } {
+  private getNextDeliveryDate(
+    subscription: Subscription,
+    fromDate: Date
+  ): { nextDate: Date; endDateExtended: boolean } {
     const next = new Date(fromDate);
     next.setDate(next.getDate() + 1);
     let endDateExtended = false;
@@ -541,7 +726,7 @@ class Database {
         next.setDate(next.getDate() + 1);
         continue;
       }
-      const nextStr = next.toISOString().split('T')[0];
+      const nextStr = next.toISOString().split("T")[0];
       const isSkipped = (subscription.skippedDates || []).includes(nextStr);
       if (!isSkipped) break;
       next.setDate(next.getDate() + 1);
@@ -553,22 +738,34 @@ class Database {
     return { nextDate: next, endDateExtended };
   }
 
-  async skipMealForDate(subscriptionId: string, dateString: string): Promise<boolean> {
+  async skipMealForDate(
+    subscriptionId: string,
+    dateString: string
+  ): Promise<boolean> {
     const subscription = await this.getSubscriptionById(subscriptionId);
     if (!subscription) return false;
 
     const existingSkipped = subscription.skippedDates || [];
     if (existingSkipped.includes(dateString)) return true;
 
-    const skippedDates = Array.from(new Set([...(subscription.skippedDates || []), dateString]));
+    const skippedDates = Array.from(
+      new Set([...(subscription.skippedDates || []), dateString])
+    );
 
-    const additionalAddOns = { ...(subscription.additionalAddOns || {}) } as Record<string, string[]>;
+    const additionalAddOns = {
+      ...(subscription.additionalAddOns || {}),
+    } as Record<string, string[]>;
     const movedAddOns = additionalAddOns[dateString] || [];
     if (movedAddOns.length > 0) {
-      const nextMeta = this.getNextDeliveryDate(subscription, new Date(dateString));
-      const nextStr = nextMeta.nextDate.toISOString().split('T')[0];
+      const nextMeta = this.getNextDeliveryDate(
+        subscription,
+        new Date(dateString)
+      );
+      const nextStr = nextMeta.nextDate.toISOString().split("T")[0];
       const existingNext = additionalAddOns[nextStr] || [];
-      additionalAddOns[nextStr] = Array.from(new Set<string>([...existingNext, ...movedAddOns]));
+      additionalAddOns[nextStr] = Array.from(
+        new Set<string>([...existingNext, ...movedAddOns])
+      );
       delete additionalAddOns[dateString];
     }
 
@@ -585,61 +782,94 @@ class Database {
     const isWeekend = skipDate.getDay() === 0 || skipDate.getDay() === 6;
     const weekendSetting = subscription.weekendExclusion;
 
-    if (isWithin && (!this.isExcludedDay(subscription, skipDate) || !isWeekend)) {
+    if (
+      isWithin &&
+      (!this.isExcludedDay(subscription, skipDate) || !isWeekend)
+    ) {
       do {
         newEndDate.setDate(newEndDate.getDate() + 1);
       } while (this.isExcludedDay(subscription, newEndDate));
     }
 
-    const updatePayload: Partial<Subscription> = { skippedDates, additionalAddOns };
+    const updatePayload: Partial<Subscription> = {
+      skippedDates,
+      additionalAddOns,
+    };
     if (newEndDate.getTime() !== new Date(subscription.endDate).getTime()) {
       updatePayload.endDate = newEndDate;
     }
 
-    const updated = await this.updateSubscription(subscriptionId, updatePayload);
+    const updated = await this.updateSubscription(
+      subscriptionId,
+      updatePayload
+    );
     if (!updated) {
-      const subscriptions = (await this.getItem('subscriptions')) || [];
-      const index = subscriptions.findIndex((s: Subscription) => s.id === subscriptionId);
+      const subscriptions = (await this.getItem("subscriptions")) || [];
+      const index = subscriptions.findIndex(
+        (s: Subscription) => s.id === subscriptionId
+      );
       if (index === -1) return false;
-      subscriptions[index] = { ...subscriptions[index], ...updatePayload } as Subscription;
-      await this.setItem('subscriptions', subscriptions);
+      subscriptions[index] = {
+        ...subscriptions[index],
+        ...updatePayload,
+      } as Subscription;
+      await this.setItem("subscriptions", subscriptions);
     }
 
     return true;
   }
 
-  async addAddOnForDate(subscriptionId: string, dateString: string, addOnIds: string[]): Promise<boolean> {
+  async addAddOnForDate(
+    subscriptionId: string,
+    dateString: string,
+    addOnIds: string[]
+  ): Promise<boolean> {
     const subscription = await this.getSubscriptionById(subscriptionId);
     if (!subscription) return false;
 
-    const additionalAddOns = { ...(subscription.additionalAddOns || {}) } as Record<string, string[]>;
+    const additionalAddOns = {
+      ...(subscription.additionalAddOns || {}),
+    } as Record<string, string[]>;
     const existing = additionalAddOns[dateString] || [];
     const merged = Array.from(new Set<string>([...existing, ...addOnIds]));
     additionalAddOns[dateString] = merged;
 
-    const updated = await this.updateSubscription(subscriptionId, { additionalAddOns });
+    const updated = await this.updateSubscription(subscriptionId, {
+      additionalAddOns,
+    });
     if (!updated) {
-      const subscriptions = (await this.getItem('subscriptions')) || [];
-      const index = subscriptions.findIndex((s: Subscription) => s.id === subscriptionId);
+      const subscriptions = (await this.getItem("subscriptions")) || [];
+      const index = subscriptions.findIndex(
+        (s: Subscription) => s.id === subscriptionId
+      );
       if (index === -1) return false;
       subscriptions[index] = { ...subscriptions[index], additionalAddOns };
-      await this.setItem('subscriptions', subscriptions);
+      await this.setItem("subscriptions", subscriptions);
     }
 
     return true;
   }
 
-  async purchaseAddOnsForDate(subscriptionId: string, dateString: string, addOnIds: string[], userId: string): Promise<boolean> {
-    const success = await this.addAddOnForDate(subscriptionId, dateString, addOnIds);
+  async purchaseAddOnsForDate(
+    subscriptionId: string,
+    dateString: string,
+    addOnIds: string[],
+    userId: string
+  ): Promise<boolean> {
+    const success = await this.addAddOnForDate(
+      subscriptionId,
+      dateString,
+      addOnIds
+    );
     if (!success) return false;
     const allAddOns: AddOn[] = await this.getAddOns();
     const amount = addOnIds.reduce((sum, id) => {
-      const found = allAddOns.find(a => a.id === id);
+      const found = allAddOns.find((a) => a.id === id);
       return sum + (found?.price || 0);
     }, 0);
     await this.addWalletTransaction({
       userId,
-      type: 'debit',
+      type: "debit",
       amount,
       description: `Add-ons for ${dateString}`,
       referenceId: `addons-${subscriptionId}-${dateString}`,
@@ -647,17 +877,27 @@ class Database {
     return true;
   }
 
-  async skipAddOnsForDate(subscriptionId: string, dateString: string): Promise<boolean> {
+  async skipAddOnsForDate(
+    subscriptionId: string,
+    dateString: string
+  ): Promise<boolean> {
     const subscription = await this.getSubscriptionById(subscriptionId);
     if (!subscription) return false;
-    const additionalAddOns = { ...(subscription.additionalAddOns || {}) } as Record<string, string[]>;
+    const additionalAddOns = {
+      ...(subscription.additionalAddOns || {}),
+    } as Record<string, string[]>;
     const items = additionalAddOns[dateString] || [];
     if (items.length === 0) return true;
 
-    const nextMeta = this.getNextDeliveryDate(subscription, new Date(dateString));
-    const nextStr = nextMeta.nextDate.toISOString().split('T')[0];
+    const nextMeta = this.getNextDeliveryDate(
+      subscription,
+      new Date(dateString)
+    );
+    const nextStr = nextMeta.nextDate.toISOString().split("T")[0];
     const existingNext = additionalAddOns[nextStr] || [];
-    additionalAddOns[nextStr] = Array.from(new Set<string>([...existingNext, ...items]));
+    additionalAddOns[nextStr] = Array.from(
+      new Set<string>([...existingNext, ...items])
+    );
     delete additionalAddOns[dateString];
 
     const updatePayload: Partial<Subscription> = { additionalAddOns };
@@ -669,89 +909,106 @@ class Database {
       updatePayload.endDate = newEnd;
     }
 
-    const updated = await this.updateSubscription(subscriptionId, updatePayload);
+    const updated = await this.updateSubscription(
+      subscriptionId,
+      updatePayload
+    );
     if (!updated) {
-      const subscriptions = (await this.getItem('subscriptions')) || [];
-      const index = subscriptions.findIndex((s: Subscription) => s.id === subscriptionId);
+      const subscriptions = (await this.getItem("subscriptions")) || [];
+      const index = subscriptions.findIndex(
+        (s: Subscription) => s.id === subscriptionId
+      );
       if (index === -1) return false;
-      subscriptions[index] = { ...subscriptions[index], ...updatePayload } as Subscription;
-      await this.setItem('subscriptions', subscriptions);
+      subscriptions[index] = {
+        ...subscriptions[index],
+        ...updatePayload,
+      } as Subscription;
+      await this.setItem("subscriptions", subscriptions);
     }
     return true;
   }
 
-  async updateAppSettings(settings: Partial<AppSettings>): Promise<AppSettings> {
+  async updateAppSettings(
+    settings: Partial<AppSettings>
+  ): Promise<AppSettings> {
     const currentSettings = await this.getAppSettings();
     const updatedSettings = { ...currentSettings, ...settings };
-    await this.setItem('appSettings', updatedSettings);
+    await this.setItem("appSettings", updatedSettings);
     return updatedSettings;
   }
 
   // Banner methods
   async getBanners(): Promise<Banner[]> {
-    return await this.getItem('banners') || [];
+    return (await this.getItem("banners")) || [];
   }
 
   async getActiveBanners(): Promise<Banner[]> {
     const banners = await this.getBanners();
     const now = new Date();
     return banners
-      .filter(banner =>
-        banner.isActive &&
-        (!banner.startDate || new Date(banner.startDate) <= now) &&
-        (!banner.endDate || new Date(banner.endDate) >= now)
+      .filter(
+        (banner) =>
+          banner.isActive &&
+          (!banner.startDate || new Date(banner.startDate) <= now) &&
+          (!banner.endDate || new Date(banner.endDate) >= now)
       )
       .sort((a, b) => a.sortOrder - b.sortOrder);
   }
 
   // Testimonial methods
   async getTestimonials(): Promise<Testimonial[]> {
-    return await this.getItem('testimonials') || [];
+    return (await this.getItem("testimonials")) || [];
   }
 
   async getActiveTestimonials(): Promise<Testimonial[]> {
     const testimonials = await this.getTestimonials();
-    return testimonials.filter(testimonial => testimonial.isActive);
+    return testimonials.filter((testimonial) => testimonial.isActive);
   }
 
   // Offer methods
   async getOffers(): Promise<Offer[]> {
-    return await this.getItem('offers') || [];
+    return (await this.getItem("offers")) || [];
   }
 
   async getActiveOffers(): Promise<Offer[]> {
     const offers = await this.getOffers();
     const now = new Date();
-    return offers.filter(offer =>
-      offer.isActive &&
-      new Date(offer.validFrom) <= now &&
-      new Date(offer.validTo) >= now
+    return offers.filter(
+      (offer) =>
+        offer.isActive &&
+        new Date(offer.validFrom) <= now &&
+        new Date(offer.validTo) >= now
     );
   }
 
   // Wallet methods
   async getWalletTransactions(userId: string): Promise<WalletTransaction[]> {
-    const transactions = await this.getItem('walletTransactions') || [];
+    const transactions = (await this.getItem("walletTransactions")) || [];
     return transactions.filter((t: WalletTransaction) => t.userId === userId);
   }
 
-  async addWalletTransaction(transactionData: Omit<WalletTransaction, 'id' | 'createdAt'>): Promise<WalletTransaction> {
-    const transactions = await this.getItem('walletTransactions') || [];
+  async addWalletTransaction(
+    transactionData: Omit<WalletTransaction, "id" | "createdAt">
+  ): Promise<WalletTransaction> {
+    const transactions = (await this.getItem("walletTransactions")) || [];
     const newTransaction: WalletTransaction = {
       ...transactionData,
       id: Date.now().toString(),
       createdAt: new Date(),
     };
     transactions.push(newTransaction);
-    await this.setItem('walletTransactions', transactions);
+    await this.setItem("walletTransactions", transactions);
 
     // Update user wallet balance
     const user = await this.getUserById(transactionData.userId);
     if (user) {
-      const newBalance = transactionData.type === 'credit'
-        ? user.walletBalance + transactionData.amount
-        : user.walletBalance - transactionData.amount;
-      await this.updateUser(user.id, { walletBalance: Math.max(0, newBalance) });
+      const newBalance =
+        transactionData.type === "credit"
+          ? user.walletBalance + transactionData.amount
+          : user.walletBalance - transactionData.amount;
+      await this.updateUser(user.id, {
+        walletBalance: Math.max(0, newBalance),
+      });
     }
 
     return newTransaction;
@@ -759,50 +1016,54 @@ class Database {
 
   // Serviceable Location methods
   async getServiceableLocations(): Promise<ServiceableLocation[]> {
-    return await this.getItem('serviceableLocations') || [];
+    return (await this.getItem("serviceableLocations")) || [];
   }
 
   async getActiveServiceableLocations(): Promise<ServiceableLocation[]> {
     const locations = await this.getServiceableLocations();
-    return locations.filter(location => location.isActive);
+    return locations.filter((location) => location.isActive);
   }
 
   // Delivery Person methods
   async getDeliveryPersons(): Promise<DeliveryPerson[]> {
-    return await this.getItem('deliveryPersons') || [];
+    return (await this.getItem("deliveryPersons")) || [];
   }
 
   async getAvailableDeliveryPersons(): Promise<DeliveryPerson[]> {
     const persons = await this.getDeliveryPersons();
-    return persons.filter(person => person.isActive && person.isAvailable);
+    return persons.filter((person) => person.isActive && person.isAvailable);
   }
 
   // Kitchen Staff methods
   async getKitchenStaff(): Promise<KitchenStaff[]> {
-    return await this.getItem('kitchenStaff') || [];
+    return (await this.getItem("kitchenStaff")) || [];
   }
 
   // FAQ methods
   async getFAQs(): Promise<FAQ[]> {
-    return await this.getItem('faqs') || [];
+    return (await this.getItem("faqs")) || [];
   }
 
   async getActiveFAQs(): Promise<FAQ[]> {
     const faqs = await this.getFAQs();
-    return faqs.filter(faq => faq.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+    return faqs
+      .filter((faq) => faq.isActive)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
   }
 
   // Support Ticket methods
   async getSupportTickets(): Promise<SupportTicket[]> {
-    return await this.getItem('supportTickets') || [];
+    return (await this.getItem("supportTickets")) || [];
   }
 
   async getUserSupportTickets(userId: string): Promise<SupportTicket[]> {
     const tickets = await this.getSupportTickets();
-    return tickets.filter(ticket => ticket.userId === userId);
+    return tickets.filter((ticket) => ticket.userId === userId);
   }
 
-  async createSupportTicket(ticketData: Omit<SupportTicket, 'id' | 'createdAt' | 'updatedAt'>): Promise<SupportTicket> {
+  async createSupportTicket(
+    ticketData: Omit<SupportTicket, "id" | "createdAt" | "updatedAt">
+  ): Promise<SupportTicket> {
     const tickets = await this.getSupportTickets();
     const newTicket: SupportTicket = {
       ...ticketData,
@@ -811,39 +1072,59 @@ class Database {
       updatedAt: new Date(),
     };
     tickets.push(newTicket);
-    await this.setItem('supportTickets', tickets);
+    await this.setItem("supportTickets", tickets);
     return newTicket;
   }
 
-  async updateSupportTicket(id: string, updates: Partial<SupportTicket>): Promise<SupportTicket | null> {
+  async updateSupportTicket(
+    id: string,
+    updates: Partial<SupportTicket>
+  ): Promise<SupportTicket | null> {
     const tickets = await this.getSupportTickets();
-    const index = tickets.findIndex(ticket => ticket.id === id);
+    const index = tickets.findIndex((ticket) => ticket.id === id);
     if (index === -1) return null;
 
     tickets[index] = { ...tickets[index], ...updates, updatedAt: new Date() };
-    await this.setItem('supportTickets', tickets);
+    await this.setItem("supportTickets", tickets);
     return tickets[index];
   }
 
   async markDeliveryAsReceived(orderId: string): Promise<Order | null> {
-    const updated = await this.updateOrder(orderId, { status: 'delivered' });
+    const updated = await this.updateOrder(orderId, { status: "delivered" });
     return updated;
   }
 
   private async getAckReminders(): Promise<any[]> {
-    return (await this.getItem('deliveryAckReminders')) || [];
+    return (await this.getItem("deliveryAckReminders")) || [];
   }
 
   private async setAckReminders(reminders: any[]): Promise<void> {
-    await this.setItem('deliveryAckReminders', reminders);
+    await this.setItem("deliveryAckReminders", reminders);
   }
 
-  async scheduleDeliveryAckReminders(orderId: string, userId: string): Promise<void> {
+  async scheduleDeliveryAckReminders(
+    orderId: string,
+    userId: string
+  ): Promise<void> {
     const now = Date.now();
     const reminders = await this.getAckReminders();
     const filtered = reminders.filter((r: any) => r.orderId !== orderId);
-    const r1 = { id: `${orderId}-r1`, orderId, userId, dueAt: new Date(now + 2 * 60 * 1000).toISOString(), sent: false, seq: 1 };
-    const r2 = { id: `${orderId}-r2`, orderId, userId, dueAt: new Date(now + 4 * 60 * 1000).toISOString(), sent: false, seq: 2 };
+    const r1 = {
+      id: `${orderId}-r1`,
+      orderId,
+      userId,
+      dueAt: new Date(now + 2 * 60 * 1000).toISOString(),
+      sent: false,
+      seq: 1,
+    };
+    const r2 = {
+      id: `${orderId}-r2`,
+      orderId,
+      userId,
+      dueAt: new Date(now + 4 * 60 * 1000).toISOString(),
+      sent: false,
+      seq: 2,
+    };
     filtered.push(r1, r2);
     await this.setAckReminders(filtered);
   }
@@ -864,15 +1145,25 @@ class Database {
       const due = new Date(r.dueAt).getTime();
       if (due <= now) {
         const orders = await this.getOrders();
-        const order = orders.find(o => o.id === r.orderId);
-        if (order && order.status === 'waiting_for_ack') {
+        const order = orders.find((o) => o.id === r.orderId);
+        if (order && order.status === "waiting_for_ack") {
           await this.createNotification({
             userId,
-            title: r.seq === 1 ? 'Reminder: Confirm delivery' : 'Final reminder: Confirm delivery',
-            message: r.seq === 1 ? 'Please confirm you\'ve received your order.' : 'Please confirm delivery now, or contact support if there\'s an issue.',
-            type: 'delivery',
+            title:
+              r.seq === 1
+                ? "Reminder: Confirm delivery"
+                : "Final reminder: Confirm delivery",
+            message:
+              r.seq === 1
+                ? "Please confirm you've received your order."
+                : "Please confirm delivery now, or contact support if there's an issue.",
+            type: "delivery",
             isRead: false,
-            data: { orderId: r.orderId, status: 'waiting_for_ack', reminder: r.seq },
+            data: {
+              orderId: r.orderId,
+              status: "waiting_for_ack",
+              reminder: r.seq,
+            },
           });
         }
         r.sent = true;
@@ -886,21 +1177,27 @@ class Database {
 
   // Support Message methods
   async getSupportMessages(ticketId: string): Promise<SupportMessage[]> {
-    const messages = await this.getItem('supportMessages') || [];
-    return messages.filter((message: SupportMessage) => message.ticketId === ticketId)
-      .sort((a: SupportMessage, b: SupportMessage) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    const messages = (await this.getItem("supportMessages")) || [];
+    return messages
+      .filter((message: SupportMessage) => message.ticketId === ticketId)
+      .sort(
+        (a: SupportMessage, b: SupportMessage) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
   }
 
-  async createSupportMessage(messageData: Omit<SupportMessage, 'id' | 'createdAt' | 'deliveryStatus'>): Promise<SupportMessage> {
-    const messages = await this.getItem('supportMessages') || [];
+  async createSupportMessage(
+    messageData: Omit<SupportMessage, "id" | "createdAt" | "deliveryStatus">
+  ): Promise<SupportMessage> {
+    const messages = (await this.getItem("supportMessages")) || [];
     const newMessage: SupportMessage = {
       ...messageData,
       id: Date.now().toString(),
       createdAt: new Date(),
-      deliveryStatus: 'sent',
+      deliveryStatus: "sent",
     };
     messages.push(newMessage);
-    await this.setItem('supportMessages', messages);
+    await this.setItem("supportMessages", messages);
 
     // Update ticket's updatedAt timestamp
     await this.updateSupportTicket(messageData.ticketId, {});
@@ -909,101 +1206,121 @@ class Database {
   }
 
   async markSupportMessageAsRead(messageId: string): Promise<void> {
-    const messages = await this.getItem('supportMessages') || [];
-    const index = messages.findIndex((message: SupportMessage) => message.id === messageId);
+    const messages = (await this.getItem("supportMessages")) || [];
+    const index = messages.findIndex(
+      (message: SupportMessage) => message.id === messageId
+    );
     if (index !== -1) {
       messages[index].isRead = true;
-      messages[index].deliveryStatus = 'read';
-      await this.setItem('supportMessages', messages);
+      messages[index].deliveryStatus = "read";
+      await this.setItem("supportMessages", messages);
     }
   }
 
-  async markSupportMessagesAsDelivered(ticketId: string, userId: string): Promise<void> {
-    const messages = await this.getItem('supportMessages') || [];
+  async markSupportMessagesAsDelivered(
+    ticketId: string,
+    userId: string
+  ): Promise<void> {
+    const messages = (await this.getItem("supportMessages")) || [];
     let updated = false;
 
     messages.forEach((message: SupportMessage) => {
-      if (message.ticketId === ticketId && message.senderId !== userId && message.deliveryStatus === 'sent') {
-        message.deliveryStatus = 'delivered';
+      if (
+        message.ticketId === ticketId &&
+        message.senderId !== userId &&
+        message.deliveryStatus === "sent"
+      ) {
+        message.deliveryStatus = "delivered";
         updated = true;
       }
     });
 
     if (updated) {
-      await this.setItem('supportMessages', messages);
+      await this.setItem("supportMessages", messages);
     }
   }
 
   // Corporate Catering methods
-  async createCorporateCateringRequest(requestData: Omit<CorporateCateringRequest, 'id' | 'createdAt'>): Promise<CorporateCateringRequest> {
-    const requests = await this.getItem('corporateCateringRequests') || [];
+  async createCorporateCateringRequest(
+    requestData: Omit<CorporateCateringRequest, "id" | "createdAt">
+  ): Promise<CorporateCateringRequest> {
+    const requests = (await this.getItem("corporateCateringRequests")) || [];
     const newRequest: CorporateCateringRequest = {
       ...requestData,
       id: Date.now().toString(),
       createdAt: new Date(),
     };
     requests.push(newRequest);
-    await this.setItem('corporateCateringRequests', requests);
+    await this.setItem("corporateCateringRequests", requests);
     return newRequest;
   }
 
   // Nutritionist Contact methods
-  async createNutritionistContact(contactData: Omit<NutritionistContact, 'id' | 'createdAt'>): Promise<NutritionistContact> {
-    const contacts = await this.getItem('nutritionistContacts') || [];
+  async createNutritionistContact(
+    contactData: Omit<NutritionistContact, "id" | "createdAt">
+  ): Promise<NutritionistContact> {
+    const contacts = (await this.getItem("nutritionistContacts")) || [];
     const newContact: NutritionistContact = {
       ...contactData,
       id: Date.now().toString(),
       createdAt: new Date(),
     };
     contacts.push(newContact);
-    await this.setItem('nutritionistContacts', contacts);
+    await this.setItem("nutritionistContacts", contacts);
     return newContact;
   }
 
   // App Settings methods
   async getAppSettings(): Promise<AppSettings> {
-    const settings = await this.getItem('appSettings');
+    const settings = await this.getItem("appSettings");
     if (!settings) {
-      console.log('No app settings found, returning initial settings');
+      console.log("No app settings found, returning initial settings");
       const initialSettings = this.getInitialAppSettings();
-      await this.setItem('appSettings', initialSettings);
+      await this.setItem("appSettings", initialSettings);
       return initialSettings;
     }
-    console.log('App settings loaded:', settings);
+    console.log("App settings loaded:", settings);
     return settings;
   }
 
   // Notification methods
   async getNotifications(userId: string): Promise<Notification[]> {
-    const notifications = await this.getItem('notifications') || [];
+    const notifications = (await this.getItem("notifications")) || [];
     return notifications.filter((n: Notification) => n.userId === userId);
   }
 
-  async createNotification(notificationData: Omit<Notification, 'id' | 'createdAt'>): Promise<Notification> {
-    const notifications = await this.getItem('notifications') || [];
+  async createNotification(
+    notificationData: Omit<Notification, "id" | "createdAt">
+  ): Promise<Notification> {
+    const notifications = (await this.getItem("notifications")) || [];
     const newNotification: Notification = {
       ...notificationData,
       id: Date.now().toString(),
       createdAt: new Date(),
     };
     notifications.push(newNotification);
-    await this.setItem('notifications', notifications);
+    await this.setItem("notifications", notifications);
     return newNotification;
   }
 
   async deleteNotification(id: string): Promise<void> {
-    const notifications = await this.getItem('notifications') || [];
+    const notifications = (await this.getItem("notifications")) || [];
     const filtered = notifications.filter((n: Notification) => n.id !== id);
-    await this.setItem('notifications', filtered);
+    await this.setItem("notifications", filtered);
   }
 
   async clearUserNotifications(userId: string): Promise<void> {
-    const notifications = await this.getItem('notifications') || [];
-    const filtered = notifications.filter((n: Notification) => n.userId !== userId);
-    await this.setItem('notifications', filtered);
+    const notifications = (await this.getItem("notifications")) || [];
+    const filtered = notifications.filter(
+      (n: Notification) => n.userId !== userId
+    );
+    await this.setItem("notifications", filtered);
   }
 
-  async createNotificationsForUsers(userIds: string[], data: Omit<Notification, 'id' | 'createdAt' | 'userId'>): Promise<Notification[]> {
+  async createNotificationsForUsers(
+    userIds: string[],
+    data: Omit<Notification, "id" | "createdAt" | "userId">
+  ): Promise<Notification[]> {
     const created: Notification[] = [];
     for (const userId of userIds) {
       const n = await this.createNotification({ ...data, userId });
@@ -1012,19 +1329,28 @@ class Database {
     return created;
   }
 
-  async broadcastNotification(data: Omit<Notification, 'id' | 'createdAt' | 'userId'> & { role?: UserRole }): Promise<number> {
+  async broadcastNotification(
+    data: Omit<Notification, "id" | "createdAt" | "userId"> & {
+      role?: UserRole;
+    }
+  ): Promise<number> {
     const users: User[] = await this.getUsers();
-    const filtered = data.role ? users.filter(u => u.role === data.role) : users;
-    const created = await this.createNotificationsForUsers(filtered.map(u => u.id), data);
+    const filtered = data.role
+      ? users.filter((u) => u.role === data.role)
+      : users;
+    const created = await this.createNotificationsForUsers(
+      filtered.map((u) => u.id),
+      data
+    );
     return created.length;
   }
 
   async markNotificationAsRead(id: string): Promise<void> {
-    const notifications = await this.getItem('notifications') || [];
+    const notifications = (await this.getItem("notifications")) || [];
     const index = notifications.findIndex((n: Notification) => n.id === id);
     if (index !== -1) {
       notifications[index].isRead = true;
-      await this.setItem('notifications', notifications);
+      await this.setItem("notifications", notifications);
     }
   }
 
@@ -1033,32 +1359,43 @@ class Database {
     return await this.getSubscriptions();
   }
 
-  async assignSubscription(subscriptionId: string, assigneeId: string, role: 'kitchen' | 'delivery'): Promise<void> {
+  async assignSubscription(
+    subscriptionId: string,
+    assigneeId: string,
+    role: "kitchen" | "delivery"
+  ): Promise<void> {
     const subscriptions = await this.getSubscriptions();
-    const index = subscriptions.findIndex(sub => sub.id === subscriptionId);
+    const index = subscriptions.findIndex((sub) => sub.id === subscriptionId);
     if (index !== -1) {
-      if (role === 'kitchen') {
+      if (role === "kitchen") {
         subscriptions[index].assignedKitchenId = assigneeId;
       } else {
         subscriptions[index].assignedDeliveryId = assigneeId;
       }
-      await this.setItem('subscriptions', subscriptions);
+      await this.setItem("subscriptions", subscriptions);
     }
   }
 
-  async addCategory(categoryData: { name: string; description: string; image?: string; group?: Category['group'] }): Promise<Category> {
+  async addCategory(categoryData: {
+    name: string;
+    description: string;
+    image?: string;
+    group?: Category["group"];
+  }): Promise<Category> {
     const categories = await this.getCategories();
     const newCategory: Category = {
       id: Date.now().toString(),
       name: categoryData.name,
       description: categoryData.description,
-      image: categoryData.image || 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
+      image:
+        categoryData.image ||
+        "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400",
       isActive: true,
       sortOrder: categories.length + 1,
       group: categoryData.group,
     };
     categories.push(newCategory);
-    await this.setItem('categories', categories);
+    await this.setItem("categories", categories);
     return newCategory;
   }
 
@@ -1077,20 +1414,29 @@ class Database {
     isDraft?: boolean;
     preparationTime?: number;
     tags?: string[];
-    nutritionInfo?: { calories: number; protein: number; carbs: number; fat: number; fiber: number };
+    nutritionInfo?: {
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+      fiber: number;
+    };
     isBasicThali?: boolean;
     variantPricing?: { veg?: number; nonveg?: number };
     allowDaySelection?: boolean;
   }): Promise<Meal> {
     const meals = await this.getMeals();
-    const defaultImage = 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600';
+    const defaultImage =
+      "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600";
     const newMeal: Meal = {
       id: Date.now().toString(),
       name: mealData.name,
       description: mealData.description,
       images: [mealData.image || defaultImage],
-      categoryId: mealData.categoryId || '1',
-      categoryIds: mealData.categoryIds ?? (mealData.categoryId ? [mealData.categoryId] : ['1']),
+      categoryId: mealData.categoryId || "1",
+      categoryIds:
+        mealData.categoryIds ??
+        (mealData.categoryId ? [mealData.categoryId] : ["1"]),
       price: mealData.price,
       originalPrice: mealData.originalPrice,
       isVeg: mealData.isVeg ?? true,
@@ -1102,7 +1448,7 @@ class Database {
         fat: 15,
         fiber: 5,
       },
-      ingredients: ['Fresh ingredients'],
+      ingredients: ["Fresh ingredients"],
       allergens: [],
       isActive: mealData.isActive ?? true,
       isFeatured: mealData.isFeatured ?? false,
@@ -1110,17 +1456,20 @@ class Database {
       rating: 4.0,
       reviewCount: 0,
       preparationTime: mealData.preparationTime ?? 20,
-      tags: mealData.tags || ['Healthy'],
+      tags: mealData.tags || ["Healthy"],
       isBasicThali: mealData.isBasicThali ?? false,
       variantPricing: mealData.variantPricing,
       allowDaySelection: mealData.allowDaySelection ?? false,
     };
     meals.push(newMeal);
-    await this.setItem('meals', meals);
+    await this.setItem("meals", meals);
     return newMeal;
   }
 
-  async addLocation(locationData: { name: string; address: string }): Promise<ServiceableLocation> {
+  async addLocation(locationData: {
+    name: string;
+    address: string;
+  }): Promise<ServiceableLocation> {
     const locations = await this.getServiceableLocations();
     const newLocation: ServiceableLocation = {
       id: Date.now().toString(),
@@ -1134,7 +1483,7 @@ class Database {
       isActive: true,
     };
     locations.push(newLocation);
-    await this.setItem('serviceableLocations', locations);
+    await this.setItem("serviceableLocations", locations);
     return newLocation;
   }
 
@@ -1147,25 +1496,27 @@ class Database {
     startDate: string;
     addressId?: string;
     deliveryTimeSlot?: string;
-    weekendExclusion?: 'both' | 'saturday' | 'sunday' | 'none';
+    weekendExclusion?: "both" | "saturday" | "sunday" | "none";
   }): Promise<Subscription> {
     const subscriptions = await this.getSubscriptions();
     const plan = await this.getPlanById(subscriptionData.planId);
     const planDays = plan?.days ?? 0;
     const start = new Date(subscriptionData.startDate);
-    const allowedWeekTypes = ['mon-fri', 'mon-sat'] as const;
-    const weekType: 'mon-fri' | 'mon-sat' = allowedWeekTypes.includes(subscriptionData.weekType as any)
-      ? subscriptionData.weekType as 'mon-fri' | 'mon-sat'
-      : 'mon-fri';
+    const allowedWeekTypes = ["mon-fri", "mon-sat"] as const;
+    const weekType: "mon-fri" | "mon-sat" = allowedWeekTypes.includes(
+      subscriptionData.weekType as any
+    )
+      ? (subscriptionData.weekType as "mon-fri" | "mon-sat")
+      : "mon-fri";
     const end = new Date(start);
     let served = 0;
     while (served < planDays) {
       const day = end.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
 
       let isWorkingDay = false;
-      if (weekType === 'mon-fri') {
+      if (weekType === "mon-fri") {
         isWorkingDay = day >= 1 && day <= 5; // Mon to Fri
-      } else if (weekType === 'mon-sat') {
+      } else if (weekType === "mon-sat") {
         isWorkingDay = day >= 1 && day <= 6; // Mon to Sat
       }
 
@@ -1186,28 +1537,31 @@ class Database {
       addOns: [],
       startDate: start,
       endDate: end,
-      deliveryTimeSlot: subscriptionData.deliveryTimeSlot ?? '12:00 PM - 1:00 PM',
-      weekendExclusion: 'sunday',
-      weekType: ['mon-fri', 'mon-sat', 'none'].includes(subscriptionData?.weekType as any)
-        ? (subscriptionData?.weekType as 'mon-fri' | 'mon-sat' | 'none')
-        : 'none',
-  
+      deliveryTimeSlot:
+        subscriptionData.deliveryTimeSlot ?? "12:00 PM - 1:00 PM",
+      weekendExclusion: "sunday",
+      weekType: ["mon-fri", "mon-sat", "none"].includes(
+        subscriptionData?.weekType as any
+      )
+        ? (subscriptionData?.weekType as "mon-fri" | "mon-sat" | "none")
+        : "none",
+
       totalAmount: subscriptionData.price,
-      status: 'active',
-      paymentStatus: 'paid',
+      status: "active",
+      paymentStatus: "paid",
       createdAt: new Date(),
       addressId: subscriptionData.addressId,
       totalDeliveries: planDays || undefined,
       remainingDeliveries: planDays || undefined,
     };
     const next = [...subscriptions, newSubscription];
-    await this.setItem('subscriptions', next);
+    await this.setItem("subscriptions", next);
     return newSubscription;
   }
 
   // Notify Me Requests methods
   async getNotifyRequests(): Promise<any[]> {
-    return await this.getItem('notifyRequests') || [];
+    return (await this.getItem("notifyRequests")) || [];
   }
 
   async createNotifyRequest(requestData: {
@@ -1221,10 +1575,10 @@ class Database {
       id: Date.now().toString(),
       ...requestData,
       createdAt: new Date(),
-      status: 'pending',
+      status: "pending",
     };
     requests.push(newRequest);
-    await this.setItem('notifyRequests', requests);
+    await this.setItem("notifyRequests", requests);
     return newRequest;
   }
 
@@ -1237,8 +1591,12 @@ class Database {
     const locations = await this.getServiceableLocations();
 
     // Calculate center point of polygon
-    const centerLat = locationData.polygon.reduce((sum, point) => sum + point.latitude, 0) / locationData.polygon.length;
-    const centerLng = locationData.polygon.reduce((sum, point) => sum + point.longitude, 0) / locationData.polygon.length;
+    const centerLat =
+      locationData.polygon.reduce((sum, point) => sum + point.latitude, 0) /
+      locationData.polygon.length;
+    const centerLng =
+      locationData.polygon.reduce((sum, point) => sum + point.longitude, 0) /
+      locationData.polygon.length;
 
     const newLocation: ServiceableLocation = {
       id: Date.now().toString(),
@@ -1254,7 +1612,7 @@ class Database {
     };
 
     locations.push(newLocation);
-    await this.setItem('serviceableLocations', locations);
+    await this.setItem("serviceableLocations", locations);
     return newLocation;
   }
 
@@ -1265,25 +1623,28 @@ class Database {
   // Referral methods
   async getUserByReferralCode(referralCode: string): Promise<User | null> {
     const users = await this.getUsers();
-    return users.find(user => user.referralCode === referralCode) || null;
+    return users.find((user) => user.referralCode === referralCode) || null;
   }
 
-  async processReferral(referralCode: string, newUserId: string): Promise<void> {
+  async processReferral(
+    referralCode: string,
+    newUserId: string
+  ): Promise<void> {
     const referrer = await this.getUserByReferralCode(referralCode);
     if (!referrer) return;
 
-    const referralRewards = await this.getItem('referralRewards') || [];
+    const referralRewards = (await this.getItem("referralRewards")) || [];
     const newReward: ReferralReward = {
       id: Date.now().toString(),
       userId: referrer.id,
       referredUserId: newUserId,
       referralCode,
       amount: 500,
-      status: 'pending',
+      status: "pending",
       createdAt: new Date(),
     };
     referralRewards.push(newReward);
-    await this.setItem('referralRewards', referralRewards);
+    await this.setItem("referralRewards", referralRewards);
 
     await this.updateUser(referrer.id, {
       totalReferrals: referrer.totalReferrals + 1,
@@ -1292,26 +1653,27 @@ class Database {
 
   async creditReferralReward(subscriptionId: string): Promise<void> {
     const subscription = await this.getSubscriptionById(subscriptionId);
-    if (!subscription || subscription.planId !== '4') return;
+    if (!subscription || subscription.planId !== "4") return;
 
     const user = await this.getUserById(subscription.userId);
     if (!user || !user.referredBy) return;
 
-    const referralRewards = await this.getItem('referralRewards') || [];
-    const pendingReward = referralRewards.find((reward: ReferralReward) =>
-      reward.referredUserId === user.id && reward.status === 'pending'
+    const referralRewards = (await this.getItem("referralRewards")) || [];
+    const pendingReward = referralRewards.find(
+      (reward: ReferralReward) =>
+        reward.referredUserId === user.id && reward.status === "pending"
     );
 
     if (pendingReward) {
-      pendingReward.status = 'credited';
+      pendingReward.status = "credited";
       pendingReward.creditedAt = new Date();
-      await this.setItem('referralRewards', referralRewards);
+      await this.setItem("referralRewards", referralRewards);
 
       await this.addWalletTransaction({
         userId: pendingReward.userId,
-        type: 'credit',
+        type: "credit",
         amount: pendingReward.amount,
-        description: `Referral bonus for inviting ${user.name || 'a friend'}`,
+        description: `Referral bonus for inviting ${user.name || "a friend"}`,
         referenceId: pendingReward.id,
       });
 
@@ -1325,45 +1687,60 @@ class Database {
   }
 
   async getReferralRewards(userId: string): Promise<ReferralReward[]> {
-    const referralRewards = await this.getItem('referralRewards') || [];
-    return referralRewards.filter((reward: ReferralReward) => reward.userId === userId);
+    const referralRewards = (await this.getItem("referralRewards")) || [];
+    return referralRewards.filter(
+      (reward: ReferralReward) => reward.userId === userId
+    );
   }
 
-  async applyReferralCode(userId: string, code: string): Promise<{ success: boolean; message: string }> {
+  async applyReferralCode(
+    userId: string,
+    code: string
+  ): Promise<{ success: boolean; message: string }> {
     const user = await this.getUserById(userId);
-    if (!user) return { success: false, message: 'User not found' };
-    if (user.referredBy) return { success: false, message: 'Referral already applied' };
+    if (!user) return { success: false, message: "User not found" };
+    if (user.referredBy)
+      return { success: false, message: "Referral already applied" };
     const referrer = await this.getUserByReferralCode(code);
-    if (!referrer) return { success: false, message: 'Invalid referral code' };
-    if (referrer.id === user.id) return { success: false, message: 'You cannot use your own code' };
+    if (!referrer) return { success: false, message: "Invalid referral code" };
+    if (referrer.id === user.id)
+      return { success: false, message: "You cannot use your own code" };
 
     await this.updateUser(user.id, { referredBy: code });
 
     const bonus = 200;
     await this.addWalletTransaction({
       userId: user.id,
-      type: 'credit',
+      type: "credit",
       amount: bonus,
-      description: 'Referral bonus (welcome)',
+      description: "Referral bonus (welcome)",
       referenceId: `ref-${referrer.id}-${user.id}`,
     });
     await this.addWalletTransaction({
       userId: referrer.id,
-      type: 'credit',
+      type: "credit",
       amount: bonus,
-      description: `Referral bonus for inviting ${user.name || 'a friend'}`,
+      description: `Referral bonus for inviting ${user.name || "a friend"}`,
       referenceId: `ref-${user.id}`,
     });
 
-    await this.updateUser(referrer.id, { totalReferrals: (referrer.totalReferrals || 0) + 1, referralEarnings: (referrer.referralEarnings || 0) + bonus });
+    await this.updateUser(referrer.id, {
+      totalReferrals: (referrer.totalReferrals || 0) + 1,
+      referralEarnings: (referrer.referralEarnings || 0) + bonus,
+    });
 
-    return { success: true, message: 'Referral applied. Bonus credited to both wallets.' };
+    return {
+      success: true,
+      message: "Referral applied. Bonus credited to both wallets.",
+    };
   }
 
   // Streak methods
   async initializeUserStreak(userId: string): Promise<void> {
-    const userStreaks = await this.getItem('userStreaks') || [];
-    const existingStreak = userStreaks.find((streak: UserStreak) => streak.userId === userId);
+    const userStreaks = (await this.getItem("userStreaks")) || [];
+    const existingStreak = userStreaks.find(
+      (streak: UserStreak) => streak.userId === userId
+    );
 
     if (!existingStreak) {
       const newStreak: UserStreak = {
@@ -1374,13 +1751,15 @@ class Database {
         streakRewards: [],
       };
       userStreaks.push(newStreak);
-      await this.setItem('userStreaks', userStreaks);
+      await this.setItem("userStreaks", userStreaks);
     }
   }
 
   async updateUserStreak(userId: string): Promise<void> {
-    const userStreaks = await this.getItem('userStreaks') || [];
-    const streakIndex = userStreaks.findIndex((streak: UserStreak) => streak.userId === userId);
+    const userStreaks = (await this.getItem("userStreaks")) || [];
+    const streakIndex = userStreaks.findIndex(
+      (streak: UserStreak) => streak.userId === userId
+    );
 
     if (streakIndex === -1) {
       await this.initializeUserStreak(userId);
@@ -1390,12 +1769,17 @@ class Database {
     const userStreak = userStreaks[streakIndex];
     const today = new Date();
     const lastOrderDate = new Date(userStreak.lastOrderDate);
-    const daysDiff = Math.floor((today.getTime() - lastOrderDate.getTime()) / (1000 * 60 * 60 * 24));
+    const daysDiff = Math.floor(
+      (today.getTime() - lastOrderDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
 
     if (daysDiff === 1) {
       // Consecutive day - increment streak
       userStreak.currentStreak += 1;
-      userStreak.longestStreak = Math.max(userStreak.longestStreak, userStreak.currentStreak);
+      userStreak.longestStreak = Math.max(
+        userStreak.longestStreak,
+        userStreak.currentStreak
+      );
     } else if (daysDiff > 1) {
       // Streak broken - reset to 1
       userStreak.currentStreak = 1;
@@ -1404,7 +1788,7 @@ class Database {
 
     userStreak.lastOrderDate = today;
     userStreaks[streakIndex] = userStreak;
-    await this.setItem('userStreaks', userStreaks);
+    await this.setItem("userStreaks", userStreaks);
 
     // Update user record
     await this.updateUser(userId, {
@@ -1416,7 +1800,10 @@ class Database {
     await this.checkStreakRewards(userId, userStreak.currentStreak);
   }
 
-  async checkStreakRewards(userId: string, currentStreak: number): Promise<void> {
+  async checkStreakRewards(
+    userId: string,
+    currentStreak: number
+  ): Promise<void> {
     const rewardMilestones = [
       { streak: 7, amount: 50 },
       { streak: 15, amount: 100 },
@@ -1425,12 +1812,13 @@ class Database {
       { streak: 100, amount: 500 },
     ];
 
-    const milestone = rewardMilestones.find(m => m.streak === currentStreak);
+    const milestone = rewardMilestones.find((m) => m.streak === currentStreak);
     if (!milestone) return;
 
-    const streakRewards = await this.getItem('streakRewards') || [];
-    const existingReward = streakRewards.find((reward: StreakReward) =>
-      reward.userId === userId && reward.streakCount === currentStreak
+    const streakRewards = (await this.getItem("streakRewards")) || [];
+    const existingReward = streakRewards.find(
+      (reward: StreakReward) =>
+        reward.userId === userId && reward.streakCount === currentStreak
     );
 
     if (!existingReward) {
@@ -1439,17 +1827,17 @@ class Database {
         userId,
         streakCount: currentStreak,
         rewardAmount: milestone.amount,
-        status: 'credited',
+        status: "credited",
         createdAt: new Date(),
         creditedAt: new Date(),
       };
       streakRewards.push(newReward);
-      await this.setItem('streakRewards', streakRewards);
+      await this.setItem("streakRewards", streakRewards);
 
       // Add to wallet
       await this.addWalletTransaction({
         userId,
-        type: 'credit',
+        type: "credit",
         amount: milestone.amount,
         description: `Streak reward for ${currentStreak} consecutive orders`,
         referenceId: newReward.id,
@@ -1458,23 +1846,27 @@ class Database {
   }
 
   async getUserStreak(userId: string): Promise<UserStreak | null> {
-    const userStreaks = await this.getItem('userStreaks') || [];
-    return userStreaks.find((streak: UserStreak) => streak.userId === userId) || null;
+    const userStreaks = (await this.getItem("userStreaks")) || [];
+    return (
+      userStreaks.find((streak: UserStreak) => streak.userId === userId) || null
+    );
   }
 
   async getStreakRewards(userId: string): Promise<StreakReward[]> {
-    const streakRewards = await this.getItem('streakRewards') || [];
-    return streakRewards.filter((reward: StreakReward) => reward.userId === userId);
+    const streakRewards = (await this.getItem("streakRewards")) || [];
+    return streakRewards.filter(
+      (reward: StreakReward) => reward.userId === userId
+    );
   }
 
   async getSubscriptionById(id: string): Promise<Subscription | null> {
     const subscriptions = await this.getSubscriptions();
-    return subscriptions.find(sub => sub.id === id) || null;
+    return subscriptions.find((sub) => sub.id === id) || null;
   }
 
   async getSupportTicketById(id: string): Promise<SupportTicket | null> {
     const tickets = await this.getSupportTickets();
-    return tickets.find(ticket => ticket.id === id) || null;
+    return tickets.find((ticket) => ticket.id === id) || null;
   }
 
   async getAllSupportTickets(): Promise<SupportTicket[]> {
@@ -1483,21 +1875,24 @@ class Database {
 
   async toggleMealDraftStatus(mealId: string): Promise<Meal | null> {
     const meals = await this.getMeals();
-    const index = meals.findIndex(meal => meal.id === mealId);
+    const index = meals.findIndex((meal) => meal.id === mealId);
     if (index === -1) return null;
 
     meals[index].isDraft = !meals[index].isDraft;
-    await this.setItem('meals', meals);
+    await this.setItem("meals", meals);
     return meals[index];
   }
 
-  async updateMeal(mealId: string, updates: Partial<Meal>): Promise<Meal | null> {
+  async updateMeal(
+    mealId: string,
+    updates: Partial<Meal>
+  ): Promise<Meal | null> {
     const meals = await this.getMeals();
-    const index = meals.findIndex(meal => meal.id === mealId);
+    const index = meals.findIndex((meal) => meal.id === mealId);
     if (index === -1) return null;
 
     meals[index] = { ...meals[index], ...updates };
-    await this.setItem('meals', meals);
+    await this.setItem("meals", meals);
     return meals[index];
   }
 
@@ -1505,14 +1900,14 @@ class Database {
   private getInitialUsers(): User[] {
     return [
       {
-        id: '1',
-        name: 'Admin User',
-        email: 'admin@foodapp.com',
-        phone: '+919999999999',
-        role: 'admin',
+        id: "1",
+        name: "Admin User",
+        email: "admin@foodapp.com",
+        phone: "+919999999999",
+        role: "admin",
         addresses: [],
         walletBalance: 0,
-        referralCode: 'ADMIN001',
+        referralCode: "ADMIN001",
         createdAt: new Date(),
         isActive: true,
         currentStreak: 0,
@@ -1521,14 +1916,14 @@ class Database {
         referralEarnings: 0,
       },
       {
-        id: '2',
-        name: 'Kitchen Manager',
-        email: 'kitchen@foodapp.com',
-        phone: '+919999999998',
-        role: 'kitchen',
+        id: "2",
+        name: "Kitchen Manager",
+        email: "kitchen@foodapp.com",
+        phone: "+919999999998",
+        role: "kitchen",
         addresses: [],
         walletBalance: 0,
-        referralCode: 'KITCHEN01',
+        referralCode: "KITCHEN01",
         createdAt: new Date(),
         isActive: true,
         currentStreak: 0,
@@ -1537,14 +1932,14 @@ class Database {
         referralEarnings: 0,
       },
       {
-        id: '3',
-        name: 'Delivery Person',
-        email: 'delivery@foodapp.com',
-        phone: '+919999999997',
-        role: 'delivery',
+        id: "3",
+        name: "Delivery Person",
+        email: "delivery@foodapp.com",
+        phone: "+919999999997",
+        role: "delivery",
         addresses: [],
         walletBalance: 0,
-        referralCode: 'DELIVERY01',
+        referralCode: "DELIVERY01",
         createdAt: new Date(),
         isActive: true,
         currentStreak: 0,
@@ -1553,14 +1948,14 @@ class Database {
         referralEarnings: 0,
       },
       {
-        id: '4',
-        name: 'Test Customer',
-        email: 'customer@test.com',
-        phone: '+919999999996',
-        role: 'customer',
+        id: "4",
+        name: "Test Customer",
+        email: "customer@test.com",
+        phone: "+919999999996",
+        role: "customer",
         addresses: [],
         walletBalance: 500,
-        referralCode: 'CUST001',
+        referralCode: "CUST001",
         createdAt: new Date(),
         isActive: true,
         currentStreak: 5,
@@ -1573,191 +1968,757 @@ class Database {
 
   private getInitialCategories(): Category[] {
     return [
+      // ------------------ MEAL TIME ------------------
       {
-        id: '1',
-        name: 'Lunch',
-        image: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
-        description: 'Healthy and delicious lunch meals',
+        id: "breakfast",
+        name: "Breakfast",
+        image:
+          "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=400",
+        description:
+          "Start your day with a healthy breakfast — chef’s choice menu with rotating South Indian and North Indian dishes.",
         isActive: true,
         sortOrder: 1,
-        group: 'meal-time',
+        group: "meal-time",
       },
       {
-        id: '2',
-        name: 'Dinner',
-        image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400',
-        description: 'Nutritious dinner options',
+        id: "lunch",
+        name: "Lunch",
+        image:
+          "https://images.unsplash.com/photo-1601050690299-9e2d4a1e2b50?w=400",
+        description:
+          "Balanced and hearty lunch options — thalis, millet meals, and biryanis for all preferences.",
         isActive: true,
         sortOrder: 2,
-        group: 'meal-time',
+        group: "meal-time",
       },
       {
-        id: '3',
-        name: 'Protein Meals',
-        image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400',
-        description: 'High protein meals for fitness enthusiasts',
+        id: "dinner",
+        name: "Dinner",
+        image:
+          "https://images.unsplash.com/photo-1617196034796-73dfa7b1b5d3?w=400",
+        description:
+          "Light and nutritious dinners — home-style or healthy chef’s specials for your evening meal.",
         isActive: true,
         sortOrder: 3,
-        group: 'collection',
+        group: "meal-time",
       },
       {
-        id: '4',
-        name: 'Breakfast',
-        image: 'https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=400',
-        description: 'Start your day with healthy breakfast',
+        id: "snacks",
+        name: "Snacks & Sides",
+        image:
+          "https://images.unsplash.com/photo-1601050690299-9e2d4a1e2b50?w=400",
+        description:
+          "Light bites, munchies, and sides to complement your meals.",
         isActive: true,
         sortOrder: 4,
-        group: 'meal-time',
+        group: "meal-time",
       },
+
+      // ------------------ HEALTH GOALS ------------------
+      {
+        id: "high-protein",
+        name: "High Protein Meals",
+        image:
+          "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=400",
+        description:
+          "Meals designed to boost your protein intake — great for fitness and recovery.",
+        isActive: true,
+        sortOrder: 5,
+        group: "health-goal",
+      },
+      {
+        id: "low-calorie",
+        name: "Low Calorie Meals",
+        image:
+          "https://images.unsplash.com/photo-1606756790138-2750b4bca0cf?w=400",
+        description: "Light, wholesome meals for calorie-conscious eaters.",
+        isActive: true,
+        sortOrder: 6,
+        group: "health-goal",
+      },
+
+      // ------------------ LIFESTYLE ------------------
+      {
+        id: "diabetic-friendly",
+        name: "Diabetic-Friendly Meals",
+        image:
+          "https://images.unsplash.com/photo-1590080875831-59d01d1d9d11?w=400",
+        description:
+          "Balanced, low-sugar, and fiber-rich meals suitable for diabetic diets.",
+        isActive: true,
+        sortOrder: 7,
+        group: "lifestyle",
+      },
+      {
+        id: "calcium-rich",
+        name: "Calcium-Rich Meals",
+        image:
+          "https://images.unsplash.com/photo-1625944228383-9b7f9c04361c?w=400",
+        description:
+          "Meals enriched with dairy, greens, and nuts to support bone health.",
+        isActive: true,
+        sortOrder: 8,
+        group: "lifestyle",
+      },
+
+      // ------------------ DRINKS & BOOSTERS ------------------
+      {
+        id: "drinks",
+        name: "Drinks & Boosters",
+        image:
+          "https://images.unsplash.com/photo-1604147706283-d7119b5c6a0b?w=400",
+        description:
+          "Cold-pressed juices, detox water, and protein shakes for energy and hydration.",
+        isActive: true,
+        sortOrder: 9,
+        group: "drinks",
+      },
+      {
+        id: "protein-shake",
+        name: "Protein Shakes",
+        image:
+          "https://images.unsplash.com/photo-1615486363870-b877e7e61f9a?w=400",
+        description:
+          "High-protein shakes made with natural ingredients — great pre/post workout.",
+        isActive: true,
+        sortOrder: 10,
+        group: "drinks",
+      },
+      {
+        id: "detox-water",
+        name: "Detox Water",
+        image:
+          "https://images.unsplash.com/photo-1544145945-f90425340c7e?w=400",
+        description:
+          "Refreshing infused waters with herbs and fruits for cleansing and hydration.",
+        isActive: true,
+        sortOrder: 11,
+        group: "drinks",
+      },
+      {
+        id: "coldpress-juice",
+        name: "Cold-Pressed Juices",
+        image:
+          "https://images.unsplash.com/photo-1565958011705-44e211f08d00?w=400",
+        description:
+          "Cold-pressed juices made from fresh fruits and vegetables — chef’s curated blends.",
+        isActive: true,
+        sortOrder: 12,
+        group: "drinks",
+      },
+
+      // ------------
     ];
   }
 
   private getInitialMeals(): Meal[] {
     return [
+      // -------------------- BREAKFAST --------------------
       {
-        id: '1',
-        name: 'Grilled Chicken Bowl',
-        description: 'Tender grilled chicken with quinoa, roasted vegetables, and tahini dressing',
-        images: ['https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600'],
-        categoryId: '1',
-        price: 299,
-        originalPrice: 349,
-        isVeg: false,
+        id: "regular-breakfast",
+        name: "Regular Breakfast",
+        description:
+          "Healthy Indian breakfast with rotating options like poha, upma, dosa, or paratha. Chef’s choice changes daily for freshness and balance.",
+        images: [
+          "https://images.unsplash.com/photo-1604908176997-431310be8d5e?w=300&h=300&fit=crop",
+        ],
+        categoryId: "breakfast",
+        categoryIds: ["breakfast", "regular-breakfast", "chef-choice", "1"],
+        price: 149,
+        originalPrice: 169,
+        isVeg: true,
         hasEgg: false,
+        rating: 4.6,
+        reviewCount: 220,
+        tags: ["Chef’s Choice", "Home Style", "Healthy"],
         nutritionInfo: {
-          calories: 450,
-          protein: 35,
-          carbs: 25,
-          fat: 18,
-          fiber: 8,
+          calories: 400,
+          protein: 10,
+          carbs: 60,
+          fat: 10,
+          fiber: 5,
         },
-        ingredients: ['Chicken breast', 'Quinoa', 'Broccoli', 'Bell peppers', 'Tahini'],
-        allergens: ['Sesame'],
+        ingredients: ["Poha", "Upma", "Paratha", "Sambar", "Chutney"],
+        allergens: ["Gluten"],
         isActive: true,
         isFeatured: true,
         isDraft: false,
-        rating: 4.5,
-        reviewCount: 128,
-        preparationTime: 25,
-        tags: ['High Protein', 'Gluten Free'],
-        availableTimeSlotIds: ['1', '2'],
+        preparationTime: 20,
+        availableTimeSlotIds: ["1"],
       },
+
+      // -------------------- LUNCH --------------------
       {
-        id: '2',
-        name: 'Paneer Tikka Bowl',
-        description: 'Marinated paneer tikka with brown rice, mixed vegetables, and mint chutney',
-        images: ['https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=600'],
-        categoryId: '1',
-        price: 249,
-        originalPrice: 299,
+        id: "mini-meal",
+        name: "Mini Meal (Veg/Non-Veg)",
+        description:
+          "Light and balanced lunch box with rice, dal, and one curry. Chef’s choice rotates daily to keep it fresh and interesting.",
+        images: [
+          "https://images.unsplash.com/photo-1601050690299-9e2d4a1e2b50?w=300&h=300&fit=crop",
+        ],
+        categoryId: "lunch",
+        categoryIds: ["lunch", "mini-meals", "chef-choice"],
+        price: 169,
+        originalPrice: 189,
         isVeg: true,
         hasEgg: false,
+        rating: 4.5,
+        reviewCount: 310,
+        tags: ["Lunch", "Light Meal", "Chef’s Choice"],
         nutritionInfo: {
-          calories: 380,
-          protein: 22,
-          carbs: 35,
-          fat: 15,
+          calories: 480,
+          protein: 15,
+          carbs: 65,
+          fat: 14,
           fiber: 6,
         },
-        ingredients: ['Paneer', 'Brown rice', 'Mixed vegetables', 'Mint', 'Yogurt'],
-        allergens: ['Dairy'],
+        ingredients: ["Rice", "Dal", "Curry", "Salad"],
+        allergens: ["Gluten"],
         isActive: true,
         isFeatured: true,
         isDraft: false,
-        rating: 4.3,
-        reviewCount: 95,
-        preparationTime: 20,
-        tags: ['Vegetarian', 'High Protein'],
-        availableTimeSlotIds: ['1', '2', '3'],
+        preparationTime: 25,
+        variantPricing: { veg: 169, nonveg: 189 },
+        availableTimeSlotIds: ["2"],
       },
       {
-        id: '3',
-        name: 'Salmon Teriyaki',
-        description: 'Glazed salmon with steamed jasmine rice and Asian vegetables',
-        images: ['https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600'],
-        categoryId: '2',
-        price: 399,
-        originalPrice: 449,
-        isVeg: false,
-        hasEgg: false,
-        nutritionInfo: {
-          calories: 520,
-          protein: 40,
-          carbs: 30,
-          fat: 22,
-          fiber: 4,
-        },
-        ingredients: ['Salmon', 'Jasmine rice', 'Bok choy', 'Carrots', 'Teriyaki sauce'],
-        allergens: ['Fish', 'Soy'],
-        isActive: true,
-        isFeatured: false,
-        isDraft: false,
-        rating: 4.7,
-        reviewCount: 156,
-        preparationTime: 30,
-        tags: ['Omega-3', 'High Protein'],
-        availableTimeSlotIds: ['3', '4'],
-      },
-      {
-        id: '4',
-        name: 'Vegan Buddha Bowl',
-        description: 'Colorful mix of quinoa, roasted chickpeas, avocado, and tahini dressing',
-        images: ['https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600'],
-        categoryId: '1',
-        price: 229,
+        id: "basic-meal",
+        name: "Basic Meal (Veg/Non-Veg)",
+        description:
+          "Everyday home-style thali with rice, roti, dal, and two seasonal curries. Chef’s choice menu changes daily.",
+        images: [
+          "https://images.unsplash.com/photo-1601050690299-9e2d4a1e2b50?w=300&h=300&fit=crop",
+        ],
+        categoryId: "basic-meal",
+        categoryIds: ["lunch", "basic-meals", "chef-choice"],
+        price: 199,
+        originalPrice: 229,
         isVeg: true,
         hasEgg: false,
+        rating: 4.6,
+        reviewCount: 412,
+        tags: ["Chef’s Choice", "Home Style", "Balanced"],
+        nutritionInfo: {
+          calories: 550,
+          protein: 18,
+          carbs: 70,
+          fat: 16,
+          fiber: 8,
+        },
+        ingredients: ["Rice", "Roti", "Dal", "Curry", "Salad"],
+        allergens: ["Gluten"],
+        isActive: true,
+        isFeatured: true,
+        isDraft: false,
+        preparationTime: 30,
+        variantPricing: { veg: 199, nonveg: 229 },
+        availableTimeSlotIds: ["2", "3"],
+      },
+      {
+        id: "millet-meal",
+        name: "Millet Meal",
+        description:
+          "Wholesome millet-based meal with dal, sabzi, and salad. Perfect for those seeking low-GI, gluten-free nutrition.",
+        images: [
+          "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=300&h=300&fit=crop",
+        ],
+        categoryId: "lunch",
+        categoryIds: ["lunch", "millet-meals", "healthy"],
+        price: 219,
+        originalPrice: 249,
+        isVeg: true,
+        hasEgg: false,
+        rating: 4.7,
+        reviewCount: 180,
+        tags: ["Healthy", "Gluten Free", "Chef’s Choice"],
+        nutritionInfo: {
+          calories: 500,
+          protein: 20,
+          carbs: 55,
+          fat: 14,
+          fiber: 9,
+        },
+        ingredients: ["Foxtail Millet", "Dal", "Veg Curry", "Salad"],
+        allergens: [],
+        isActive: true,
+        isFeatured: true,
+        preparationTime: 30,
+        availableTimeSlotIds: ["2", "3"],
+        isDraft: false,
+      },
+      {
+        id: "brown-rice-meal",
+        name: "Meal with Brown Rice",
+        description:
+          "High-fiber brown rice meal with dal and seasonal curry. Great for weight watchers and diabetics.",
+        images: [
+          "https://images.unsplash.com/photo-1604908176997-431310be8d5e?w=300&h=300&fit=crop",
+        ],
+        categoryId: "lunch",
+        categoryIds: ["lunch", "brown-rice-meals", "diabetic-friendly"],
+        price: 229,
+        originalPrice: 259,
+        isVeg: true,
+        hasEgg: false,
+        rating: 4.6,
+        reviewCount: 200,
+        tags: ["Healthy", "Chef’s Choice", "Low GI"],
+        nutritionInfo: {
+          calories: 480,
+          protein: 17,
+          carbs: 58,
+          fat: 15,
+          fiber: 8,
+        },
+        ingredients: ["Brown Rice", "Dal", "Curry", "Salad"],
+        allergens: [],
+        isActive: true,
+        isFeatured: true,
+        preparationTime: 30,
+        availableTimeSlotIds: ["2", "3"],
+        isDraft: false,
+      },
+
+      // -------------------- DINNER --------------------
+      {
+        id: "basic-dinner",
+        name: "Basic Dinner",
+        description:
+          "Light and comforting dinner with roti, sabzi, and salad. Chef’s choice menu rotates daily for variety.",
+        images: [
+          "https://images.unsplash.com/photo-1601050690299-9e2d4a1e2b50?w=300&h=300&fit=crop",
+        ],
+        categoryId: "dinner",
+        categoryIds: ["dinner", "basic-dinner", "chef-choice"],
+        price: 179,
+        originalPrice: 209,
+        isVeg: true,
+        hasEgg: false,
+        rating: 4.5,
+        reviewCount: 250,
+        tags: ["Dinner", "Light", "Chef’s Choice"],
+        nutritionInfo: {
+          calories: 420,
+          protein: 15,
+          carbs: 55,
+          fat: 12,
+          fiber: 6,
+        },
+        ingredients: ["Roti", "Sabzi", "Salad"],
+        allergens: ["Gluten"],
+        isActive: true,
+        isFeatured: true,
+        preparationTime: 25,
+        availableTimeSlotIds: ["3", "4"],
+        isDraft: false,
+      },
+      {
+        id: "healthy-dinner",
+        name: "Healthy Dinner Bowl",
+        description:
+          "Balanced dinner bowl with quinoa/brown rice, dal, and steamed vegetables. Perfect for mindful eaters.",
+        images: [
+          "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=300&h=300&fit=crop",
+        ],
+        categoryId: "dinner",
+        categoryIds: ["dinner", "healthy-dinner", "low-calorie"],
+        price: 249,
+        originalPrice: 279,
+        isVeg: true,
+        hasEgg: false,
+        rating: 4.7,
+        reviewCount: 190,
+        tags: ["Healthy", "Chef’s Choice", "Dinner"],
+        nutritionInfo: {
+          calories: 380,
+          protein: 20,
+          carbs: 45,
+          fat: 10,
+          fiber: 9,
+        },
+        ingredients: ["Quinoa", "Dal", "Steamed Vegetables", "Salad"],
+        allergens: [],
+        isActive: true,
+        isFeatured: true,
+        preparationTime: 25,
+        availableTimeSlotIds: ["3", "4"],
+        isDraft: false,
+      },
+
+      // -------------------- HEALTH GOALS --------------------
+      {
+        id: "high-protein-meal",
+        name: "High Protein Meal",
+        description:
+          "Protein-rich meal with grilled chicken or paneer, brown rice, and veggies. Chef’s choice combinations daily.",
+        images: [
+          "https://images.unsplash.com/photo-1604908176997-431310be8d5e?w=300&h=300&fit=crop",
+        ],
+        categoryId: "high-protein",
+        categoryIds: ["high-protein", "protein-meals", "chef-choice"],
+        price: 299,
+        originalPrice: 339,
+        isVeg: true,
+        hasEgg: false,
+        rating: 4.8,
+        reviewCount: 160,
+        tags: ["High Protein", "Healthy", "Chef’s Choice"],
+        nutritionInfo: {
+          calories: 480,
+          protein: 35,
+          carbs: 40,
+          fat: 12,
+          fiber: 7,
+        },
+        ingredients: ["Paneer/Chicken", "Brown Rice", "Vegetables", "Sauce"],
+        allergens: ["Dairy"],
+        isActive: true,
+        isFeatured: true,
+        preparationTime: 25,
+        availableTimeSlotIds: ["2", "3"],
+        isDraft: false,
+      },
+      {
+        id: "high-protein-salad",
+        name: "High Protein Salad",
+        description:
+          "Fresh salad with grilled chicken/paneer, beans, and seeds. Perfect post-workout fuel.",
+        images: [
+          "https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=300&fit=crop",
+        ],
+        categoryId: "high-protein",
+        categoryIds: ["high-protein", "salads", "healthy"],
+        price: 249,
+        originalPrice: 279,
+        isVeg: true,
+        hasEgg: false,
+        rating: 4.7,
+        reviewCount: 140,
+        tags: ["Salad", "Protein Rich", "Healthy"],
+        nutritionInfo: {
+          calories: 350,
+          protein: 28,
+          carbs: 20,
+          fat: 10,
+          fiber: 8,
+        },
+        ingredients: ["Paneer/Chicken", "Beans", "Lettuce", "Seeds"],
+        allergens: ["Dairy"],
+        isActive: true,
+        isFeatured: true,
+        preparationTime: 20,
+        availableTimeSlotIds: ["2", "3", "4"],
+        isDraft: false,
+      },
+      {
+        id: "protein-shake",
+        name: "Protein Shake",
+        description:
+          "Thick and creamy protein shake — chocolate, vanilla or banana. Select delivery days you prefer.",
+        images: [
+          "https://images.unsplash.com/photo-1615484477219-6b6c7f5b33e1?w=300&h=300&fit=crop",
+        ],
+        categoryId: "drinks",
+        categoryIds: ["drinks", "protein-shake", "high-protein"],
+        price: 149,
+        isVeg: true,
+        hasEgg: false,
+        rating: 4.5,
+        reviewCount: 120,
+        tags: ["Drink", "Protein", "Fixed"],
+        nutritionInfo: {
+          calories: 220,
+          protein: 25,
+          carbs: 8,
+          fat: 4,
+          fiber: 2,
+        },
+        ingredients: ["Whey Protein", "Milk", "Banana"],
+        allergens: ["Dairy"],
+        isActive: true,
+        isFeatured: true,
+        allowDaySelection: true,
+        preparationTime: 5,
+        availableTimeSlotIds: ["1", "2", "3", "4"],
+        isDraft: false,
+      },
+
+      // -------------------- LOW CALORIE --------------------
+      {
+        id: "low-calorie-meal",
+        name: "Low Calorie Meal",
+        description:
+          "Under 400 calorie meal with brown rice, dal, and sauteed veggies. Ideal for weight management.",
+        images: [
+          "https://images.unsplash.com/photo-1612197527762-4c1a2b3ffb72?w=300&h=300&fit=crop",
+        ],
+        categoryId: "low-calorie",
+        categoryIds: ["low-calorie", "healthy", "chef-choice"],
+        price: 239,
+        originalPrice: 269,
+        isVeg: true,
+        rating: 4.6,
+        reviewCount: 95,
+        tags: ["Low Calorie", "Healthy", "Chef’s Choice"],
+        nutritionInfo: {
+          calories: 380,
+          protein: 18,
+          carbs: 45,
+          fat: 10,
+          fiber: 8,
+        },
+        ingredients: ["Brown Rice", "Dal", "Vegetables", "Salad"],
+        allergens: [],
+        isActive: true,
+        isFeatured: true,
+        preparationTime: 25,
+        availableTimeSlotIds: ["2", "3"],
+        isDraft: false,
+        hasEgg: false,
+      },
+      {
+        id: "low-calorie-salad",
+        name: "Low Calorie Salad",
+        description:
+          "Fresh low-calorie salad with greens, sprouts, and lemon dressing. Fixed menu.",
+        images: [
+          "https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=300&fit=crop",
+        ],
+        categoryId: "low-calorie",
+        categoryIds: ["low-calorie", "salads", "healthy"],
+        price: 179,
+        isVeg: true,
+        rating: 4.5,
+        reviewCount: 80,
+        tags: ["Healthy", "Salad", "Fixed"],
+        nutritionInfo: {
+          calories: 200,
+          protein: 8,
+          carbs: 25,
+          fat: 6,
+          fiber: 6,
+        },
+        ingredients: ["Lettuce", "Sprouts", "Cucumber", "Lemon Dressing"],
+        allergens: [],
+        isActive: true,
+        isFeatured: true,
+        preparationTime: 10,
+        availableTimeSlotIds: ["1", "2", "3"],
+        isDraft: false,
+        hasEgg: false,
+      },
+
+      // -------------------- LIFESTYLE --------------------
+      {
+        id: "diabetic-friendly-meal",
+        name: "Diabetic Friendly Meal",
+        description:
+          "Low GI millet or brown rice meal, rich in fiber and nutrients. Designed for steady energy release.",
+        images: [
+          "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=300&h=300&fit=crop",
+        ],
+        categoryId: "lifestyle",
+        categoryIds: ["lifestyle", "diabetic-friendly", "healthy"],
+        price: 249,
+        originalPrice: 279,
+        isVeg: true,
+        rating: 4.6,
+        reviewCount: 120,
+        tags: ["Healthy", "Low GI", "Chef’s Choice"],
         nutritionInfo: {
           calories: 420,
           protein: 18,
-          carbs: 45,
-          fat: 20,
-          fiber: 12,
+          carbs: 50,
+          fat: 12,
+          fiber: 9,
         },
-        ingredients: ['Quinoa', 'Chickpeas', 'Avocado', 'Kale', 'Tahini'],
-        allergens: ['Sesame'],
+        ingredients: ["Millet", "Dal", "Curry", "Salad"],
+        allergens: [],
         isActive: true,
         isFeatured: true,
-        isDraft: true,
-        rating: 4.4,
-        reviewCount: 87,
-        preparationTime: 15,
-        tags: ['Vegan', 'High Fiber'],
-        availableTimeSlotIds: ['1'],
+        preparationTime: 25,
+        availableTimeSlotIds: ["2", "3"],
+        isDraft: false,
+        hasEgg: false,
       },
+      {
+        id: "calcium-rich-meal",
+        name: "Calcium Rich Meal",
+        description:
+          "High-calcium meal with paneer, sesame, and greens. Chef’s curated for bone health.",
+        images: [
+          "https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=300&fit=crop",
+        ],
+        categoryId: "lifestyle",
+        categoryIds: ["lifestyle", "calcium-rich", "healthy"],
+        price: 259,
+        isVeg: true,
+        rating: 4.7,
+        reviewCount: 85,
+        tags: ["Healthy", "Calcium", "Chef’s Choice"],
+        nutritionInfo: {
+          calories: 460,
+          protein: 20,
+          carbs: 50,
+          fat: 14,
+          fiber: 8,
+        },
+        ingredients: ["Paneer", "Spinach", "Sesame", "Dal", "Salad"],
+        allergens: ["Dairy", "Sesame"],
+        isActive: true,
+        isFeatured: true,
+        preparationTime: 25,
+        availableTimeSlotIds: ["2", "3"],
+        isDraft: false,
+        hasEgg: false,
+      },
+
+      // -------------------- DRINKS & BOOSTERS --------------------
+      {
+        id: "detox-water",
+        name: "Detox Water",
+        description:
+          "Infused detox water with lemon, mint, and cucumber. Select your preferred delivery days.",
+        images: [
+          "https://images.unsplash.com/photo-1544145945-f90425340c7e?w=300&h=300&fit=crop",
+        ],
+        categoryId: "drinks",
+        categoryIds: ["drinks", "detox-water", "boosters"],
+        price: 79,
+        isVeg: true,
+        allowDaySelection: true,
+        rating: 4.4,
+        reviewCount: 60,
+        tags: ["Drink", "Detox", "Fixed"],
+        nutritionInfo: { calories: 10, protein: 0, carbs: 2, fat: 0, fiber: 0 },
+        ingredients: ["Water", "Lemon", "Mint", "Cucumber"],
+        allergens: [],
+        isActive: true,
+        isFeatured: true,
+        preparationTime: 5,
+        availableTimeSlotIds: ["1", "2", "3", "4"],
+        isDraft: false,
+        hasEgg: false,
+      },
+      {
+        id: "coldpress-juice",
+        name: "Coldpress Juice",
+        description:
+          "Cold-pressed juice from seasonal fruits and vegetables. Choose delivery days.",
+        images: [
+          "https://images.unsplash.com/photo-1544145945-f90425340c7e?w=300&h=300&fit=crop",
+        ],
+        categoryId: "drinks",
+        categoryIds: ["drinks", "coldpress-juice", "juices"],
+        price: 99,
+        allowDaySelection: true,
+        isVeg: true,
+        rating: 4.5,
+        reviewCount: 100,
+        tags: ["Juice", "Healthy", "Fresh"],
+        nutritionInfo: {
+          calories: 90,
+          protein: 2,
+          carbs: 20,
+          fat: 0,
+          fiber: 1,
+        },
+        ingredients: ["Apple", "Carrot", "Ginger", "Lemon"],
+        allergens: [],
+        isActive: true,
+        isFeatured: true,
+        preparationTime: 5,
+        availableTimeSlotIds: ["1", "2", "3"],
+        isDraft: false,
+        hasEgg: false,
+      },
+
+      // -------------------- ADD-ONS --------------------
     ];
   }
 
   private getInitialAddOns(): AddOn[] {
     return [
       {
-        id: '1',
-        name: 'Greek Yogurt',
-        description: 'Creamy Greek yogurt with honey',
-        image: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=300',
-        price: 49,
-        category: 'dessert',
-        isVeg: true,
+        id: "boiled-egg",
+        name: "Boiled Egg",
+        description:
+          "Simple protein-packed boiled egg — perfect add-on for any meal.",
+        category: "add-ons",
+        price: 25,
+        isVeg: false,
         isActive: true,
+        image:
+          "https://images.unsplash.com/photo-1604908176997-431310be8d5e?w=300&h=300&fit=crop",
       },
       {
-        id: '2',
-        name: 'Mixed Nuts',
-        description: 'Roasted almonds, walnuts, and cashews',
-        image: 'https://images.unsplash.com/photo-1508747703725-719777637510?w=300',
-        price: 79,
-        category: 'snack',
-        isVeg: true,
+        id: "omelette",
+        name: "Omelette",
+        description: "Classic masala omelette. Add to your breakfast or lunch.",
+        category: "add-ons",
+        price: 39,
+        isVeg: false,
         isActive: true,
+        image:
+          "https://images.unsplash.com/photo-1604908176997-431310be8d5e?w=300&h=300&fit=crop",
       },
       {
-        id: '3',
-        name: 'Fresh Juice',
-        description: 'Freshly squeezed orange juice',
-        image: 'https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=300',
+        id: "fruit-bowl",
+        name: "Fruit Bowl",
+        description:
+          "Seasonal mixed fruit bowl. Healthy and refreshing add-on.",
+        category: "add-ons",
         price: 59,
-        category: 'beverage',
         isVeg: true,
+        isActive: true,
+        image:
+          "https://images.unsplash.com/photo-1604908176997-431310be8d5e?w=300&h=300&fit=crop",
+      },
+      {
+        id: "sprouts-bowl",
+        name: "Sprouts Bowl",
+        description:
+          "Freshly sprouted green gram with lemon and spices. Great for mid-day snack.",
+        category: "add-ons",
+        price: 49,
+        isVeg: true,
+        isActive: true,
+        image:
+          "https://images.unsplash.com/photo-1604908176997-431310be8d5e?w=300&h=300&fit=crop",
+      },
+      {
+        id: "sweet",
+        name: "Dessert (Chef’s Choice)",
+        description:
+          "Rotating sweet of the day — kheer, halwa or gulab jamun. Chef’s selection.",
+        category: "add-ons",
+        price: 69,
+        isVeg: true,
+        isActive: true,
+        image:
+          "https://images.unsplash.com/photo-1604908176997-431310be8d5e?w=300&h=300&fit=crop",
+      },
+      {
+        id: "chicken-curry-addon",
+        name: "Chicken Curry (Add-on)",
+        description:
+          "Homestyle chicken curry add-on to enhance your thali or meal.",
+        category: "add-ons",
+        price: 99,
+        isVeg: false,
+        isActive: true,
+        image:
+          "https://images.unsplash.com/photo-1604908176997-431310be8d5e?w=300&h=300&fit=crop",
+      },
+      {
+        id: "chicken-fry-addon",
+        name: "Chicken Fry (Add-on)",
+        description: "Spicy chicken fry add-on. Great with biryani or thali.",
+        image:
+          "https://images.unsplash.com/photo-1604908176997-431310be8d5e?w=300&h=300&fit=crop",
+        category: "dessert",
+        price: 109,
+        isVeg: false,
         isActive: true,
       },
     ];
@@ -1766,35 +2727,35 @@ class Database {
   private getInitialPlans(): Plan[] {
     return [
       {
-        id: '1',
-        name: 'Trial Plan',
+        id: "1",
+        name: "Trial Plan",
         days: 2,
         discount: 0,
-        description: 'Try our meals for 2 days',
+        description: "Try our meals for 2 days",
         isActive: true,
       },
       {
-        id: '2',
-        name: 'Weekly Plan',
+        id: "2",
+        name: "Weekly Plan",
         days: 6,
         discount: 10,
-        description: '6 days meal plan with 10% discount',
+        description: "6 days meal plan with 10% discount",
         isActive: true,
       },
       {
-        id: '3',
-        name: 'Bi-weekly Plan',
+        id: "3",
+        name: "Bi-weekly Plan",
         days: 15,
         discount: 15,
-        description: '15 days meal plan with 15% discount',
+        description: "15 days meal plan with 15% discount",
         isActive: true,
       },
       {
-        id: '4',
-        name: 'Monthly Plan',
+        id: "4",
+        name: "Monthly Plan",
         days: 26,
         discount: 20,
-        description: '26 days meal plan with 20% discount',
+        description: "26 days meal plan with 20% discount",
         isActive: true,
       },
     ];
@@ -1803,32 +2764,35 @@ class Database {
   private getInitialBanners(): Banner[] {
     return [
       {
-        id: '1',
-        title: 'Healthy Meals Delivered',
-        subtitle: 'Fresh, nutritious meals at your doorstep',
-        image: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=800',
-        actionType: 'category',
-        actionValue: '1',
+        id: "1",
+        title: "Healthy Meals Delivered",
+        subtitle: "Fresh, nutritious meals at your doorstep",
+        image:
+          "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=800",
+        actionType: "category",
+        actionValue: "1",
         isActive: true,
         sortOrder: 1,
       },
       {
-        id: '2',
-        title: '20% Off First Order',
-        subtitle: 'Use code WELCOME20 for new customers',
-        image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=800',
-        actionType: 'offer',
-        actionValue: '1',
+        id: "2",
+        title: "20% Off First Order",
+        subtitle: "Use code WELCOME20 for new customers",
+        image:
+          "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=800",
+        actionType: "offer",
+        actionValue: "1",
         isActive: true,
         sortOrder: 2,
       },
       {
-        id: '3',
-        title: 'Protein Power Meals',
-        subtitle: 'High protein meals for fitness goals',
-        image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800',
-        actionType: 'category',
-        actionValue: '3',
+        id: "3",
+        title: "Protein Power Meals",
+        subtitle: "High protein meals for fitness goals",
+        image:
+          "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800",
+        actionType: "category",
+        actionValue: "3",
         isActive: true,
         sortOrder: 3,
       },
@@ -1838,29 +2802,35 @@ class Database {
   private getInitialTestimonials(): Testimonial[] {
     return [
       {
-        id: '1',
-        userName: 'Priya Sharma',
-        userImage: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150',
+        id: "1",
+        userName: "Priya Sharma",
+        userImage:
+          "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150",
         rating: 5,
-        comment: 'Amazing food quality and timely delivery. The meals are fresh and delicious!',
+        comment:
+          "Amazing food quality and timely delivery. The meals are fresh and delicious!",
         isActive: true,
         createdAt: new Date(),
       },
       {
-        id: '2',
-        userName: 'Rahul Kumar',
-        userImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+        id: "2",
+        userName: "Rahul Kumar",
+        userImage:
+          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
         rating: 5,
-        comment: 'Perfect for my fitness goals. High protein meals that actually taste great.',
+        comment:
+          "Perfect for my fitness goals. High protein meals that actually taste great.",
         isActive: true,
         createdAt: new Date(),
       },
       {
-        id: '3',
-        userName: 'Anita Patel',
-        userImage: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
+        id: "3",
+        userName: "Anita Patel",
+        userImage:
+          "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150",
         rating: 4,
-        comment: 'Convenient and healthy. Love the variety of vegetarian options available.',
+        comment:
+          "Convenient and healthy. Love the variety of vegetarian options available.",
         isActive: true,
         createdAt: new Date(),
       },
@@ -1870,53 +2840,75 @@ class Database {
   private getInitialOffers(): Offer[] {
     return [
       {
-        id: '1',
-        title: 'Welcome Offer',
-        description: '20% off on your first order',
-        image: 'https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?w=400',
-        discountType: 'percentage',
+        id: "1",
+        title: "Welcome Offer",
+        description: "20% off on your first order",
+        image:
+          "https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?w=400",
+        discountType: "percentage",
         discountValue: 20,
         minOrderAmount: 199,
         maxDiscount: 100,
-        promoCode: 'WELCOME20',
+        promoCode: "WELCOME20",
         validFrom: new Date(),
         validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         isActive: true,
         usageLimit: 1000,
         usedCount: 0,
-        offerType: 'discount',
+        offerType: "discount",
       },
       {
-        id: '2',
-        title: 'Wallet Cashback',
-        description: 'Get ₹50 cashback on orders above ₹500',
-        image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400',
-        discountType: 'cashback',
+        id: "2",
+        title: "Wallet Cashback",
+        description: "Get ₹50 cashback on orders above ₹500",
+        image:
+          "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400",
+        discountType: "cashback",
         discountValue: 50,
         minOrderAmount: 500,
         validFrom: new Date(),
         validTo: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
         isActive: true,
         usedCount: 0,
-        offerType: 'cashback',
+        offerType: "cashback",
       },
     ];
   }
 
   private getInitialTimeSlots(): TimeSlot[] {
     return [
-      { id: '1', time: '12:00 PM - 1:00 PM', label: 'Lunch Time', isActive: true },
-      { id: '2', time: '1:00 PM - 2:00 PM', label: 'Afternoon', isActive: true },
-      { id: '3', time: '7:00 PM - 8:00 PM', label: 'Dinner Time', isActive: true },
-      { id: '4', time: '8:00 PM - 9:00 PM', label: 'Late Dinner', isActive: true },
+      {
+        id: "1",
+        time: "12:00 PM - 1:00 PM",
+        label: "Lunch Time",
+        isActive: true,
+      },
+      {
+        id: "2",
+        time: "1:00 PM - 2:00 PM",
+        label: "Afternoon",
+        isActive: true,
+      },
+      {
+        id: "3",
+        time: "7:00 PM - 8:00 PM",
+        label: "Dinner Time",
+        isActive: true,
+      },
+      {
+        id: "4",
+        time: "8:00 PM - 9:00 PM",
+        label: "Late Dinner",
+        isActive: true,
+      },
     ];
   }
 
   private getInitialServiceableLocations(): ServiceableLocation[] {
     return [
       {
-        id: '1',
-        name: 'Koramangala',
+        id: "1",
+        name: "Koramangala",
         coordinates: {
           latitude: 12.9352,
           longitude: 77.6245,
@@ -1926,8 +2918,8 @@ class Database {
         isActive: true,
       },
       {
-        id: '2',
-        name: 'Indiranagar',
+        id: "2",
+        name: "Indiranagar",
         coordinates: {
           latitude: 12.9719,
           longitude: 77.6412,
@@ -1937,11 +2929,11 @@ class Database {
         isActive: true,
       },
       {
-        id: '3',
-        name: 'Whitefield',
+        id: "3",
+        name: "Whitefield",
         coordinates: {
           latitude: 12.9698,
-          longitude: 77.7500,
+          longitude: 77.75,
         },
         radius: 6,
         deliveryFee: 39,
@@ -1953,20 +2945,20 @@ class Database {
   private getInitialDeliveryPersons(): DeliveryPerson[] {
     return [
       {
-        id: '1',
-        name: 'Ravi Kumar',
-        phone: '+919876543210',
-        email: 'ravi@foodapp.com',
-        vehicleNumber: 'KA01AB1234',
+        id: "1",
+        name: "Ravi Kumar",
+        phone: "+919876543210",
+        email: "ravi@foodapp.com",
+        vehicleNumber: "KA01AB1234",
         isActive: true,
         isAvailable: true,
       },
       {
-        id: '2',
-        name: 'Suresh Reddy',
-        phone: '+919876543211',
-        email: 'suresh@foodapp.com',
-        vehicleNumber: 'KA01CD5678',
+        id: "2",
+        name: "Suresh Reddy",
+        phone: "+919876543211",
+        email: "suresh@foodapp.com",
+        vehicleNumber: "KA01CD5678",
         isActive: true,
         isAvailable: true,
       },
@@ -1976,19 +2968,19 @@ class Database {
   private getInitialKitchenStaff(): KitchenStaff[] {
     return [
       {
-        id: '1',
-        name: 'Chef Ramesh',
-        phone: '+919876543212',
-        email: 'ramesh@foodapp.com',
-        role: 'chef',
+        id: "1",
+        name: "Chef Ramesh",
+        phone: "+919876543212",
+        email: "ramesh@foodapp.com",
+        role: "chef",
         isActive: true,
       },
       {
-        id: '2',
-        name: 'Assistant Priya',
-        phone: '+919876543213',
-        email: 'priya@foodapp.com',
-        role: 'assistant',
+        id: "2",
+        name: "Assistant Priya",
+        phone: "+919876543213",
+        email: "priya@foodapp.com",
+        role: "assistant",
         isActive: true,
       },
     ];
@@ -1997,26 +2989,29 @@ class Database {
   private getInitialFAQs(): FAQ[] {
     return [
       {
-        id: '1',
-        question: 'How do I place an order?',
-        answer: 'You can browse our menu, select your meals, choose a subscription plan, and proceed to checkout.',
-        category: 'Orders',
+        id: "1",
+        question: "How do I place an order?",
+        answer:
+          "You can browse our menu, select your meals, choose a subscription plan, and proceed to checkout.",
+        category: "Orders",
         isActive: true,
         sortOrder: 1,
       },
       {
-        id: '2',
-        question: 'What are your delivery timings?',
-        answer: 'We deliver lunch between 12:00 PM - 2:00 PM and dinner between 7:00 PM - 9:00 PM.',
-        category: 'Delivery',
+        id: "2",
+        question: "What are your delivery timings?",
+        answer:
+          "We deliver lunch between 12:00 PM - 2:00 PM and dinner between 7:00 PM - 9:00 PM.",
+        category: "Delivery",
         isActive: true,
         sortOrder: 2,
       },
       {
-        id: '3',
-        question: 'Can I skip meals?',
-        answer: 'Yes, you can skip meals up to 10:00 AM for lunch and 4:00 PM for dinner on the same day.',
-        category: 'Subscription',
+        id: "3",
+        question: "Can I skip meals?",
+        answer:
+          "Yes, you can skip meals up to 10:00 AM for lunch and 4:00 PM for dinner on the same day.",
+        category: "Subscription",
         isActive: true,
         sortOrder: 3,
       },
@@ -2029,48 +3024,51 @@ class Database {
       minOrderAmount: 199,
       deliveryFee: 29,
       freeDeliveryAbove: 499,
-      orderCutoffTime: '10:00',
-      skipCutoffTime: '09:00',
-      addOnCutoffTime: '08:00',
-      kitchenStartTime: '08:30',
-      deliveryStartTime: '09:00',
-      supportPhone: '+919999999999',
-      supportEmail: 'support@foodapp.com',
-      whatsappNumber: '+919999999999',
+      orderCutoffTime: "10:00",
+      skipCutoffTime: "09:00",
+      addOnCutoffTime: "08:00",
+      kitchenStartTime: "08:30",
+      deliveryStartTime: "09:00",
+      supportPhone: "+919999999999",
+      supportEmail: "support@foodapp.com",
+      whatsappNumber: "+919999999999",
     };
   }
 
   private getInitialSupportTickets(): SupportTicket[] {
     return [
       {
-        id: '1',
-        userId: '4',
-        subject: 'Delivery Issue',
-        message: 'My meal was not delivered today. I was waiting at home but no one came.',
-        status: 'open',
-        priority: 'high',
+        id: "1",
+        userId: "4",
+        subject: "Delivery Issue",
+        message:
+          "My meal was not delivered today. I was waiting at home but no one came.",
+        status: "open",
+        priority: "high",
         createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
         updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
       },
       {
-        id: '2',
-        userId: '4',
-        subject: 'Meal Quality Concern',
-        message: 'The meal I received yesterday was cold and the taste was not up to the mark.',
-        status: 'in_progress',
-        priority: 'medium',
-        assignedTo: '1',
+        id: "2",
+        userId: "4",
+        subject: "Meal Quality Concern",
+        message:
+          "The meal I received yesterday was cold and the taste was not up to the mark.",
+        status: "in_progress",
+        priority: "medium",
+        assignedTo: "1",
         createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
         updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
       },
       {
-        id: '3',
-        userId: '4',
-        subject: 'Subscription Modification',
-        message: 'I want to change my delivery time from lunch to dinner. How can I do this?',
-        status: 'resolved',
-        priority: 'low',
-        assignedTo: '1',
+        id: "3",
+        userId: "4",
+        subject: "Subscription Modification",
+        message:
+          "I want to change my delivery time from lunch to dinner. How can I do this?",
+        status: "resolved",
+        priority: "low",
+        assignedTo: "1",
         createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
         updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
       },
@@ -2080,54 +3078,59 @@ class Database {
   private getInitialSupportMessages(): SupportMessage[] {
     return [
       {
-        id: '1',
-        ticketId: '2',
-        senderId: '1',
-        senderType: 'admin',
-        message: 'Hi! Thank you for reaching out. I\'m sorry to hear about the quality issue. We take this very seriously.',
+        id: "1",
+        ticketId: "2",
+        senderId: "1",
+        senderType: "admin",
+        message:
+          "Hi! Thank you for reaching out. I'm sorry to hear about the quality issue. We take this very seriously.",
         isRead: true,
         createdAt: new Date(Date.now() - 23 * 60 * 60 * 1000),
-        deliveryStatus: 'read',
+        deliveryStatus: "read",
       },
       {
-        id: '2',
-        ticketId: '2',
-        senderId: '4',
-        senderType: 'user',
-        message: 'Thank you for the quick response. I appreciate your concern.',
+        id: "2",
+        ticketId: "2",
+        senderId: "4",
+        senderType: "user",
+        message: "Thank you for the quick response. I appreciate your concern.",
         isRead: true,
         createdAt: new Date(Date.now() - 22 * 60 * 60 * 1000),
-        deliveryStatus: 'read',
+        deliveryStatus: "read",
       },
       {
-        id: '3',
-        ticketId: '2',
-        senderId: '1',
-        senderType: 'admin',
-        message: 'We\'ve credited ₹100 to your wallet as compensation. We\'ve also spoken to our kitchen team to ensure this doesn\'t happen again.',
+        id: "3",
+        ticketId: "2",
+        senderId: "1",
+        senderType: "admin",
+        message:
+          "We've credited ₹100 to your wallet as compensation. We've also spoken to our kitchen team to ensure this doesn't happen again.",
         isRead: true,
         createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
-        deliveryStatus: 'delivered',
+        deliveryStatus: "delivered",
       },
       {
-        id: '4',
-        ticketId: '3',
-        senderId: '1',
-        senderType: 'admin',
-        message: 'You can change your delivery time by going to your subscription settings. I\'ve updated it to dinner time (7-8 PM) for you.',
+        id: "4",
+        ticketId: "3",
+        senderId: "1",
+        senderType: "admin",
+        message:
+          "You can change your delivery time by going to your subscription settings. I've updated it to dinner time (7-8 PM) for you.",
         isRead: true,
         createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-        deliveryStatus: 'read',
+        deliveryStatus: "read",
       },
       {
-        id: '5',
-        ticketId: '3',
-        senderId: '4',
-        senderType: 'user',
-        message: 'Perfect! Thank you so much for the help.',
+        id: "5",
+        ticketId: "3",
+        senderId: "4",
+        senderType: "user",
+        message: "Perfect! Thank you so much for the help.",
         isRead: true,
-        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000),
-        deliveryStatus: 'read',
+        createdAt: new Date(
+          Date.now() - 2 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000
+        ),
+        deliveryStatus: "read",
       },
     ];
   }
@@ -2135,64 +3138,64 @@ class Database {
   private getInitialSubscriptions(): Subscription[] {
     return [
       {
-        id: '1',
-        userId: '4',
-        planId: '2',
-        mealId: '1',
+        id: "1",
+        userId: "4",
+        planId: "2",
+        mealId: "1",
         addOns: [],
         startDate: new Date(),
         endDate: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000),
-        deliveryTimeSlot: '12:00 PM - 1:00 PM',
-        weekendExclusion: 'sunday',
-        weekType: 'mon-fri',
+        deliveryTimeSlot: "12:00 PM - 1:00 PM",
+        weekendExclusion: "sunday",
+        weekType: "mon-fri",
         totalAmount: 1499,
         paidAmount: 1499,
         totalDeliveries: 6,
         remainingDeliveries: 4,
-        status: 'active',
-        paymentStatus: 'paid',
+        status: "active",
+        paymentStatus: "paid",
         createdAt: new Date(),
         skippedDates: [],
         additionalAddOns: {},
       },
       {
-        id: '2',
-        userId: '4',
-        planId: '3',
-        mealId: '2',
-        addOns: ['1'],
+        id: "2",
+        userId: "4",
+        planId: "3",
+        mealId: "2",
+        addOns: ["1"],
         startDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
         endDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
-        deliveryTimeSlot: '7:00 PM - 8:00 PM',
-        weekendExclusion: 'sunday',
-        weekType: 'mon-fri',
+        deliveryTimeSlot: "7:00 PM - 8:00 PM",
+        weekendExclusion: "sunday",
+        weekType: "mon-fri",
         totalAmount: 3599,
         paidAmount: 3599,
         totalDeliveries: 15,
         remainingDeliveries: 10,
-        status: 'active',
-        paymentStatus: 'paid',
+        status: "active",
+        paymentStatus: "paid",
         createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
         skippedDates: [],
         additionalAddOns: {},
       },
       {
-        id: '3',
-        userId: '4',
-        planId: '1',
-        mealId: '4',
+        id: "3",
+        userId: "4",
+        planId: "1",
+        mealId: "4",
         addOns: [],
         startDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
         endDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
-        deliveryTimeSlot: '1:00 PM - 2:00 PM',
-        weekendExclusion: 'sunday',
-        weekType: 'mon-fri',
+        deliveryTimeSlot: "1:00 PM - 2:00 PM",
+        weekendExclusion: "sunday",
+        weekType: "mon-fri",
         totalAmount: 299,
         paidAmount: 299,
         totalDeliveries: 2,
         remainingDeliveries: 1,
-        status: 'active',
-        paymentStatus: 'paid',
+        status: "active",
+        paymentStatus: "paid",
         createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
         skippedDates: [],
         additionalAddOns: {},
