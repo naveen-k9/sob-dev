@@ -256,66 +256,89 @@ export async function fetchCategories(): Promise<Category[]> {
         .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
     }
 
-    // If no items in Firebase, try database
-    const db = (await import("@/db")).default;
-    const dbCategories = await db.getCategories();
-
-    if (dbCategories && dbCategories.length > 0) {
-      return dbCategories
-        .filter((c) => c?.isActive ?? true)
-        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-    }
-
-    // If still no categories, use initial data
+    // If no items in Firebase, use constants/data.ts as source of truth
     const { categories } = await import("@/constants/data");
     return (categories ?? [])
       .filter((c) => c?.isActive ?? true)
       .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   } catch (error) {
     console.error("[Firebase] Error fetching categories:", error);
-    // Final fallback to database
-    const db = (await import("@/db")).default;
-    return db.getCategories();
+    // Final fallback to constants/data.ts
+    try {
+      const { categories } = await import("@/constants/data");
+      return (categories ?? [])
+        .filter((c) => c?.isActive ?? true)
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    } catch (e) {
+      console.error("[Firebase] Failed to load fallback categories:", e);
+      return [];
+    }
   }
 }
 
 export async function fetchMeals(): Promise<Meal[]> {
   try {
     const items = await fetchCollection<Meal>("meals");
-    const validItems = items.filter(
-      (m) =>
-        m &&
-        typeof m.id === "string" &&
-        typeof m.name === "string" &&
-        typeof m.price === "number"
-    );
-    return validItems.filter(
-      (m) => (m?.isActive ?? true) && !(m as any)?.isDraft
+    if (items && items.length > 0) {
+      const validItems = items.filter(
+        (m) =>
+          m &&
+          typeof m.id === "string" &&
+          typeof m.name === "string" &&
+          typeof m.price === "number"
+      );
+      return validItems.filter(
+        (m) => (m?.isActive ?? true) && !(m as any)?.isDraft
+      );
+    }
+
+    // If no items in Firebase, use constants/data.ts as source of truth
+    const { Meals } = await import("@/constants/data");
+    return (Meals ?? []).filter(
+      (m) => (m?.isActive ?? true) && !m?.isDraft
     );
   } catch (error) {
     console.error("[Firebase] Error fetching meals:", error);
-    // Fallback to database
-    const db = (await import("@/db")).default;
-    return db.getMeals();
+    // Final fallback to constants/data.ts
+    try {
+      const { Meals } = await import("@/constants/data");
+      return (Meals ?? []).filter(
+        (m) => (m?.isActive ?? true) && !m?.isDraft
+      );
+    } catch (e) {
+      console.error("[Firebase] Failed to load fallback meals:", e);
+      return [];
+    }
   }
 }
 
 export async function fetchAddOns(): Promise<AddOn[]> {
   try {
     const items = await fetchCollection<AddOn>("addons");
-    const validItems = items.filter(
-      (a) =>
-        a &&
-        typeof a.id === "string" &&
-        typeof a.name === "string" &&
-        typeof a.price === "number"
-    );
-    return validItems.filter((a) => a?.isActive ?? true);
+    if (items && items.length > 0) {
+      const validItems = items.filter(
+        (a) =>
+          a &&
+          typeof a.id === "string" &&
+          typeof a.name === "string" &&
+          typeof a.price === "number"
+      );
+      return validItems.filter((a) => a?.isActive ?? true);
+    }
+
+    // If no items in Firebase, use constants/data.ts as source of truth
+    const { addOns } = await import("@/constants/data");
+    return (addOns ?? []).filter((a) => a?.isActive ?? true);
   } catch (error) {
     console.error("[Firebase] Error fetching add-ons:", error);
-    // Fallback to database
-    const db = (await import("@/db")).default;
-    return db.getAddOns();
+    // Final fallback to constants/data.ts
+    try {
+      const { addOns } = await import("@/constants/data");
+      return (addOns ?? []).filter((a) => a?.isActive ?? true);
+    } catch (e) {
+      console.error("[Firebase] Failed to load fallback add-ons:", e);
+      return [];
+    }
   }
 }
 
@@ -432,23 +455,36 @@ export async function notifyServiceAreaAvailable(
 }
 
 export async function seedIfEmpty(): Promise<{ seeded: boolean }[]> {
+  console.log('[firebase] seedIfEmpty started');
   const tasks: Array<Promise<{ seeded: boolean }>> = [];
   const { banners, categories, Meals, testimonials, addOns } = await import(
     "@/constants/data"
   );
 
+  console.log('[firebase] Data loaded from constants:', {
+    banners: banners.length,
+    categories: categories.length,
+    meals: Meals.length,
+    testimonials: testimonials.length,
+    addOns: addOns.length,
+  });
+
   async function ensureCollection<T>(
     name: string,
-    fetcher: () => Promise<T[]>,
     records: any[],
     idKey: string = "id"
   ) {
     try {
-      const existing = await fetcher();
+      console.log(`[firebase] Checking ${name} in Firebase...`);
+      // Check Firebase directly without fallback
+      const existing = await fetchCollection<T>(name);
+      console.log(`[firebase] ${name} existing count: ${existing?.length ?? 0}`);
+      
       if ((existing?.length ?? 0) > 0) {
         console.log(`[firebase] ${name} already present: ${existing.length}`);
         return { seeded: false };
       }
+      
       console.log(`[firebase] Seeding ${name} with ${records.length} docs...`);
       for (const rec of records) {
         const id = (
@@ -456,27 +492,26 @@ export async function seedIfEmpty(): Promise<{ seeded: boolean }[]> {
         ).toString();
         await createDocument(name, id, rec);
       }
+      console.log(`[firebase] ✓ Successfully seeded ${records.length} documents to ${name}`);
       return { seeded: true };
     } catch (e) {
-      console.log(`[firebase] ensureCollection error for ${name}`, e);
+      console.error(`[firebase] ensureCollection error for ${name}:`, e);
       return { seeded: false };
     }
   }
 
   tasks.push(
-    ensureCollection<Banner>("banners", fetchBanners, banners as Banner[])
+    ensureCollection<Banner>("banners", banners as Banner[])
   );
   tasks.push(
     ensureCollection<Category>(
       "categories",
-      fetchCategories,
       categories as Category[]
     )
   );
   tasks.push(
     ensureCollection<Meal>(
       "meals",
-      fetchMeals,
       ([...Meals] as Meal[]).map((m) => ({
         ...m,
         isDraft: false,
@@ -486,14 +521,12 @@ export async function seedIfEmpty(): Promise<{ seeded: boolean }[]> {
   tasks.push(
     ensureCollection<Testimonial>(
       "testimonials",
-      fetchTestimonials,
       testimonials as Testimonial[]
     )
   );
   tasks.push(
     ensureCollection<AddOn>(
       "addons",
-      fetchAddOns,
       (addOns as AddOn[]).map((a) => ({ ...a, isActive: true }))
     )
   );
@@ -578,7 +611,7 @@ export async function seedIfEmpty(): Promise<{ seeded: boolean }[]> {
   ];
 
   tasks.push(
-    ensureCollection<User>("users", fetchUsers, initialUsers as User[])
+    ensureCollection<User>("users", initialUsers as User[])
   );
 
   return Promise.all(tasks);

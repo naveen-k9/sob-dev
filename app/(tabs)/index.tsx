@@ -152,7 +152,12 @@ export default function HomeScreen() {
   }
 
   const handleCategoryPress = (categoryId: string) => {
-    router.push(`/menu?categoryId=${encodeURIComponent(categoryId)}`);
+    console.log("[index] Category clicked, navigating to menu with categoryId:", categoryId);
+    // Use router.push with proper query params to navigate to menu tab with selected category
+    router.push({
+      pathname: "/(tabs)/menu",
+      params: { categoryId: categoryId }
+    });
   };
 
   const handleMealPress = (mealId: string) => {
@@ -395,30 +400,11 @@ function CustomerHomeScreen({
     () => categoriesQuery.data ?? [],
     [categoriesQuery.data]
   );
+   const mealTimeCategories: Category[] = useMemo(() => categories.filter((c) => c.group === 'meal-time'), [categories]);
   const collectionCategories: Category[] = useMemo(
     () => categories.filter((c) => c.group === "collection"),
     [categories]
   );
-
-  const popularMeals: Meal[] = useMemo(() => {
-    const meals = mealsQuery.data ?? [];
-    return meals
-      .filter(
-        (meal) =>
-          meal &&
-          typeof meal.id === "string" &&
-          meal.isActive !== false &&
-          !meal.isDraft &&
-          (meal.isFeatured || (meal.rating ?? 0) >= 4.0) // Featured or highly rated
-      )
-      .sort((a, b) => {
-        // Sort by featured status first, then by rating
-        if (a.isFeatured && !b.isFeatured) return -1;
-        if (!a.isFeatured && b.isFeatured) return 1;
-        return (b.rating ?? 0) - (a.rating ?? 0);
-      })
-      .slice(0, 6); // Show top 6 meals
-  }, [mealsQuery.data]);
 
   const displayedMeals: Meal[] = useMemo(() => {
     const meals: Meal[] = mealsQuery.data ?? [];
@@ -587,36 +573,22 @@ function CustomerHomeScreen({
           )}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Popular Meals</Text>
-          {mealsQuery.isLoading ? (
+         <View style={[styles.section]}>
+          <Text style={styles.sectionTitle}>Meal Time</Text>
+          {categoriesQuery.isLoading ? (
             <View style={styles.pad20}>
-              <Text style={styles.whiteText}>Loading popular meals...</Text>
+              <Text style={styles.whiteText}>Loading categories...</Text>
             </View>
-          ) : mealsQuery.isError ? (
+          ) : categoriesQuery.isError ? (
             <View style={styles.pad20}>
-              <Text style={styles.errorText}>Failed to load meals</Text>
+              <Text style={styles.errorText}>Failed to load categories</Text>
             </View>
-          ) : popularMeals.length > 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.horizontalMealScroll}
-            >
-              {popularMeals.map((meal: Meal) => (
-                <View key={meal.id} style={styles.popularMealWrapper}>
-                  <MealCard
-                    meal={meal}
-                    onPress={() => handleMealPress(meal.id)}
-                    onTryNow={() => handleMealPress(meal.id)}
-                  />
-                </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+              {mealTimeCategories.map((category: Category) => (
+                <CategoryCard key={category.id} category={category} onPress={() => handleCategoryPress(category.id)} />
               ))}
             </ScrollView>
-          ) : (
-            <View style={styles.pad20}>
-              <Text style={styles.whiteText}>No popular meals found</Text>
-            </View>
           )}
         </View>
 

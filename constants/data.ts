@@ -90,7 +90,7 @@ export const categories: Category[] =  [
         id: "lunch",
         name: "Lunch",
         image:
-          "https://images.unsplash.com/photo-1601050690299-9e2d4a1e2b50?w=400",
+          "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=400",
         description:
           "Balanced and hearty lunch options — thalis, millet meals, and biryanis for all preferences.",
         isActive: true,
@@ -101,22 +101,11 @@ export const categories: Category[] =  [
         id: "dinner",
         name: "Dinner",
         image:
-          "https://images.unsplash.com/photo-1617196034796-73dfa7b1b5d3?w=400",
+          "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=400",
         description:
           "Light and nutritious dinners — home-style or healthy chef’s specials for your evening meal.",
         isActive: true,
         sortOrder: 3,
-        group: "meal-time",
-      },
-      {
-        id: "snacks",
-        name: "Snacks & Sides",
-        image:
-          "https://images.unsplash.com/photo-1601050690299-9e2d4a1e2b50?w=400",
-        description:
-          "Light bites, munchies, and sides to complement your meals.",
-        isActive: true,
-        sortOrder: 4,
         group: "meal-time",
       },
 
@@ -125,92 +114,47 @@ export const categories: Category[] =  [
         id: "high-protein",
         name: "High Protein Meals",
         image:
-          "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=400",
+          "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=400",
         description:
           "Meals designed to boost your protein intake — great for fitness and recovery.",
         isActive: true,
         sortOrder: 5,
-        group: "health-goal",
+        group: "collection",
       },
       {
         id: "low-calorie",
         name: "Low Calorie Meals",
         image:
-          "https://images.unsplash.com/photo-1606756790138-2750b4bca0cf?w=400",
+          "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=400",
         description: "Light, wholesome meals for calorie-conscious eaters.",
         isActive: true,
         sortOrder: 6,
-        group: "health-goal",
+        group: "collection",
       },
 
-      // ------------------ LIFESTYLE ------------------
-      {
-        id: "diabetic-friendly",
-        name: "Diabetic-Friendly Meals",
-        image:
-          "https://images.unsplash.com/photo-1590080875831-59d01d1d9d11?w=400",
-        description:
-          "Balanced, low-sugar, and fiber-rich meals suitable for diabetic diets.",
-        isActive: true,
-        sortOrder: 7,
-        group: "lifestyle",
-      },
-      {
-        id: "calcium-rich",
-        name: "Calcium-Rich Meals",
-        image:
-          "https://images.unsplash.com/photo-1625944228383-9b7f9c04361c?w=400",
-        description:
-          "Meals enriched with dairy, greens, and nuts to support bone health.",
-        isActive: true,
-        sortOrder: 8,
-        group: "lifestyle",
-      },
 
       // ------------------ DRINKS & BOOSTERS ------------------
       {
         id: "drinks",
         name: "Drinks & Boosters",
         image:
-          "https://images.unsplash.com/photo-1604147706283-d7119b5c6a0b?w=400",
+          "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=400",
         description:
           "Cold-pressed juices, detox water, and protein shakes for energy and hydration.",
         isActive: true,
         sortOrder: 9,
-        group: "drinks",
+        group: "collection",
       },
       {
-        id: "protein-shake",
-        name: "Protein Shakes",
+        id: "lifestyle",
+        name: "Lifestyle",
         image:
-          "https://images.unsplash.com/photo-1615486363870-b877e7e61f9a?w=400",
+          "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=400",
         description:
-          "High-protein shakes made with natural ingredients — great pre/post workout.",
-        isActive: true,
-        sortOrder: 10,
-        group: "drinks",
-      },
-      {
-        id: "detox-water",
-        name: "Detox Water",
-        image:
-          "https://images.unsplash.com/photo-1544145945-f90425340c7e?w=400",
-        description:
-          "Refreshing infused waters with herbs and fruits for cleansing and hydration.",
-        isActive: true,
-        sortOrder: 11,
-        group: "drinks",
-      },
-      {
-        id: "coldpress-juice",
-        name: "Cold-Pressed Juices",
-        image:
-          "https://images.unsplash.com/photo-1565958011705-44e211f08d00?w=400",
-        description:
-          "Cold-pressed juices made from fresh fruits and vegetables — chef’s curated blends.",
+          "Diabetic Friendly and Calcium Rich Meals.",
         isActive: true,
         sortOrder: 12,
-        group: "drinks",
+        group: "collection",
       },
 
       // ------------
@@ -357,10 +301,10 @@ export const Meals: Meal[] =  [
         description:
           "Healthy Indian breakfast with rotating options like poha, upma, dosa, or paratha. Chef’s choice changes daily for freshness and balance.",
         images: [
-          "https://images.unsplash.com/photo-1604908176997-431310be8d5e?w=300&h=300&fit=crop",
+          "https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=300&fit=crop",
         ],
         categoryId: "breakfast",
-        categoryIds: ["breakfast", "regular-breakfast", "chef-choice", "1"],
+        categoryIds: ["breakfast"],
         price: 149,
         originalPrice: 169,
         isVeg: true,
@@ -378,7 +322,7 @@ export const Meals: Meal[] =  [
         ingredients: ["Poha", "Upma", "Paratha", "Sambar", "Chutney"],
         allergens: ["Gluten"],
         isActive: true,
-        isFeatured: true,
+        isFeatured: false,
         isDraft: false,
         preparationTime: 20,
         availableTimeSlotIds: ["1"],
@@ -391,10 +335,10 @@ export const Meals: Meal[] =  [
         description:
           "Light and balanced lunch box with rice, dal, and one curry. Chef’s choice rotates daily to keep it fresh and interesting.",
         images: [
-          "https://images.unsplash.com/photo-1601050690299-9e2d4a1e2b50?w=300&h=300&fit=crop",
+          "https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=300&fit=crop",
         ],
         categoryId: "lunch",
-        categoryIds: ["lunch", "mini-meals", "chef-choice"],
+        categoryIds: ["lunch"],
         price: 169,
         originalPrice: 189,
         isVeg: true,
@@ -412,7 +356,7 @@ export const Meals: Meal[] =  [
         ingredients: ["Rice", "Dal", "Curry", "Salad"],
         allergens: ["Gluten"],
         isActive: true,
-        isFeatured: true,
+        isFeatured: false,
         isDraft: false,
         preparationTime: 25,
         variantPricing: { veg: 169, nonveg: 189 },
@@ -424,10 +368,10 @@ export const Meals: Meal[] =  [
         description:
           "Everyday home-style thali with rice, roti, dal, and two seasonal curries. Chef’s choice menu changes daily.",
         images: [
-          "https://images.unsplash.com/photo-1601050690299-9e2d4a1e2b50?w=300&h=300&fit=crop",
+          "https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=300&fit=crop",
         ],
         categoryId: "basic-meal",
-        categoryIds: ["lunch", "basic-meals", "chef-choice"],
+        categoryIds: ["lunch"],
         price: 199,
         originalPrice: 229,
         isVeg: true,
@@ -445,7 +389,7 @@ export const Meals: Meal[] =  [
         ingredients: ["Rice", "Roti", "Dal", "Curry", "Salad"],
         allergens: ["Gluten"],
         isActive: true,
-        isFeatured: true,
+        isFeatured: false,
         isDraft: false,
         preparationTime: 30,
         variantPricing: { veg: 199, nonveg: 229 },
@@ -457,10 +401,10 @@ export const Meals: Meal[] =  [
         description:
           "Wholesome millet-based meal with dal, sabzi, and salad. Perfect for those seeking low-GI, gluten-free nutrition.",
         images: [
-          "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=300&h=300&fit=crop",
+          "https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=300&fit=crop",
         ],
         categoryId: "lunch",
-        categoryIds: ["lunch", "millet-meals", "healthy"],
+        categoryIds: ["lunch"],
         price: 219,
         originalPrice: 249,
         isVeg: true,
@@ -489,10 +433,10 @@ export const Meals: Meal[] =  [
         description:
           "High-fiber brown rice meal with dal and seasonal curry. Great for weight watchers and diabetics.",
         images: [
-          "https://images.unsplash.com/photo-1604908176997-431310be8d5e?w=300&h=300&fit=crop",
+          "https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=300&fit=crop",
         ],
         categoryId: "lunch",
-        categoryIds: ["lunch", "brown-rice-meals", "diabetic-friendly"],
+        categoryIds: ["lunch"],
         price: 229,
         originalPrice: 259,
         isVeg: true,
@@ -510,7 +454,7 @@ export const Meals: Meal[] =  [
         ingredients: ["Brown Rice", "Dal", "Curry", "Salad"],
         allergens: [],
         isActive: true,
-        isFeatured: true,
+        isFeatured: false,
         preparationTime: 30,
         availableTimeSlotIds: ["2", "3"],
         isDraft: false,
@@ -523,10 +467,10 @@ export const Meals: Meal[] =  [
         description:
           "Light and comforting dinner with roti, sabzi, and salad. Chef’s choice menu rotates daily for variety.",
         images: [
-          "https://images.unsplash.com/photo-1601050690299-9e2d4a1e2b50?w=300&h=300&fit=crop",
+          "https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=300&fit=crop",
         ],
         categoryId: "dinner",
-        categoryIds: ["dinner", "basic-dinner", "chef-choice"],
+        categoryIds: ["dinner"],
         price: 179,
         originalPrice: 209,
         isVeg: true,
@@ -544,7 +488,7 @@ export const Meals: Meal[] =  [
         ingredients: ["Roti", "Sabzi", "Salad"],
         allergens: ["Gluten"],
         isActive: true,
-        isFeatured: true,
+        isFeatured: false,
         preparationTime: 25,
         availableTimeSlotIds: ["3", "4"],
         isDraft: false,
@@ -555,10 +499,10 @@ export const Meals: Meal[] =  [
         description:
           "Balanced dinner bowl with quinoa/brown rice, dal, and steamed vegetables. Perfect for mindful eaters.",
         images: [
-          "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=300&h=300&fit=crop",
+          "https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=300&fit=crop",
         ],
         categoryId: "dinner",
-        categoryIds: ["dinner", "healthy-dinner", "low-calorie"],
+        categoryIds: ["dinner"],
         price: 249,
         originalPrice: 279,
         isVeg: true,
@@ -576,7 +520,7 @@ export const Meals: Meal[] =  [
         ingredients: ["Quinoa", "Dal", "Steamed Vegetables", "Salad"],
         allergens: [],
         isActive: true,
-        isFeatured: true,
+        isFeatured: false,
         preparationTime: 25,
         availableTimeSlotIds: ["3", "4"],
         isDraft: false,
@@ -589,10 +533,10 @@ export const Meals: Meal[] =  [
         description:
           "Protein-rich meal with grilled chicken or paneer, brown rice, and veggies. Chef’s choice combinations daily.",
         images: [
-          "https://images.unsplash.com/photo-1604908176997-431310be8d5e?w=300&h=300&fit=crop",
+          "https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=300&fit=crop",
         ],
         categoryId: "high-protein",
-        categoryIds: ["high-protein", "protein-meals", "chef-choice"],
+        categoryIds: ["high-protein"],
         price: 299,
         originalPrice: 339,
         isVeg: true,
@@ -610,7 +554,7 @@ export const Meals: Meal[] =  [
         ingredients: ["Paneer/Chicken", "Brown Rice", "Vegetables", "Sauce"],
         allergens: ["Dairy"],
         isActive: true,
-        isFeatured: true,
+        isFeatured: false,
         preparationTime: 25,
         availableTimeSlotIds: ["2", "3"],
         isDraft: false,
@@ -624,7 +568,7 @@ export const Meals: Meal[] =  [
           "https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=300&fit=crop",
         ],
         categoryId: "high-protein",
-        categoryIds: ["high-protein", "salads", "healthy"],
+        categoryIds: ["high-protein", "breakfast"],
         price: 249,
         originalPrice: 279,
         isVeg: true,
@@ -642,7 +586,7 @@ export const Meals: Meal[] =  [
         ingredients: ["Paneer/Chicken", "Beans", "Lettuce", "Seeds"],
         allergens: ["Dairy"],
         isActive: true,
-        isFeatured: true,
+        isFeatured: false,
         preparationTime: 20,
         availableTimeSlotIds: ["2", "3", "4"],
         isDraft: false,
@@ -653,10 +597,10 @@ export const Meals: Meal[] =  [
         description:
           "Thick and creamy protein shake — chocolate, vanilla or banana. Select delivery days you prefer.",
         images: [
-          "https://images.unsplash.com/photo-1615484477219-6b6c7f5b33e1?w=300&h=300&fit=crop",
+          "https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=300&fit=crop",
         ],
         categoryId: "drinks",
-        categoryIds: ["drinks", "protein-shake", "high-protein"],
+        categoryIds: ["drinks","high-protein"],
         price: 149,
         isVeg: true,
         hasEgg: false,
@@ -673,7 +617,7 @@ export const Meals: Meal[] =  [
         ingredients: ["Whey Protein", "Milk", "Banana"],
         allergens: ["Dairy"],
         isActive: true,
-        isFeatured: true,
+        isFeatured: false,
         allowDaySelection: true,
         preparationTime: 5,
         availableTimeSlotIds: ["1", "2", "3", "4"],
@@ -687,10 +631,10 @@ export const Meals: Meal[] =  [
         description:
           "Under 400 calorie meal with brown rice, dal, and sauteed veggies. Ideal for weight management.",
         images: [
-          "https://images.unsplash.com/photo-1612197527762-4c1a2b3ffb72?w=300&h=300&fit=crop",
+          "https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=300&fit=crop",
         ],
         categoryId: "low-calorie",
-        categoryIds: ["low-calorie", "healthy", "chef-choice"],
+        categoryIds: ["low-calorie"],
         price: 239,
         originalPrice: 269,
         isVeg: true,
@@ -722,7 +666,7 @@ export const Meals: Meal[] =  [
           "https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=300&fit=crop",
         ],
         categoryId: "low-calorie",
-        categoryIds: ["low-calorie", "salads", "healthy"],
+        categoryIds: ["low-calorie", "breakfast"],
         price: 179,
         isVeg: true,
         rating: 4.5,
@@ -755,7 +699,7 @@ export const Meals: Meal[] =  [
           "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=300&h=300&fit=crop",
         ],
         categoryId: "lifestyle",
-        categoryIds: ["lifestyle", "diabetic-friendly", "healthy"],
+        categoryIds: ["lifestyle", 'low-calorie'],
         price: 249,
         originalPrice: 279,
         isVeg: true,
@@ -787,7 +731,7 @@ export const Meals: Meal[] =  [
           "https://images.unsplash.com/photo-1562967914-608f82629710?w=300&h=300&fit=crop",
         ],
         categoryId: "lifestyle",
-        categoryIds: ["lifestyle", "calcium-rich", "healthy"],
+        categoryIds: ["lifestyle", 'low-calorie'],
         price: 259,
         isVeg: true,
         rating: 4.7,
@@ -820,7 +764,7 @@ export const Meals: Meal[] =  [
           "https://images.unsplash.com/photo-1544145945-f90425340c7e?w=300&h=300&fit=crop",
         ],
         categoryId: "drinks",
-        categoryIds: ["drinks", "detox-water", "boosters"],
+        categoryIds: ["drinks"],
         price: 79,
         isVeg: true,
         allowDaySelection: true,
@@ -831,7 +775,7 @@ export const Meals: Meal[] =  [
         ingredients: ["Water", "Lemon", "Mint", "Cucumber"],
         allergens: [],
         isActive: true,
-        isFeatured: true,
+        isFeatured: false,
         preparationTime: 5,
         availableTimeSlotIds: ["1", "2", "3", "4"],
         isDraft: false,
@@ -846,7 +790,7 @@ export const Meals: Meal[] =  [
           "https://images.unsplash.com/photo-1544145945-f90425340c7e?w=300&h=300&fit=crop",
         ],
         categoryId: "drinks",
-        categoryIds: ["drinks", "coldpress-juice", "juices"],
+        categoryIds: ["drinks"],
         price: 99,
         allowDaySelection: true,
         isVeg: true,

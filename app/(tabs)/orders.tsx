@@ -34,7 +34,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { router } from 'expo-router';
-import { getUserSubscriptions, featuredMeals, addOns } from '@/constants/data';
+import { getUserSubscriptions, Meals as featuredMeals, addOns } from '@/constants/data';
 import { Subscription, Meal, AddOn, AppSettings, Order } from '@/types';
 import db from '@/db';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';

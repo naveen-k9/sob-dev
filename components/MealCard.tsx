@@ -7,20 +7,20 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
-import { Leaf } from 'lucide-react-native';
+import { Leaf, Sparkles } from 'lucide-react-native';
 import { Meal } from '@/types';
 import { Colors } from '@/constants/colors';
 import { router } from 'expo-router';
 
 interface MealCardProps {
   meal: Meal;
-  onPress: () => void;
+  onPress?: () => void;
   onTryNow?: (meal: Meal) => void;
   onSubscribe?: (meal: Meal) => void;
 }
 
 const { width } = Dimensions.get('window');
-const cardWidth = (width - 50) / 2;
+const cardWidth = (width - 48) / 2;
 
 export default function MealCard({ meal, onPress, onTryNow, onSubscribe }: MealCardProps) {
   const handleTryNow = useCallback(() => {
@@ -29,6 +29,7 @@ export default function MealCard({ meal, onPress, onTryNow, onSubscribe }: MealC
       return;
     }
     try {
+      // Auto-select 2-day plan (planId: '1')
       router.push({
         pathname: '/meal/[id]',
         params: { mode: 'trial', planId: '1', id: meal.id },
@@ -46,196 +47,259 @@ export default function MealCard({ meal, onPress, onTryNow, onSubscribe }: MealC
     try {
       router.push({
         pathname: '/meal/[id]',
-        params: { mode: 'subscribe', planId: '2', id: meal.id },
+        params: { mode: 'subscribe', id: meal.id },
       });
     } catch (e) {
       console.error('[MealCard] Navigation error (Subscribe):', e);
     }
   }, [meal, onSubscribe]);
 
+  const discountPercentage = meal.originalPrice 
+    ? Math.round(((meal.originalPrice - meal.price) / meal.originalPrice) * 100)
+    : 0;
+
   return (
-    <TouchableOpacity
+    <View
       style={styles.container}
-      onPress={onPress}
       testID={`meal-card-${meal.id}`}
-      accessibilityRole="button"
-      accessibilityLabel={`Open ${meal.name}`}
     >
+      {/* Image Container with Badges */}
       <View style={styles.imageContainer}>
         <Image source={{ uri: meal.images[0] }} style={styles.image} />
-
-        {/* {meal.isVeg && (
-          <View style={styles.vegBadge}>
-            <Leaf size={12} color="#4CAF50" />
+        
+        {/* Veg/Non-veg Badge */}
+        <View style={styles.vegBadge}>
+          <View style={[
+            styles.vegIndicator,
+            { borderColor: meal.isVeg ? '#16A34A' : '#DC2626' }
+          ]}>
+            <View style={[
+              styles.vegDot,
+              { backgroundColor: meal.isVeg ? '#16A34A' : '#DC2626' }
+            ]} />
           </View>
-        )} */}
+        </View>
 
-        {/* {meal.originalPrice && (
+        {/* Discount Badge */}
+        {discountPercentage > 0 && (
           <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>
-              {Math.round(((meal.originalPrice - meal.price) / meal.originalPrice) * 100)}% OFF
-            </Text>
+            <Text style={styles.discountText}>{discountPercentage}% OFF</Text>
           </View>
-        )} */}
+        )}
 
-        {/* Floating Try Now button inside image */}
-        <TouchableOpacity
-          style={styles.tryNowInside}
-          onPress={handleTryNow}
-          testID={`try-now-${meal.id}`}
-          accessibilityRole="button"
-          accessibilityLabel={`Try ${meal.name} now`}
-        >
-          <Text style={styles.tryNowInsideText}>2-Day Trial</Text>
-        </TouchableOpacity>
+        {/* Gradient Overlay */}
+        <View style={styles.gradientOverlay} />
       </View>
 
+      {/* Content Section */}
       <View style={styles.content}>
         <Text style={styles.name} numberOfLines={1}>
           {meal.name}
         </Text>
 
-        <View style={styles.priceContainer}>
-          <Text style={styles.startingFrom}>Starting from</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {meal.originalPrice && (
-              <Text style={styles.originalPrice}>₹{meal.originalPrice}</Text>
-            )}
-            <Text style={styles.price}> ₹{meal.price}</Text>
+        {/* Price Container */}
+        <View style={styles.priceRow}>
+          <View style={styles.priceBlock}>
+            <Text style={styles.startingFrom}>Starting from</Text>
+            <View style={styles.priceContainer}>
+              <Text style={styles.price}>₹{meal.price}</Text>
+              {meal.originalPrice && (
+                <Text style={styles.originalPrice}>₹{meal.originalPrice}</Text>
+              )}
+            </View>
           </View>
         </View>
 
-        {/* Subscribe button below */}
-        <TouchableOpacity
-          style={styles.subscribeBtn}
-          onPress={handleSubscribe}
-          testID={`subscribe-${meal.id}`}
-          accessibilityRole="button"
-          accessibilityLabel={`Subscribe to ${meal.name}`}
-        >
-          <Text style={styles.subscribeText}>Subscribe</Text>
-        </TouchableOpacity>
+        {/* Action Buttons */}
+        <View style={styles.buttonsContainer}>
+          <TouchableOpacity
+            style={styles.trialBtn}
+            onPress={handleTryNow}
+            testID={`try-now-${meal.id}`}
+            accessibilityRole="button"
+            accessibilityLabel={`Try ${meal.name} for 2 days`}
+            activeOpacity={0.8}
+          >
+            <Sparkles size={14} color={Colors.primary} strokeWidth={2.5} />
+            <Text style={styles.trialBtnText}>2-Day Trial</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.subscribeBtn}
+            onPress={handleSubscribe}
+            testID={`subscribe-${meal.id}`}
+            accessibilityRole="button"
+            accessibilityLabel={`Subscribe to ${meal.name}`}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.subscribeText}>Subscribe</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     backgroundColor: Colors.surface,
-    borderRadius: 12,
+    borderRadius: 14,
     marginRight: 16,
     marginBottom: 16,
     width: cardWidth,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 5,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
   },
   imageContainer: {
     position: 'relative',
+    width: '100%',
+    height: 120,
+    backgroundColor: '#f5f5f5',
   },
   image: {
     width: '100%',
-    height: 120,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    height: '100%',
     resizeMode: 'cover',
+  },
+  gradientOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 30,
+    backgroundColor: 'rgba(0,0,0,0.08)',
   },
   content: {
     padding: 10,
+    paddingTop: 8,
   },
   name: {
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '700',
     color: Colors.text,
     marginBottom: 6,
+    lineHeight: 18,
+  },
+  priceRow: {
+    marginBottom: 8,
+  },
+  priceBlock: {
+    gap: 2,
   },
   priceContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    gap: 6,
   },
   startingFrom: {
-    fontSize: 12,
+    fontSize: 10,
     color: Colors.mutedText,
-    marginRight: 4,
-    fontWeight: '500',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   price: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '800',
     color: Colors.primary,
+    letterSpacing: -0.5,
   },
   originalPrice: {
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.mutedText,
     textDecorationLine: 'line-through',
-    marginLeft: 8,
+    fontWeight: '500',
   },
-  subscribeBtn: {
-    backgroundColor: 'rgba(72, 72, 144, 1)',
-    borderWidth: 2,
-    borderColor: Colors.accent,
-    paddingVertical: 9,
-    borderRadius: 27,
+  buttonsContainer: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 2,
+  },
+  trialBtn: {
+    flex: 1,
+    backgroundColor: '#FFF',
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    paddingVertical: 8,
+    borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
+    gap: 3,
+  },
+  trialBtnText: {
+    color: Colors.primary,
+    fontWeight: '700',
+    fontSize: 11,
+  },
+  subscribeBtn: {
+    flex: 1,
+    backgroundColor: Colors.primary,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
     elevation: 4,
-
   },
   subscribeText: {
-    color:'#fff',
-    fontWeight: '600',
-    fontSize: 14,
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 11,
   },
   vegBadge: {
     position: 'absolute',
-    top: 9,
-    left: 9,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 4,
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 6,
+    padding: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  vegIndicator: {
+    width: 16,
+    height: 16,
+    borderWidth: 2,
+    borderRadius: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vegDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   discountBadge: {
     position: 'absolute',
-    top: 9,
-    right: 9,
-    backgroundColor: '#48479B',
+    top: 10,
+    right: 10,
+    backgroundColor: Colors.primary,
     borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
   },
   discountText: {
     fontSize: 10,
     color: 'white',
-    fontWeight: '600',
-  },
-  tryNowInside: {
-    position: 'absolute',
-    top: 9,
-    right: 9,
-    backgroundColor: '#fff',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    borderWidth: 2,
-    borderColor: Colors.accent,
-  },
-  tryNowInsideText: {
-    color: Colors.primary,
-    fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

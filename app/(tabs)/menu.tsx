@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   FlatList,
   Dimensions,
+  InteractionManager,
 } from "react-native";
 import { useLocalSearchParams, Stack, router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -33,16 +34,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CategoryBrowserScreen() {
   const params = useLocalSearchParams<{ categoryId?: string }>();
-  const initial =
+  const initialCategoryId =
     typeof params.categoryId === "string" ? params.categoryId : null;
+  
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(
-    initial
+    initialCategoryId
   );
   const [activeCategoryName, setActiveCategoryName] = useState<string>("");
   const [gridCols, setGridCols] = useState<number>(2);
   const [showFilterModal, setShowFilterModal] = useState<boolean>(false);
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [offerModalVisible, setOfferModalVisible] = useState<boolean>(false);
+  const hasInitialized = useRef(false);
   const [filterChips, setFilterChips] = useState<
     { id: string; label: string; selected: boolean }[]
   >([
@@ -98,12 +101,6 @@ export default function CategoryBrowserScreen() {
     retry: 3,
   });
 
-  useEffect(() => {
-    if (!activeCategoryId && typeof initial === "string") {
-      setActiveCategoryId(initial);
-    }
-  }, [initial, activeCategoryId]);
-
   // Refetch data if there was an error
   useEffect(() => {
     if (categoriesQuery.isError) {
@@ -138,14 +135,30 @@ export default function CategoryBrowserScreen() {
     [categories]
   );
 
+  const collectionCategories = useMemo(
+    () => categories.filter((c) => c.group === "collection"),
+    [categories]
+  );
+
   const allCategories: Category[] = useMemo(() => {
-    // Only show meal-time categories in the menu
-    return mealTimeCategories.sort(
+    // Show both meal-time and collection categories in the menu
+    const combined = [...mealTimeCategories, ...collectionCategories];
+    const sorted = combined.sort(
       (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
     );
+    console.log("[menu] Loaded categories:", sorted.length, sorted.map(c => `${c.name} (${c.group})`));
+    return sorted;
+  }, [mealTimeCategories, collectionCategories]);
 
-    return [];
-  }, [mealTimeCategories]);
+  // Auto-select first category if none selected and no URL param
+  useEffect(() => {
+    if (!activeCategoryId && allCategories.length > 0 && !initialCategoryId && !hasInitialized.current) {
+      const firstCategory = allCategories[0];
+      console.log("[menu] Auto-selecting first category:", firstCategory.name);
+      setActiveCategoryId(firstCategory.id);
+      hasInitialized.current = true;
+    }
+  }, [activeCategoryId, allCategories, initialCategoryId]);
 
   useEffect(() => {
     if (activeCategoryId) {
@@ -180,7 +193,8 @@ export default function CategoryBrowserScreen() {
           ];
 
           // If the meal is in this category or any of its subcategories
-          return ids.some((id) => id === activeCategoryId);
+          const matches = ids.some((id) => id === activeCategoryId);
+          return matches;
         })
       : validMeals; // If no category selected, show all meals
 
@@ -194,6 +208,8 @@ export default function CategoryBrowserScreen() {
       list = list.filter((m) => m.isVeg === false);
     if (chipFilters.has("under-300"))
       list = list.filter((m) => (m.price ?? 0) < 300);
+
+    console.log(`[menu] Filtered meals for category ${activeCategoryId}:`, list.length, "meals");
 
     // Sort by featured status and then by name
     return list.sort((a, b) => {
@@ -257,7 +273,7 @@ export default function CategoryBrowserScreen() {
   const screenWidth = Dimensions.get("window").width;
 
   const scrollToCategory = useCallback(
-    (id: string) => {
+    (id: string, immediate: boolean = false) => {
       const layout = itemLayoutsRef.current[id];
       if (!layout || !scrollRef.current) {
         console.log("Auto-scroll skipped, missing layout or ref", {
@@ -267,13 +283,20 @@ export default function CategoryBrowserScreen() {
         });
         return;
       }
+      
+      // Center the category in the viewport
       const target = Math.max(0, layout.x - (screenWidth - layout.width) / 2);
+      
       try {
-        console.log("Auto-scroll to category", id, layout, { target });
-        scrollRef.current.scrollTo({ x: target, y: 0, animated: false });
-        requestAnimationFrame(() =>
-          scrollRef.current?.scrollTo({ x: target, y: 0, animated: true })
-        );
+        console.log("Auto-scroll to category", id, layout, { target, immediate });
+        
+        if (immediate) {
+          // For immediate scrolls (like on mount), do it without animation first
+          scrollRef.current.scrollTo({ x: target, y: 0, animated: false });
+        } else {
+          // For user interactions, use smooth animation
+          scrollRef.current.scrollTo({ x: target, y: 0, animated: true });
+        }
       } catch (e) {
         console.log("Scroll error", e);
       }
@@ -294,13 +317,48 @@ export default function CategoryBrowserScreen() {
   useEffect(() => {
     if (activeCategoryId) {
       if (itemLayoutsRef.current[activeCategoryId]) {
-        scrollToCategory(activeCategoryId);
+        // Use immediate scroll if this is first initialization, smooth otherwise
+        const isFirstLoad = !hasInitialized.current;
+        scrollToCategory(activeCategoryId, isFirstLoad);
         return;
       }
-      const t = setTimeout(() => scrollToCategory(activeCategoryId), 60);
+      const t = setTimeout(() => {
+        const isFirstLoad = !hasInitialized.current;
+        scrollToCategory(activeCategoryId, isFirstLoad);
+      }, 60);
       return () => clearTimeout(t);
     }
   }, [activeCategoryId, scrollToCategory]);
+
+  // Handle URL parameter changes (when navigating from other pages with categoryId)
+  // This effect runs only when initialCategoryId or allCategories change
+  useEffect(() => {
+    if (initialCategoryId && allCategories.length > 0) {
+      console.log("[menu] URL param categoryId detected:", initialCategoryId);
+      
+      const categoryExists = allCategories.some(c => c.id === initialCategoryId);
+      
+      if (categoryExists) {
+        console.log("[menu] Setting category from URL param:", initialCategoryId);
+        setActiveCategoryId(initialCategoryId);
+        hasInitialized.current = true;
+        
+        // Scroll to the category with smooth animation after layout is ready
+        setTimeout(() => {
+          scrollToCategory(initialCategoryId, false); // Smooth scroll for navigation
+        }, 200);
+      } else if (!hasInitialized.current) {
+        console.warn("[menu] Category from URL param not found:", initialCategoryId);
+        // Fall back to first category if the requested one doesn't exist
+        if (allCategories.length > 0) {
+          const firstCategory = allCategories[0];
+          console.log("[menu] Falling back to first category:", firstCategory.name);
+          setActiveCategoryId(firstCategory.id);
+          hasInitialized.current = true;
+        }
+      }
+    }
+  }, [initialCategoryId, allCategories, scrollToCategory]);
 
   const handleOfferPress = useCallback((offer: Offer) => {
     setSelectedOffer(offer);
@@ -345,6 +403,9 @@ export default function CategoryBrowserScreen() {
           showsHorizontalScrollIndicator={false}
           style={styles.horizontalScroll}
           contentContainerStyle={styles.horizontalContent}
+          decelerationRate="fast"
+          scrollEventThrottle={16}
+          snapToAlignment="center"
           onContentSizeChange={() => {
             if (activeCategoryId) {
               requestAnimationFrame(() => scrollToCategory(activeCategoryId));
@@ -365,8 +426,16 @@ export default function CategoryBrowserScreen() {
                 category={c}
                 isActive={c.id === activeCategoryId}
                 onPress={() => {
-                  setActiveCategoryId((prev) => (prev === c.id ? null : c.id));
-                  requestAnimationFrame(() => scrollToCategory(c.id));
+                  // Don't deselect if clicking same category - just keep it selected
+                  console.log("[menu] Category clicked:", c.name, c.id);
+                  
+                  // Update state immediately for instant visual feedback
+                  setActiveCategoryId(c.id);
+                  
+                  // Scroll after interactions complete for smooth animation
+                  InteractionManager.runAfterInteractions(() => {
+                    requestAnimationFrame(() => scrollToCategory(c.id, false));
+                  });
                 }}
               />
             </View>
@@ -452,6 +521,7 @@ export default function CategoryBrowserScreen() {
 
           <View style={styles.mealGrid}>
             <FlatList
+              key={`meals-${activeCategoryId}-${gridCols}`}
               data={displayedMeals}
               renderItem={({ item }) => (
                 <MealCard
@@ -464,9 +534,18 @@ export default function CategoryBrowserScreen() {
               numColumns={gridCols}
               columnWrapperStyle={gridCols > 1 ? styles.gridRow : undefined}
               scrollEnabled={false}
+              initialNumToRender={6}
+              maxToRenderPerBatch={6}
+              windowSize={5}
+              removeClippedSubviews={true}
               ListEmptyComponent={
                 activeCategoryId ? (
-                  <Text style={styles.empty}>No items</Text>
+                  <View style={styles.emptyContainer}>
+                    <Text style={styles.empty}>No meals found in this category</Text>
+                    <Text style={styles.emptySubtext}>
+                      Try selecting a different category or adjusting your filters
+                    </Text>
+                  </View>
                 ) : null
               }
             />
@@ -526,7 +605,24 @@ const styles = StyleSheet.create({
   clearText: { color: "#48479B", fontWeight: "600" },
   mealGrid: { paddingHorizontal: 16, marginTop: 12 },
   gridRow: { justifyContent: "space-between" },
-  empty: { color: "#666", paddingHorizontal: 20, paddingVertical: 12 },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  empty: {
+    color: "#666",
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    color: "#999",
+    fontSize: 14,
+    textAlign: "center",
+  },
   filtersBar: {
     flexDirection: "row",
     justifyContent: "space-between",
