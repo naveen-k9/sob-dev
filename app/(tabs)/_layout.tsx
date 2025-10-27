@@ -70,7 +70,7 @@ export default function TabLayout() {
                 <TouchableOpacity
                   {...safeProps}
                   style={[style, { top: 9, justifyContent: 'center', alignItems: 'center' }]}
-                  onPress={() => router.push("/profile")}
+                  onPress={() => router.push("/help")}
                 />
               );
             },

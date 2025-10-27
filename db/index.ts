@@ -49,6 +49,19 @@ class Database {
     return Database.instance;
   }
 
+  // Clear cached AsyncStorage data to force fetch from Firebase
+  async clearCatalogCache(): Promise<void> {
+    try {
+      console.log(
+        "[db] Clearing catalog cache (categories, meals, addons) to fetch from Firebase..."
+      );
+      await AsyncStorage.multiRemove(["categories", "meals", "addOns"]);
+      console.log("[db] Catalog cache cleared successfully");
+    } catch (error) {
+      console.error("[db] Error clearing catalog cache:", error);
+    }
+  }
+
   async initialize() {
     if (this.initialized) return;
 
@@ -67,9 +80,11 @@ class Database {
     if (!existingUsers) {
       console.log("Seeding initial data...");
       await this.setItem("users", this.getInitialUsers());
-      await this.setItem("categories", this.getInitialCategories());
-      await this.setItem("meals", this.getInitialMeals());
-      await this.setItem("addOns", this.getInitialAddOns());
+      // NOTE: Categories, meals, and addons are NOT seeded to AsyncStorage
+      // They will be fetched from Firebase as the primary source of truth
+      // await this.setItem("categories", this.getInitialCategories());
+      // await this.setItem("meals", this.getInitialMeals());
+      // await this.setItem("addOns", this.getInitialAddOns());
       await this.setItem("plans", this.getInitialPlans());
       await this.setItem("banners", this.getInitialBanners());
       await this.setItem("testimonials", this.getInitialTestimonials());
@@ -97,7 +112,9 @@ class Database {
       await this.setItem("referralRewards", []);
       await this.setItem("streakRewards", []);
       await this.setItem("userStreaks", []);
-      console.log("Initial data seeding completed");
+      console.log(
+        "Initial data seeding completed (categories/meals/addons from Firebase)"
+      );
     } else {
       // Ensure app settings exist even if users exist
       const existingSettings = await this.getItem("appSettings");
@@ -215,24 +232,59 @@ class Database {
     }
   }
 
-  // Address methods
+  // Address methods - Production ready with Firebase sync
   async addAddress(
     userId: string,
     addressData: Omit<Address, "id" | "userId">
   ): Promise<Address> {
-    const users = await this.getUsers();
-    const userIndex = users.findIndex((user) => user.id === userId);
-    if (userIndex === -1) throw new Error("User not found");
+    try {
+      // Try Firebase first
+      const { addUserAddress } = await import("@/services/firebase");
+      const newAddress = await addUserAddress(userId, addressData);
+      console.log("[db] ✅ Address added to Firebase:", newAddress.id);
 
-    const newAddress: Address = {
-      ...addressData,
-      id: Date.now().toString(),
-      userId,
-    };
+      // Sync to local storage for offline access
+      try {
+        const users = (await this.getItem("users")) || [];
+        const userIndex = users.findIndex((user: User) => user.id === userId);
+        if (userIndex !== -1) {
+          users[userIndex].addresses.push(newAddress);
+          await this.setItem("users", users);
+        }
+      } catch (localError) {
+        console.log(
+          "[db] Local storage sync failed (non-critical):",
+          localError
+        );
+      }
 
-    users[userIndex].addresses.push(newAddress);
-    await this.setItem("users", users);
-    return newAddress;
+      return newAddress;
+    } catch (firebaseError) {
+      console.warn(
+        "[db] ⚠️ Firebase operation failed, using local storage:",
+        firebaseError
+      );
+
+      // Fallback to local storage
+      const users = (await this.getItem("users")) || [];
+      const userIndex = users.findIndex((user: User) => user.id === userId);
+      if (userIndex === -1) {
+        throw new Error("User not found");
+      }
+
+      const newAddress: Address = {
+        ...addressData,
+        id: `addr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        userId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      users[userIndex].addresses.push(newAddress);
+      await this.setItem("users", users);
+      console.log("[db] ✅ Address saved to local storage:", newAddress.id);
+      return newAddress;
+    }
   }
 
   async updateAddress(
@@ -240,34 +292,206 @@ class Database {
     addressId: string,
     updates: Partial<Address>
   ): Promise<Address | null> {
-    const users = await this.getUsers();
-    const userIndex = users.findIndex((user) => user.id === userId);
-    if (userIndex === -1) return null;
+    try {
+      // Try Firebase first
+      const { updateUserAddress } = await import("@/services/firebase");
+      const updatedAddress = await updateUserAddress(
+        userId,
+        addressId,
+        updates
+      );
+      console.log("[db] ✅ Address updated in Firebase:", addressId);
 
-    const addressIndex = users[userIndex].addresses.findIndex(
-      (addr) => addr.id === addressId
-    );
-    if (addressIndex === -1) return null;
+      // Sync to local storage
+      try {
+        const users = (await this.getItem("users")) || [];
+        const userIndex = users.findIndex((user: User) => user.id === userId);
+        if (userIndex !== -1) {
+          const addressIndex = users[userIndex].addresses.findIndex(
+            (addr: Address) => addr.id === addressId
+          );
+          if (addressIndex !== -1) {
+            users[userIndex].addresses[addressIndex] = updatedAddress;
+            await this.setItem("users", users);
+          }
+        }
+      } catch (localError) {
+        console.log(
+          "[db] Local storage sync failed (non-critical):",
+          localError
+        );
+      }
 
-    users[userIndex].addresses[addressIndex] = {
-      ...users[userIndex].addresses[addressIndex],
-      ...updates,
-    };
-    await this.setItem("users", users);
-    return users[userIndex].addresses[addressIndex];
+      return updatedAddress;
+    } catch (firebaseError) {
+      console.warn(
+        "[db] ⚠️ Firebase operation failed, using local storage:",
+        firebaseError
+      );
+
+      // Fallback to local storage
+      const users = (await this.getItem("users")) || [];
+      const userIndex = users.findIndex((user: User) => user.id === userId);
+      if (userIndex === -1) return null;
+
+      const addressIndex = users[userIndex].addresses.findIndex(
+        (addr: Address) => addr.id === addressId
+      );
+      if (addressIndex === -1) return null;
+
+      users[userIndex].addresses[addressIndex] = {
+        ...users[userIndex].addresses[addressIndex],
+        ...updates,
+        updatedAt: new Date(),
+      };
+      await this.setItem("users", users);
+      return users[userIndex].addresses[addressIndex];
+    }
+  }
+
+  async deleteAddress(userId: string, addressId: string): Promise<void> {
+    try {
+      // Try Firebase first
+      const { deleteUserAddress } = await import("@/services/firebase");
+      await deleteUserAddress(userId, addressId);
+      console.log("[db] ✅ Address deleted from Firebase:", addressId);
+
+      // Sync to local storage
+      try {
+        const users = (await this.getItem("users")) || [];
+        const userIndex = users.findIndex((user: User) => user.id === userId);
+        if (userIndex !== -1) {
+          const addressIndex = users[userIndex].addresses.findIndex(
+            (addr: Address) => addr.id === addressId
+          );
+          if (addressIndex !== -1) {
+            const wasDefault =
+              users[userIndex].addresses[addressIndex].isDefault;
+            users[userIndex].addresses = users[userIndex].addresses.filter(
+              (addr: Address) => addr.id !== addressId
+            );
+            if (wasDefault && users[userIndex].addresses.length > 0) {
+              users[userIndex].addresses[0].isDefault = true;
+            }
+            await this.setItem("users", users);
+          }
+        }
+      } catch (localError) {
+        console.log(
+          "[db] Local storage sync failed (non-critical):",
+          localError
+        );
+      }
+    } catch (firebaseError) {
+      console.warn(
+        "[db] ⚠️ Firebase operation failed, using local storage:",
+        firebaseError
+      );
+
+      // Fallback to local storage
+      const users = (await this.getItem("users")) || [];
+      const userIndex = users.findIndex((user: User) => user.id === userId);
+      if (userIndex === -1) {
+        throw new Error("User not found");
+      }
+
+      const addressIndex = users[userIndex].addresses.findIndex(
+        (addr: Address) => addr.id === addressId
+      );
+      if (addressIndex === -1) {
+        throw new Error("Address not found");
+      }
+
+      const wasDefault = users[userIndex].addresses[addressIndex].isDefault;
+      users[userIndex].addresses = users[userIndex].addresses.filter(
+        (addr: Address) => addr.id !== addressId
+      );
+
+      if (wasDefault && users[userIndex].addresses.length > 0) {
+        users[userIndex].addresses[0].isDefault = true;
+      }
+
+      await this.setItem("users", users);
+    }
+  }
+
+  async setDefaultAddress(userId: string, addressId: string): Promise<void> {
+    try {
+      // Try Firebase first
+      const { setDefaultUserAddress } = await import("@/services/firebase");
+      await setDefaultUserAddress(userId, addressId);
+      console.log("[db] ✅ Default address set in Firebase:", addressId);
+
+      // Sync to local storage
+      try {
+        const users = (await this.getItem("users")) || [];
+        const userIndex = users.findIndex((user: User) => user.id === userId);
+        if (userIndex !== -1) {
+          users[userIndex].addresses = users[userIndex].addresses.map(
+            (addr: Address) => ({
+              ...addr,
+              isDefault: addr.id === addressId,
+            })
+          );
+          await this.setItem("users", users);
+        }
+      } catch (localError) {
+        console.log(
+          "[db] Local storage sync failed (non-critical):",
+          localError
+        );
+      }
+    } catch (firebaseError) {
+      console.warn(
+        "[db] ⚠️ Firebase operation failed, using local storage:",
+        firebaseError
+      );
+
+      // Fallback to local storage
+      const users = (await this.getItem("users")) || [];
+      const userIndex = users.findIndex((user: User) => user.id === userId);
+      if (userIndex === -1) {
+        throw new Error("User not found");
+      }
+
+      users[userIndex].addresses = users[userIndex].addresses.map(
+        (addr: Address) => ({
+          ...addr,
+          isDefault: addr.id === addressId,
+        })
+      );
+
+      await this.setItem("users", users);
+    }
   }
 
   // Category methods
   async getCategories(): Promise<Category[]> {
     try {
+      // First try Firebase
+      const { fetchCategories } = await import("@/services/firebase");
+      const categories = await fetchCategories();
+      if (categories && categories.length > 0) {
+        return categories;
+      }
+      // Fallback to AsyncStorage
       const stored = await this.getItem("categories");
       if (stored && Array.isArray(stored)) {
         return stored;
       }
-      // Fallback to initial categories if storage fails
+      // Final fallback to initial categories
       return this.getInitialCategories();
     } catch (error) {
       console.error("[db] Error getting categories:", error);
+      // Try AsyncStorage fallback
+      try {
+        const stored = await this.getItem("categories");
+        if (stored && Array.isArray(stored)) {
+          return stored;
+        }
+      } catch (e) {
+        console.error("[db] AsyncStorage fallback failed:", e);
+      }
       return this.getInitialCategories();
     }
   }
@@ -335,25 +559,33 @@ class Database {
   // Meal methods
   async getMeals(): Promise<Meal[]> {
     try {
-      // First try to get stored meals
+      // First try Firebase
+      const { fetchMeals } = await import("@/services/firebase");
+      const meals = await fetchMeals();
+      if (meals && meals.length > 0) {
+        return meals.filter(
+          (meal) =>
+            meal &&
+            typeof meal.id === "string" &&
+            typeof meal.name === "string" &&
+            typeof meal.price === "number"
+        );
+      }
+
+      // Fallback to AsyncStorage
       const stored: Meal[] = (await this.getItem("meals")) || [];
+      if (stored && stored.length > 0) {
+        return stored.filter(
+          (meal) =>
+            meal &&
+            typeof meal.id === "string" &&
+            typeof meal.name === "string" &&
+            typeof meal.price === "number"
+        );
+      }
 
-      // Then try to get initial data
-      const initialMeals = this.getInitialMeals();
-
-      // Combine stored and initial data, preferring stored versions
-      const combined: Meal[] = [...stored];
-      const seen = new Set(combined.map((m) => m.id));
-
-      initialMeals.forEach((meal) => {
-        if (!seen.has(meal.id)) {
-          combined.push(meal);
-          seen.add(meal.id);
-        }
-      });
-
-      // Filter out invalid entries and return
-      return combined.filter(
+      // Final fallback to initial meals
+      return this.getInitialMeals().filter(
         (meal) =>
           meal &&
           typeof meal.id === "string" &&
@@ -362,7 +594,22 @@ class Database {
       );
     } catch (e) {
       console.error("[db] Error loading meals:", e);
-      // On error, return just the initial meals as fallback
+      // Try AsyncStorage fallback
+      try {
+        const stored: Meal[] = (await this.getItem("meals")) || [];
+        if (stored && stored.length > 0) {
+          return stored.filter(
+            (meal) =>
+              meal &&
+              typeof meal.id === "string" &&
+              typeof meal.name === "string" &&
+              typeof meal.price === "number"
+          );
+        }
+      } catch (err) {
+        console.error("[db] AsyncStorage fallback failed:", err);
+      }
+      // Final fallback to initial meals
       return this.getInitialMeals().filter(
         (meal) =>
           meal &&
@@ -409,14 +656,30 @@ class Database {
   // AddOn methods
   async getAddOns(): Promise<AddOn[]> {
     try {
+      // First try Firebase
+      const { fetchAddOns } = await import("@/services/firebase");
+      const addons = await fetchAddOns();
+      if (addons && addons.length > 0) {
+        return addons;
+      }
+      // Fallback to AsyncStorage
       const stored = await this.getItem("addOns");
       if (stored && Array.isArray(stored)) {
         return stored;
       }
-      // Fallback to initial add-ons if storage fails
+      // Final fallback to initial add-ons
       return this.getInitialAddOns();
     } catch (error) {
       console.error("[db] Error getting add-ons:", error);
+      // Try AsyncStorage fallback
+      try {
+        const stored = await this.getItem("addOns");
+        if (stored && Array.isArray(stored)) {
+          return stored;
+        }
+      } catch (e) {
+        console.error("[db] AsyncStorage fallback failed:", e);
+      }
       return this.getInitialAddOns();
     }
   }
@@ -491,6 +754,16 @@ class Database {
           ? (c as AddOn["category"])
           : "extra";
     }
+
+    // Update in Firebase
+    try {
+      const { updateAddOn } = await import("@/services/firebase");
+      await updateAddOn(id, updates as Partial<AddOn>);
+    } catch (error) {
+      console.error("[db] Error updating addon in Firebase:", error);
+    }
+
+    // Also update AsyncStorage
     addOns[idx] = next;
     await this.setItem("addOns", addOns);
     return next;
@@ -501,6 +774,15 @@ class Database {
     const filtered = addOns.filter((a) => a.id !== id);
     const changed = filtered.length !== addOns.length;
     if (changed) {
+      // Delete from Firebase
+      try {
+        const { deleteAddOn } = await import("@/services/firebase");
+        await deleteAddOn(id);
+      } catch (error) {
+        console.error("[db] Error deleting addon from Firebase:", error);
+      }
+
+      // Also delete from AsyncStorage
       await this.setItem("addOns", filtered);
     }
     return changed;
@@ -511,6 +793,16 @@ class Database {
     const idx = addOns.findIndex((a) => a.id === id);
     if (idx === -1) return null;
     addOns[idx].isActive = !addOns[idx].isActive;
+
+    // Update in Firebase
+    try {
+      const { updateAddOn } = await import("@/services/firebase");
+      await updateAddOn(id, { isActive: addOns[idx].isActive });
+    } catch (error) {
+      console.error("[db] Error toggling addon active in Firebase:", error);
+    }
+
+    // Also update AsyncStorage
     await this.setItem("addOns", addOns);
     return addOns[idx];
   }
@@ -1394,9 +1686,119 @@ class Database {
       sortOrder: categories.length + 1,
       group: categoryData.group,
     };
+
+    // Save to Firebase
+    try {
+      const { createCategory } = await import("@/services/firebase");
+      await createCategory(newCategory);
+    } catch (error) {
+      console.error("[db] Error creating category in Firebase:", error);
+    }
+
+    // Also save to AsyncStorage as fallback/cache
     categories.push(newCategory);
     await this.setItem("categories", categories);
     return newCategory;
+  }
+
+  async updateCategory(
+    categoryId: string,
+    updates: Partial<Category>
+  ): Promise<Category | null> {
+    const categories = await this.getCategories();
+    const index = categories.findIndex((cat) => cat.id === categoryId);
+    if (index === -1) return null;
+
+    categories[index] = { ...categories[index], ...updates };
+
+    // Update in Firebase
+    try {
+      const { updateCategory } = await import("@/services/firebase");
+      await updateCategory(categoryId, updates);
+    } catch (error) {
+      console.error("[db] Error updating category in Firebase:", error);
+    }
+
+    // Also update AsyncStorage
+    await this.setItem("categories", categories);
+    return categories[index];
+  }
+
+  async deleteCategory(categoryId: string): Promise<boolean> {
+    const categories = await this.getCategories();
+    const filtered = categories.filter((cat) => cat.id !== categoryId);
+    if (filtered.length === categories.length) return false;
+
+    // Delete from Firebase
+    try {
+      const { deleteCategory } = await import("@/services/firebase");
+      await deleteCategory(categoryId);
+    } catch (error) {
+      console.error("[db] Error deleting category from Firebase:", error);
+    }
+
+    // Also delete from AsyncStorage
+    await this.setItem("categories", filtered);
+    return true;
+  }
+
+  async toggleCategoryActive(categoryId: string): Promise<Category | null> {
+    const categories = await this.getCategories();
+    const index = categories.findIndex((cat) => cat.id === categoryId);
+    if (index === -1) return null;
+
+    categories[index].isActive = !categories[index].isActive;
+
+    // Update in Firebase
+    try {
+      const { updateCategory } = await import("@/services/firebase");
+      await updateCategory(categoryId, {
+        isActive: categories[index].isActive,
+      });
+    } catch (error) {
+      console.error("[db] Error toggling category active in Firebase:", error);
+    }
+
+    // Also update AsyncStorage
+    await this.setItem("categories", categories);
+    return categories[index];
+  }
+
+  async addAddOn(addonData: {
+    name: string;
+    description: string;
+    price: number;
+    category?: string;
+    image?: string;
+    isVeg?: boolean;
+    isActive?: boolean;
+  }): Promise<AddOn> {
+    const addons = await this.getAddOns();
+    const newAddOn: AddOn = {
+      id: Date.now().toString(),
+      name: addonData.name,
+      description: addonData.description,
+      price: addonData.price,
+      category: addonData.category || "add-ons",
+      image:
+        addonData.image ||
+        "https://images.unsplash.com/photo-1604908176997-431310be8d5e?w=300",
+      isVeg: addonData.isVeg ?? true,
+      isActive: addonData.isActive ?? true,
+    };
+
+    // Save to Firebase
+    try {
+      const { createAddOn } = await import("@/services/firebase");
+      await createAddOn(newAddOn);
+    } catch (error) {
+      console.error("[db] Error creating addon in Firebase:", error);
+    }
+
+    // Also save to AsyncStorage as fallback/cache
+    addons.push(newAddOn);
+    await this.setItem("addons", addons);
+    return newAddOn;
   }
 
   async addMeal(mealData: {
@@ -1424,6 +1826,10 @@ class Database {
     isBasicThali?: boolean;
     variantPricing?: { veg?: number; nonveg?: number };
     allowDaySelection?: boolean;
+    addonIds?: string[];
+    availableTimeSlotIds?: string[];
+    ingredients?: string[];
+    allergens?: string[];
   }): Promise<Meal> {
     const meals = await this.getMeals();
     const defaultImage =
@@ -1448,8 +1854,8 @@ class Database {
         fat: 15,
         fiber: 5,
       },
-      ingredients: ["Fresh ingredients"],
-      allergens: [],
+      ingredients: mealData.ingredients || ["Fresh ingredients"],
+      allergens: mealData.allergens || [],
       isActive: mealData.isActive ?? true,
       isFeatured: mealData.isFeatured ?? false,
       isDraft: mealData.isDraft ?? true,
@@ -1460,7 +1866,19 @@ class Database {
       isBasicThali: mealData.isBasicThali ?? false,
       variantPricing: mealData.variantPricing,
       allowDaySelection: mealData.allowDaySelection ?? false,
+      addonIds: mealData.addonIds,
+      availableTimeSlotIds: mealData.availableTimeSlotIds,
     };
+
+    // Save to Firebase
+    try {
+      const { createMeal } = await import("@/services/firebase");
+      await createMeal(newMeal);
+    } catch (error) {
+      console.error("[db] Error creating meal in Firebase:", error);
+    }
+
+    // Also save to AsyncStorage as fallback/cache
     meals.push(newMeal);
     await this.setItem("meals", meals);
     return newMeal;
@@ -1892,6 +2310,16 @@ class Database {
     if (index === -1) return null;
 
     meals[index] = { ...meals[index], ...updates };
+
+    // Update in Firebase
+    try {
+      const { updateMeal } = await import("@/services/firebase");
+      await updateMeal(mealId, updates);
+    } catch (error) {
+      console.error("[db] Error updating meal in Firebase:", error);
+    }
+
+    // Also update AsyncStorage
     await this.setItem("meals", meals);
     return meals[index];
   }
@@ -1966,14 +2394,16 @@ class Database {
     ];
   }
 
-
   private getInitialCategories(): Category[] {
     // Use centralized data from constants/data.ts
     try {
       const { categories } = require("@/constants/data");
       return categories || [];
     } catch (error) {
-      console.error("[db] Failed to load categories from constants/data:", error);
+      console.error(
+        "[db] Failed to load categories from constants/data:",
+        error
+      );
       return [];
     }
   }

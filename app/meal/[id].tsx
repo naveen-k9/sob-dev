@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,46 +11,65 @@ import {
   Modal,
   Switch,
   Platform,
-} from 'react-native';
-import { Stack, router, useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Heart, Share, Plus, Minus, Star, Calendar, Clock, X, ChevronRight, ChefHat } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Meal, AddOn, SubscriptionPlan, TimeSlot } from '@/types';
-import db from '@/db';
-import { addOns, subscriptionPlans } from '@/constants/data';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Dimensions } from 'react-native';
-const TOP_BG_HEIGHT = Math.round(Dimensions.get('window').height * 0.36);
-type WeekType = 'mon-fri' | 'mon-sat';
-type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
+} from "react-native";
+import { Stack, router, useLocalSearchParams, useRouter } from "expo-router";
+import {
+  ArrowLeft,
+  Heart,
+  Share,
+  Plus,
+  Minus,
+  Star,
+  Calendar,
+  Clock,
+  X,
+  ChevronRight,
+  ChefHat,
+} from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Meal, AddOn, SubscriptionPlan, TimeSlot } from "@/types";
+import db from "@/db";
+import { addOns, subscriptionPlans } from "@/constants/data";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Dimensions } from "react-native";
+const TOP_BG_HEIGHT = Math.round(Dimensions.get("window").height * 0.36);
+type WeekType = "mon-fri" | "mon-sat";
+type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat";
 
 export default function MealDetailScreen() {
   const { id, mode, planId } = useLocalSearchParams();
   const [meal, setMeal] = useState<Meal | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedMealType, setSelectedMealType] = useState<'veg' | 'nonveg' | 'egg' | 'both'>('veg');
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [showAddOnsDrawer, setShowAddOnsDrawer] = useState(false);
   // Default to 6-day plan for dynamic plans
-  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(
+    null
+  );
   const [isTrialMode, setIsTrialMode] = useState(false);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
-  const [weekendExclusion, setWeekendExclusion] = useState<'saturdays' | 'sundays' | 'both'>('both');
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(
+    null
+  );
+  const [weekendExclusion, setWeekendExclusion] = useState<
+    "saturdays" | "sundays" | "both"
+  >("both");
   const [startDate, setStartDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const routerInstance = useRouter();
   const [canGoBack, setCanGoBack] = useState(false);
-  const [weekType, setWeekType] = useState<WeekType>('mon-fri');
-  const [addonMealFilter, setAddonMealFilter] = useState<'veg' | 'nonveg' | 'both'>('both');
-  const [addonFilterManuallySet, setAddonFilterManuallySet] = useState(false);
-  const [selectedAddOnDays, setSelectedAddOnDays] = useState<Record<string, DayKey[]>>({});
-  const [thaliDayMap, setThaliDayMap] = useState<Record<DayKey, 'veg' | 'nonveg'>>({} as Record<DayKey, 'veg' | 'nonveg'>);
+  const [weekType, setWeekType] = useState<WeekType>("mon-fri");
+  const [selectedAddOnDays, setSelectedAddOnDays] = useState<
+    Record<string, DayKey[]>
+  >({});
+  const [thaliDayMap, setThaliDayMap] = useState<
+    Record<DayKey, "veg" | "nonveg">
+  >({} as Record<DayKey, "veg" | "nonveg">);
   const [productDays, setProductDays] = useState<DayKey[]>([]);
 
   const [allTimeSlots, setAllTimeSlots] = useState<TimeSlot[]>([]);
 
-  const [barStyle, setBarStyle] = useState<'light' | 'dark'>('light');
-  const onScrollStatusChange = (style: 'light' | 'dark') => {
+  const [barStyle, setBarStyle] = useState<"light" | "dark">("light");
+  const onScrollStatusChange = (style: "light" | "dark") => {
     setBarStyle(style);
   };
   React.useEffect(() => {
@@ -61,35 +80,37 @@ export default function MealDetailScreen() {
     const load = async () => {
       try {
         const slots = await db.getTimeSlots();
-        const active = (slots || []).filter(s => s.isActive !== false);
+        const active = (slots || []).filter((s) => s.isActive !== false);
         setAllTimeSlots(active);
-        if (typeof id === 'string') {
+        if (typeof id === "string") {
           const mealData = await db.getMealById(id);
           if (mealData) {
             setMeal(mealData);
-            setSelectedMealType(mealData.isBasicThali ? 'veg' : mealData.isVeg ? 'veg' : mealData.hasEgg ? 'egg' : 'nonveg');
-            const ids = mealData.availableTimeSlotIds && mealData.availableTimeSlotIds.length > 0
-              ? mealData.availableTimeSlotIds
-              : active.map(s => s.id);
-            const first = active.find(s => ids.includes(s.id)) ?? active[0] ?? null;
+            const ids =
+              mealData.availableTimeSlotIds &&
+              mealData.availableTimeSlotIds.length > 0
+                ? mealData.availableTimeSlotIds
+                : active.map((s) => s.id);
+            const first =
+              active.find((s) => ids.includes(s.id)) ?? active[0] ?? null;
             setSelectedTimeSlot(first ?? null);
             // Set default selected plan to 6-day dynamic plan
             setSelectedPlan({
-              id: 'dynamic-6',
-              name: '6 Day Plan',
+              id: "dynamic-6",
+              name: "6 Day Plan",
               duration: 6,
               originalPrice: mealData.price * 6,
               discountedPrice: mealData.price * 6,
               discount: 0,
               mealsPerDay: 1,
-              description: 'Meal price x 6 days',
-              features: ['6 Days', '1 Meal/Day', 'Free Delivery'],
+              description: "Meal price x 6 days",
+              features: ["6 Days", "1 Meal/Day", "Free Delivery"],
               popular: true,
             });
           }
         }
       } catch (error) {
-        console.error('Error loading meal or timeslots:', error);
+        console.error("Error loading meal or timeslots:", error);
       } finally {
         setLoading(false);
       }
@@ -101,7 +122,9 @@ export default function MealDetailScreen() {
   useEffect(() => {
     const availablePlans = getAvailablePlans();
     if (availablePlans.length > 0 && selectedPlan) {
-      const isCurrentPlanAvailable = availablePlans.some(plan => plan.id === selectedPlan.id);
+      const isCurrentPlanAvailable = availablePlans.some(
+        (plan) => plan.id === selectedPlan.id
+      );
       if (!isCurrentPlanAvailable) {
         setSelectedPlan(availablePlans[0]);
       }
@@ -110,15 +133,22 @@ export default function MealDetailScreen() {
 
   // Apply deep-link params from MealCard: mode=trial|subscribe and planId
   useEffect(() => {
-    if (typeof mode === 'string' || typeof planId === 'string') {
-      console.log('[MealDetail] Incoming params', { mode, planId });
-      if (mode === 'trial') {
+    if (typeof mode === "string" || typeof planId === "string") {
+      console.log("[MealDetail] Incoming params", { mode, planId });
+      if (mode === "trial") {
         setIsTrialMode(true);
-        const twoDay = subscriptionPlans.find(p => p.duration === 2) ?? subscriptionPlans[0];
+        const twoDay =
+          subscriptionPlans.find((p) => p.duration === 2) ??
+          subscriptionPlans[0];
         setSelectedPlan(twoDay);
-      } else if (mode === 'subscribe') {
+      } else if (mode === "subscribe") {
         setIsTrialMode(false);
-        const basic = subscriptionPlans.find(p => p.id === (typeof planId === 'string' ? planId : '2')) ?? subscriptionPlans[1] ?? subscriptionPlans[0];
+        const basic =
+          subscriptionPlans.find(
+            (p) => p.id === (typeof planId === "string" ? planId : "2")
+          ) ??
+          subscriptionPlans[1] ??
+          subscriptionPlans[0];
         setSelectedPlan(basic);
       }
     }
@@ -139,133 +169,113 @@ export default function MealDetailScreen() {
       discount: 0,
       mealsPerDay: 1,
       description: `Meal price x ${duration} days`,
-      features: [`${duration} Days`, '1 Meal/Day', 'Free Delivery'],
+      features: [`${duration} Days`, "1 Meal/Day", "Free Delivery"],
       popular: duration === 6 || duration === 15,
     }));
     if (isTrialMode) {
-      return plans.filter(plan => plan.duration === 2);
+      return plans.filter((plan) => plan.duration === 2);
     } else {
-      return plans.filter(plan => plan.duration !== 2);
+      return plans.filter((plan) => plan.duration !== 2);
     }
   };
 
   const handleAddOnToggle = useCallback((addOnId: string) => {
-    setSelectedAddOns(prev => {
+    setSelectedAddOns((prev) => {
       const exists = prev.includes(addOnId);
-      const next = exists ? prev.filter(id => id !== addOnId) : [...prev, addOnId];
+      const next = exists
+        ? prev.filter((id) => id !== addOnId)
+        : [...prev, addOnId];
       if (!exists) {
-        setSelectedAddOnDays(d => ({ ...d, [addOnId]: d[addOnId] ?? [] }));
+        setSelectedAddOnDays((d) => ({ ...d, [addOnId]: d[addOnId] ?? [] }));
       }
       return next;
     });
   }, []);
 
-  const availableDays: { key: DayKey; label: string; short: string }[] = useMemo(() => {
-    const base: { key: DayKey; label: string; short: string }[] = [
-      { key: 'mon', label: 'Monday', short: 'M' },
-      { key: 'tue', label: 'Tuesday', short: 'T' },
-      { key: 'wed', label: 'Wednesday', short: 'W' },
-      { key: 'thu', label: 'Thursday', short: 'T' },
-      { key: 'fri', label: 'Friday', short: 'F' },
-      { key: 'sat', label: 'Saturday', short: 'S' },
-    ];
-    return weekType === 'mon-fri' ? base.slice(0, 5) : base;
-  }, [weekType]);
+  const availableDays: { key: DayKey; label: string; short: string }[] =
+    useMemo(() => {
+      const base: { key: DayKey; label: string; short: string }[] = [
+        { key: "mon", label: "Monday", short: "M" },
+        { key: "tue", label: "Tuesday", short: "T" },
+        { key: "wed", label: "Wednesday", short: "W" },
+        { key: "thu", label: "Thursday", short: "T" },
+        { key: "fri", label: "Friday", short: "F" },
+        { key: "sat", label: "Saturday", short: "S" },
+      ];
+      return weekType === "mon-fri" ? base.slice(0, 5) : base;
+    }, [weekType]);
 
   useEffect(() => {
     if (availableDays.length > 0) {
-      setThaliDayMap(prev => {
-        const next: Record<DayKey, 'veg' | 'nonveg'> = { ...prev } as Record<DayKey, 'veg' | 'nonveg'>;
+      setThaliDayMap((prev) => {
+        const next: Record<DayKey, "veg" | "nonveg"> = { ...prev } as Record<
+          DayKey,
+          "veg" | "nonveg"
+        >;
         availableDays.forEach((d, idx) => {
           if (!next[d.key]) {
-            next[d.key] = idx % 2 === 0 ? 'veg' : 'nonveg';
+            next[d.key] = idx % 2 === 0 ? "veg" : "nonveg";
           }
         });
         // Remove days not in availableDays
-        const allowedKeys = availableDays.map(d => d.key);
-        (Object.keys(next) as DayKey[]).forEach(k => {
+        const allowedKeys = availableDays.map((d) => d.key);
+        (Object.keys(next) as DayKey[]).forEach((k) => {
           if (!allowedKeys.includes(k)) delete next[k];
         });
         return { ...next };
       });
-      setProductDays(prev => prev.filter(d => availableDays.some(ad => ad.key === d)));
+      setProductDays((prev) =>
+        prev.filter((d) => availableDays.some((ad) => ad.key === d))
+      );
     }
   }, [availableDays.length]);
 
-  // Sync Addon filter with meal type unless manually overridden
-  useEffect(() => {
-    if (!addonFilterManuallySet) {
-      if (selectedMealType === 'veg') setAddonMealFilter('veg');
-      else if (selectedMealType === 'nonveg') setAddonMealFilter('nonveg');
-      else setAddonMealFilter('both');
-    }
-  }, [selectedMealType, addonFilterManuallySet]);
-
   const toggleAddOnDay = useCallback((addOnId: string, day: DayKey) => {
-    setSelectedAddOnDays(prev => {
+    setSelectedAddOnDays((prev) => {
       const current = prev[addOnId] ?? [];
       const has = current.includes(day);
-      const next = has ? current.filter(d => d !== day) : [...current, day];
+      const next = has ? current.filter((d) => d !== day) : [...current, day];
       return { ...prev, [addOnId]: next };
     });
   }, []);
 
   const filteredAddOns: AddOn[] = useMemo(() => {
-    if (addonMealFilter === 'veg') return addOns.filter(a => a.isVeg !== false);
-    if (addonMealFilter === 'nonveg') return addOns.filter(a => a.isVeg === false);
+    // Filter by meal's addonIds if specified
+    if (meal?.addonIds && meal.addonIds.length > 0) {
+      return addOns.filter((a) => meal.addonIds!.includes(a.id));
+    }
+    // Show all addons if no specific addons are defined for the meal
     return addOns;
-  }, [addonMealFilter]);
-
-
+  }, [meal]);
 
   const variantPrice = useMemo<number>(() => {
     if (!meal) return 0;
-    if (meal.variantPricing) {
-      const vegP = meal.variantPricing.veg ?? meal.price;
-      const nonVegP = meal.variantPricing.nonveg ?? vegP;
-      if (selectedMealType === 'veg') return vegP;
-      if (selectedMealType === 'nonveg') return nonVegP;
-      if (selectedMealType === 'both') return vegP;
-    }
-    return meal?.price ?? 0;
-  }, [meal, selectedMealType]);
+    return meal.price ?? 0;
+  }, [meal]);
 
   const calculateTotalPrice = () => {
     if (!meal || !selectedPlan) return 0;
-    const daysPerWeek = weekType === 'mon-fri' ? 5 : 6;
+    const daysPerWeek = weekType === "mon-fri" ? 5 : 6;
     const weeks = Math.ceil(selectedPlan.duration / daysPerWeek);
-
-    let thaliDelta = 0;
-    if (meal.isBasicThali && meal.variantPricing) {
-      const vegPrice = meal.variantPricing.veg ?? meal.price;
-      const nonVegPrice = meal.variantPricing.nonveg ?? vegPrice;
-      const perDayDelta = nonVegPrice - vegPrice;
-      if (selectedMealType === 'nonveg') {
-        thaliDelta = perDayDelta * selectedPlan.duration;
-      } else if (selectedMealType === 'both') {
-        const daysPerWk = availableDays.length;
-        const weeksCount = Math.ceil(selectedPlan.duration / daysPerWk);
-        const nonVegDaysPerWeek = availableDays.reduce((n, d) => n + (thaliDayMap[d.key] === 'nonveg' ? 1 : 0), 0);
-        const totalMarkedDays = weeksCount * nonVegDaysPerWeek;
-        const capped = Math.min(selectedPlan.duration, totalMarkedDays);
-        thaliDelta = perDayDelta * capped;
-      }
-    }
 
     let productDayTotal = 0;
     if (meal.allowDaySelection) {
-      const daysSel = productDays.length === 0 ? availableDays.length : productDays.length;
-      const weeksCount = Math.ceil(selectedPlan.duration / (weekType === 'mon-fri' ? 5 : 6));
+      const daysSel =
+        productDays.length === 0 ? availableDays.length : productDays.length;
+      const weeksCount = Math.ceil(
+        selectedPlan.duration / (weekType === "mon-fri" ? 5 : 6)
+      );
       productDayTotal = meal.price * daysSel * weeksCount;
     }
 
     const addOnTotal = selectedAddOns.reduce((total, addOnId) => {
-      const addOn = addOns.find(a => a.id === addOnId);
+      const addOn = addOns.find((a) => a.id === addOnId);
       if (!addOn) return total;
-      const selectedDaysCount = (selectedAddOnDays[addOnId]?.length ?? 0);
-      const totalDaysForAddon = selectedDaysCount === 0
-        ? selectedPlan.duration
-        : Math.min(selectedPlan.duration, weeks * selectedDaysCount);
+      const selectedDaysCount = selectedAddOnDays[addOnId]?.length ?? 0;
+      const totalDaysForAddon =
+        selectedDaysCount === 0
+          ? selectedPlan.duration
+          : Math.min(selectedPlan.duration, weeks * selectedDaysCount);
       return total + addOn.price * totalDaysForAddon;
     }, 0);
 
@@ -275,7 +285,7 @@ export default function MealDetailScreen() {
     if (isTrialMode && meal) {
       basePrice = meal.price * 2;
     }
-    return basePrice + thaliDelta + addOnTotal + productDayTotal;
+    return basePrice + addOnTotal + productDayTotal;
   };
 
   const handleProceed = () => {
@@ -285,7 +295,6 @@ export default function MealDetailScreen() {
       meal,
       plan: selectedPlan,
       addOns: selectedAddOns,
-      mealType: selectedMealType,
       timeSlot: selectedTimeSlot ?? undefined,
       weekType,
       startDate,
@@ -294,8 +303,8 @@ export default function MealDetailScreen() {
     };
 
     router.push({
-      pathname: '/checkout',
-      params: { subscriptionData: JSON.stringify(subscriptionData) }
+      pathname: "/checkout",
+      params: { subscriptionData: JSON.stringify(subscriptionData) },
     });
   };
 
@@ -321,27 +330,43 @@ export default function MealDetailScreen() {
     );
   }
 
-
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <ScrollView style={styles.scrollView}
+      <ScrollView
+        style={styles.scrollView}
         onScroll={(e) => {
           const y = e.nativeEvent.contentOffset?.y ?? 0;
           const threshold = TOP_BG_HEIGHT * 0.6;
-          const next: 'light' | 'dark' = y < threshold ? 'light' : 'dark';
+          const next: "light" | "dark" = y < threshold ? "light" : "dark";
           if (next !== barStyle) onScrollStatusChange(next);
         }}
-        scrollEventThrottle={16}>
+        scrollEventThrottle={16}
+      >
         <View style={styles.imageContainer}>
           {/* Custom header overlay on top of image */}
-          <View style={{ position: 'absolute', top: 18, left: 0, right: 0, zIndex: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16 }}>
-            <TouchableOpacity style={styles.headerButton} onPress={() => {
-              if (canGoBack) {
-                router.back();
-              } else {
-                router.replace('/(tabs)');
-              }
-            }}>
+          <View
+            style={{
+              position: "absolute",
+              top: 18,
+              left: 0,
+              right: 0,
+              zIndex: 10,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingHorizontal: 16,
+            }}
+          >
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => {
+                if (canGoBack) {
+                  router.back();
+                } else {
+                  router.replace("/(tabs)");
+                }
+              }}
+            >
               <ArrowLeft size={24} color="white" />
             </TouchableOpacity>
             <View style={styles.headerActions}>
@@ -355,7 +380,7 @@ export default function MealDetailScreen() {
           </View>
           <Image source={{ uri: meal.images[0] }} style={styles.mealImage} />
           <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.7)']}
+            colors={["transparent", "rgba(0,0,0,0.7)"]}
             style={styles.imageOverlay}
           />
         </View>
@@ -385,12 +410,19 @@ export default function MealDetailScreen() {
               </View> */}
             </View>
             {meal.variantPricing && (
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
                 <View style={styles.variantPill}>
-                  <Text style={styles.variantPillText}>Veg ₹{meal.variantPricing.veg ?? meal.price}</Text>
+                  <Text style={styles.variantPillText}>
+                    Veg ₹{meal.variantPricing.veg ?? meal.price}
+                  </Text>
                 </View>
                 <View style={styles.variantPill}>
-                  <Text style={styles.variantPillText}>Non-Veg ₹{meal.variantPricing.nonveg ?? (meal.variantPricing.veg ?? meal.price)}</Text>
+                  <Text style={styles.variantPillText}>
+                    Non-Veg ₹
+                    {meal.variantPricing.nonveg ??
+                      meal.variantPricing.veg ??
+                      meal.price}
+                  </Text>
                 </View>
               </View>
             )}
@@ -401,19 +433,27 @@ export default function MealDetailScreen() {
             <Text style={styles.sectionTitle}>Nutrition Information</Text>
             <View style={styles.nutritionGrid}>
               <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>{meal.nutritionInfo.calories}</Text>
+                <Text style={styles.nutritionValue}>
+                  {meal.nutritionInfo.calories}
+                </Text>
                 <Text style={styles.nutritionLabel}>Calories</Text>
               </View>
               <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>{meal.nutritionInfo.protein}g</Text>
+                <Text style={styles.nutritionValue}>
+                  {meal.nutritionInfo.protein}g
+                </Text>
                 <Text style={styles.nutritionLabel}>Protein</Text>
               </View>
               <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>{meal.nutritionInfo.carbs}g</Text>
+                <Text style={styles.nutritionValue}>
+                  {meal.nutritionInfo.carbs}g
+                </Text>
                 <Text style={styles.nutritionLabel}>Carbs</Text>
               </View>
               <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>{meal.nutritionInfo.fat}g</Text>
+                <Text style={styles.nutritionValue}>
+                  {meal.nutritionInfo.fat}g
+                </Text>
                 <Text style={styles.nutritionLabel}>Fat</Text>
               </View>
             </View>
@@ -422,63 +462,9 @@ export default function MealDetailScreen() {
           {/* Ingredients */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Ingredients</Text>
-            <Text style={styles.ingredients}>{meal.ingredients.join(', ')}</Text>
-          </View>
-
-          {/* Meal Type Selection */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Select Meal Type</Text>
-            <View style={styles.mealTypeContainer}>
-              <TouchableOpacity
-                style={[styles.mealTypeButton, selectedMealType === 'veg' && styles.selectedMealType]}
-                onPress={() => setSelectedMealType('veg')}
-              >
-                <Text style={styles.mealTypeText}>🟢 Veg</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.mealTypeButton, selectedMealType === 'nonveg' && styles.selectedMealType]}
-                onPress={() => setSelectedMealType('nonveg')}
-              >
-                <Text style={styles.mealTypeText}>🔴 Non-Veg</Text>
-              </TouchableOpacity>
-              {meal.isBasicThali && (
-                <TouchableOpacity
-                  style={[styles.mealTypeButton, selectedMealType === 'both' && styles.selectedMealType]}
-                  onPress={() => setSelectedMealType('both')}
-                >
-                  <Text style={styles.mealTypeText}>🟢🔴 Both (customize)</Text>
-                </TouchableOpacity>
-              )}
-              {meal.hasEgg && (
-                <TouchableOpacity
-                  style={[styles.mealTypeButton, selectedMealType === 'egg' && styles.selectedMealType]}
-                  onPress={() => setSelectedMealType('egg')}
-                >
-                  <Text style={styles.mealTypeText}>🟡 With Egg</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            {meal.isBasicThali && selectedMealType === 'both' && (
-              <View style={{ marginTop: 12 }}>
-                <Text style={styles.daySelectorLabel}>Set Veg/Non-Veg for week</Text>
-                <View style={styles.daysRow}>
-                  {availableDays.map(d => {
-                    const mode = thaliDayMap[d.key] ?? 'veg';
-                    const isNonVeg = mode === 'nonveg';
-                    return (
-                      <TouchableOpacity
-                        key={d.key}
-                        style={[styles.dayChip, isNonVeg && styles.dayChipActive]}
-                        onPress={() => setThaliDayMap(m => ({ ...m, [d.key]: m[d.key] === 'nonveg' ? 'veg' : 'nonveg' }))}
-                      >
-                        <Text style={[styles.dayChipText, isNonVeg && styles.dayChipTextActive]}>{d.short} {isNonVeg ? 'NV' : 'V'}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                <Text style={styles.applyAllDaysNote}>Default is alternate days. Tap to toggle a day's type.</Text>
-              </View>
-            )}
+            <Text style={styles.ingredients}>
+              {meal.ingredients.join(", ")}
+            </Text>
           </View>
 
           {/* Plan Selection */}
@@ -486,7 +472,9 @@ export default function MealDetailScreen() {
             <Text style={styles.sectionTitle}>Select Plan</Text>
             <View style={styles.planContainer}>
               {getAvailablePlans().map((plan) => {
-                const isSelected = selectedPlan ? selectedPlan.id === plan.id : false;
+                const isSelected = selectedPlan
+                  ? selectedPlan.id === plan.id
+                  : false;
                 return (
                   <TouchableOpacity
                     key={plan.id}
@@ -500,12 +488,20 @@ export default function MealDetailScreen() {
                       </View>
                     )}
                     <Text style={styles.planName}>{plan.name}</Text>
-                    <Text style={styles.planDuration}>{plan.duration} days</Text>
+                    <Text style={styles.planDuration}>
+                      {plan.duration} days
+                    </Text>
                     <View style={styles.planPricing}>
-                      <Text style={styles.planPrice}>₹{plan.discountedPrice}</Text>
-                      <Text style={styles.planOriginalPrice}>₹{plan.originalPrice}</Text>
+                      <Text style={styles.planPrice}>
+                        ₹{plan.discountedPrice}
+                      </Text>
+                      <Text style={styles.planOriginalPrice}>
+                        ₹{plan.originalPrice}
+                      </Text>
                     </View>
-                    <Text style={styles.planDescription}>{plan.description}</Text>
+                    <Text style={styles.planDescription}>
+                      {plan.description}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
@@ -516,16 +512,31 @@ export default function MealDetailScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Week Type</Text>
             <View style={styles.weekTypeRow}>
-              {([['mon-fri', 'Mon-Fri'], ['mon-sat', 'Mon-Sat']] as const).map(([val, label]) => {
+              {(
+                [
+                  ["mon-fri", "Mon-Fri"],
+                  ["mon-sat", "Mon-Sat"],
+                ] as const
+              ).map(([val, label]) => {
                 const isSelected = weekType === val;
                 return (
                   <TouchableOpacity
                     key={val}
                     testID={`week-type-${val}`}
-                    style={[styles.weekTypeButton, isSelected && styles.weekTypeSelected]}
+                    style={[
+                      styles.weekTypeButton,
+                      isSelected && styles.weekTypeSelected,
+                    ]}
                     onPress={() => setWeekType(val)}
                   >
-                    <Text style={[styles.weekTypeText, isSelected && styles.weekTypeTextSelected]}>{label}</Text>
+                    <Text
+                      style={[
+                        styles.weekTypeText,
+                        isSelected && styles.weekTypeTextSelected,
+                      ]}
+                    >
+                      {label}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
@@ -561,27 +572,42 @@ export default function MealDetailScreen() {
 
           {/* Add-ons */}
           <View style={styles.section}>
-
-
             {meal.allowDaySelection && (
               <View style={{ marginTop: 12 }}>
-                <Text style={styles.sectionTitle}>Select Days for this item</Text>
+                <Text style={styles.sectionTitle}>
+                  Select Days for this item
+                </Text>
                 <View style={styles.daysRow}>
-                  {availableDays.map(d => {
+                  {availableDays.map((d) => {
                     const active = productDays.includes(d.key);
                     return (
                       <TouchableOpacity
                         key={`product-${d.key}`}
                         style={[styles.dayChip, active && styles.dayChipActive]}
-                        onPress={() => setProductDays(prev => active ? prev.filter(x => x !== d.key) : [...prev, d.key])}
+                        onPress={() =>
+                          setProductDays((prev) =>
+                            active
+                              ? prev.filter((x) => x !== d.key)
+                              : [...prev, d.key]
+                          )
+                        }
                       >
-                        <Text style={[styles.dayChipText, active && styles.dayChipTextActive]}>{d.short}</Text>
+                        <Text
+                          style={[
+                            styles.dayChipText,
+                            active && styles.dayChipTextActive,
+                          ]}
+                        >
+                          {d.short}
+                        </Text>
                       </TouchableOpacity>
                     );
                   })}
                 </View>
                 {productDays.length === 0 && (
-                  <Text style={styles.applyAllDaysNote}>No day selected → applies to all working days</Text>
+                  <Text style={styles.applyAllDaysNote}>
+                    No day selected → applies to all working days
+                  </Text>
                 )}
               </View>
             )}
@@ -590,7 +616,9 @@ export default function MealDetailScreen() {
           <View style={styles.section}>
             <View style={styles.mealsCard}>
               <View style={styles.mealsHeader}>
-                <Text style={styles.mealsTitle}>Add-ons ({selectedAddOns.length})</Text>
+                <Text style={styles.mealsTitle}>
+                  Add-ons ({selectedAddOns.length})
+                </Text>
                 <View style={styles.mealsHeaderActions}>
                   <TouchableOpacity
                     testID="meals-card-add"
@@ -600,7 +628,6 @@ export default function MealDetailScreen() {
                     <Plus size={16} color="white" />
                     <Text style={styles.mealsAddBtnText}>Add</Text>
                   </TouchableOpacity>
-
                 </View>
               </View>
 
@@ -609,85 +636,138 @@ export default function MealDetailScreen() {
                 <View style={styles.emptyMealsContainer}>
                   <ChefHat size={48} color="#9CA3AF" />
                   <Text style={styles.emptyMealsTitle}>No Addons</Text>
-                  <Text style={styles.emptyMealsDescription}>Customize the addons delivery days.</Text>
+                  <Text style={styles.emptyMealsDescription}>
+                    Customize the addons delivery days.
+                  </Text>
                 </View>
               ) : (
                 <View>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     <View style={styles.mealsRow}>
-                  
-                        <View style={styles.addOnsCardsContainer}>
-                          {selectedAddOns.slice(0, 6).map((addOnId) => {
-                            const addOn = addOns.find(a => a.id === addOnId);
-                            if (!addOn) return null;
+                      <View style={styles.addOnsCardsContainer}>
+                        {selectedAddOns.slice(0, 6).map((addOnId) => {
+                          const addOn = addOns.find((a) => a.id === addOnId);
+                          if (!addOn) return null;
 
-                            return (
-                              <View key={addOn.id} style={styles.mealTinyCard}>
-                                <View style={[styles.mealTinyThumb, { padding: 0 }]}> 
-                                  {addOn.image ? (
-                                    <Image
-                                      source={{ uri: addOn.image }}
-                                      style={{ width: '100%', height: '100%', borderRadius: 8, resizeMode: 'cover', backgroundColor: '#F3F4F6' }}
-                                    />
-                                  ) : (
-                                    <Text style={styles.mealImageText}>🍽️</Text>
-                                  )}
-                                </View>
-                                <Text numberOfLines={1} style={styles.mealTinyName}>{addOn.name}</Text>
-                                <Text style={styles.mealTinyMeta}>₹{addOn.price}</Text>
-                                {/* Show selected weekdays for this addon */}
-                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
-                                  {(() => {
-                                    const days = selectedAddOnDays[addOn.id] ?? [];
-                                    if (days.length === 0) {
-                                      // All days selected, show label and balls for all availableDays (week type)
-                                      return (
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                          {/* <Text style={{ fontSize: 11, color: '#10B981', marginRight: 4 }}>All days:</Text> */}
-                                          {availableDays.map(dayObj => (
-                                            <View key={dayObj.key} style={{
+                          return (
+                            <View key={addOn.id} style={styles.mealTinyCard}>
+                              <View
+                                style={[styles.mealTinyThumb, { padding: 0 }]}
+                              >
+                                {addOn.image ? (
+                                  <Image
+                                    source={{ uri: addOn.image }}
+                                    style={{
+                                      width: "100%",
+                                      height: "100%",
+                                      borderRadius: 8,
+                                      resizeMode: "cover",
+                                      backgroundColor: "#F3F4F6",
+                                    }}
+                                  />
+                                ) : (
+                                  <Text style={styles.mealImageText}>🍽️</Text>
+                                )}
+                              </View>
+                              <Text
+                                numberOfLines={1}
+                                style={styles.mealTinyName}
+                              >
+                                {addOn.name}
+                              </Text>
+                              <Text style={styles.mealTinyMeta}>
+                                ₹{addOn.price}
+                              </Text>
+                              {/* Show selected weekdays for this addon */}
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  flexWrap: "wrap",
+                                  gap: 4,
+                                  marginTop: 4,
+                                }}
+                              >
+                                {(() => {
+                                  const days =
+                                    selectedAddOnDays[addOn.id] ?? [];
+                                  if (days.length === 0) {
+                                    // All days selected, show label and balls for all availableDays (week type)
+                                    return (
+                                      <View
+                                        style={{
+                                          flexDirection: "row",
+                                          alignItems: "center",
+                                          gap: 4,
+                                        }}
+                                      >
+                                        {/* <Text style={{ fontSize: 11, color: '#10B981', marginRight: 4 }}>All days:</Text> */}
+                                        {availableDays.map((dayObj) => (
+                                          <View
+                                            key={dayObj.key}
+                                            style={{
                                               width: 24,
                                               height: 24,
                                               borderRadius: 12,
-                                              backgroundColor: '#10B981',
-                                              justifyContent: 'center',
-                                              alignItems: 'center',
-                                            }}>
-                                              <Text style={{ fontSize: 12, color: 'white', fontWeight: 'bold' }}>{dayObj.short}</Text>
-                                            </View>
-                                          ))}
-                                        </View>
-                                      );
-                                    }
-                                    return days.map(dayKey => {
-                                      const dayObj = availableDays.find(d => d.key === dayKey);
-                                      return dayObj ? (
-                                        <View key={dayKey} style={{
+                                              backgroundColor: "#10B981",
+                                              justifyContent: "center",
+                                              alignItems: "center",
+                                            }}
+                                          >
+                                            <Text
+                                              style={{
+                                                fontSize: 12,
+                                                color: "white",
+                                                fontWeight: "bold",
+                                              }}
+                                            >
+                                              {dayObj.short}
+                                            </Text>
+                                          </View>
+                                        ))}
+                                      </View>
+                                    );
+                                  }
+                                  return days.map((dayKey) => {
+                                    const dayObj = availableDays.find(
+                                      (d) => d.key === dayKey
+                                    );
+                                    return dayObj ? (
+                                      <View
+                                        key={dayKey}
+                                        style={{
                                           width: 24,
                                           height: 24,
                                           borderRadius: 12,
-                                          backgroundColor: '#48479B',
-                                          justifyContent: 'center',
-                                          alignItems: 'center',
-                                        }}>
-                                          <Text style={{ fontSize: 12, color: 'white', fontWeight: 'bold' }}>{dayObj.short}</Text>
-                                        </View>
-                                      ) : null;
-                                    });
-                                  })()}
-                                </View>
+                                          backgroundColor: "#48479B",
+                                          justifyContent: "center",
+                                          alignItems: "center",
+                                        }}
+                                      >
+                                        <Text
+                                          style={{
+                                            fontSize: 12,
+                                            color: "white",
+                                            fontWeight: "bold",
+                                          }}
+                                        >
+                                          {dayObj.short}
+                                        </Text>
+                                      </View>
+                                    ) : null;
+                                  });
+                                })()}
                               </View>
-                            );
-                          })}
-                          {selectedAddOns.length > 6 && (
-                            <Text style={styles.moreAddOnsText}>+{selectedAddOns.length - 6} more</Text>
-                          )}
-                        </View>
-                    
-
+                            </View>
+                          );
+                        })}
+                        {selectedAddOns.length > 6 && (
+                          <Text style={styles.moreAddOnsText}>
+                            +{selectedAddOns.length - 6} more
+                          </Text>
+                        )}
+                      </View>
                     </View>
                   </ScrollView>
-                
                 </View>
               )}
             </View>
@@ -742,25 +822,38 @@ export default function MealDetailScreen() {
 
       {/* Bottom Actions */}
       <View style={styles.bottomActions}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            width: "100%",
+          }}
+        >
           <View style={styles.priceBreakdown}>
             <Text style={styles.totalPriceLabel}>Total Price</Text>
             <Text style={styles.totalPriceValue}>₹{calculateTotalPrice()}</Text>
             {isTrialMode && (
-              <Text style={styles.trialDiscount}>Trial Plan: ₹{meal ? meal.price * 2 : 0}</Text>
+              <Text style={styles.trialDiscount}>
+                Trial Plan: ₹{meal ? meal.price * 2 : 0}
+              </Text>
             )}
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Text style={{ fontSize: 16, marginRight: 4 }}>Trial Mode</Text>
             <Switch
               value={isTrialMode}
               onValueChange={setIsTrialMode}
-              trackColor={{ false: '#E5E7EB', true: '#48479B' }}
-              thumbColor={isTrialMode ? '#FFFFFF' : '#FFFFFF'}
+              trackColor={{ false: "#E5E7EB", true: "#48479B" }}
+              thumbColor={isTrialMode ? "#FFFFFF" : "#FFFFFF"}
             />
           </View>
         </View>
-        <TouchableOpacity testID="proceed-to-checkout" style={styles.proceedButton} onPress={handleProceed}>
+        <TouchableOpacity
+          testID="proceed-to-checkout"
+          style={styles.proceedButton}
+          onPress={handleProceed}
+        >
           <Text style={styles.proceedButtonText}>Proceed to Checkout</Text>
         </TouchableOpacity>
       </View>
@@ -785,7 +878,8 @@ export default function MealDetailScreen() {
 
           <ScrollView style={styles.datePickerContent}>
             <Text style={styles.datePickerDescription}>
-              Choose when you want your subscription to start. You can select today or any future date.
+              Choose when you want your subscription to start. You can select
+              today or any future date.
             </Text>
 
             <View style={styles.dateOptionsContainer}>
@@ -793,7 +887,8 @@ export default function MealDetailScreen() {
               <TouchableOpacity
                 style={[
                   styles.dateOption,
-                  startDate.toDateString() === new Date().toDateString() && styles.selectedDateOption
+                  startDate.toDateString() === new Date().toDateString() &&
+                    styles.selectedDateOption,
                 ]}
                 onPress={() => {
                   setStartDate(new Date());
@@ -803,10 +898,10 @@ export default function MealDetailScreen() {
                 <View style={styles.dateOptionContent}>
                   <Text style={styles.dateOptionTitle}>Today</Text>
                   <Text style={styles.dateOptionSubtitle}>
-                    {new Date().toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long'
+                    {new Date().toLocaleDateString("en-US", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
                     })}
                   </Text>
                 </View>
@@ -825,7 +920,8 @@ export default function MealDetailScreen() {
                   <TouchableOpacity
                     style={[
                       styles.dateOption,
-                      startDate.toDateString() === tomorrow.toDateString() && styles.selectedDateOption
+                      startDate.toDateString() === tomorrow.toDateString() &&
+                        styles.selectedDateOption,
                     ]}
                     onPress={() => {
                       setStartDate(tomorrow);
@@ -835,10 +931,10 @@ export default function MealDetailScreen() {
                     <View style={styles.dateOptionContent}>
                       <Text style={styles.dateOptionTitle}>Tomorrow</Text>
                       <Text style={styles.dateOptionSubtitle}>
-                        {tomorrow.toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          day: 'numeric',
-                          month: 'long'
+                        {tomorrow.toLocaleDateString("en-US", {
+                          weekday: "long",
+                          day: "numeric",
+                          month: "long",
                         })}
                       </Text>
                     </View>
@@ -860,7 +956,8 @@ export default function MealDetailScreen() {
                     key={i}
                     style={[
                       styles.dateOption,
-                      startDate.toDateString() === futureDate.toDateString() && styles.selectedDateOption
+                      startDate.toDateString() === futureDate.toDateString() &&
+                        styles.selectedDateOption,
                     ]}
                     onPress={() => {
                       setStartDate(futureDate);
@@ -869,15 +966,15 @@ export default function MealDetailScreen() {
                   >
                     <View style={styles.dateOptionContent}>
                       <Text style={styles.dateOptionTitle}>
-                        {futureDate.toLocaleDateString('en-US', {
-                          weekday: 'long'
+                        {futureDate.toLocaleDateString("en-US", {
+                          weekday: "long",
                         })}
                       </Text>
                       <Text style={styles.dateOptionSubtitle}>
-                        {futureDate.toLocaleDateString('en-US', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric'
+                        {futureDate.toLocaleDateString("en-US", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
                         })}
                       </Text>
                     </View>
@@ -893,7 +990,8 @@ export default function MealDetailScreen() {
 
             <View style={styles.datePickerNote}>
               <Text style={styles.datePickerNoteText}>
-                💡 Your subscription will start on the selected date. You can modify or skip meals up to the cutoff time.
+                💡 Your subscription will start on the selected date. You can
+                modify or skip meals up to the cutoff time.
               </Text>
             </View>
           </ScrollView>
@@ -923,16 +1021,27 @@ export default function MealDetailScreen() {
               const isSelected = selectedAddOns.includes(addOn.id);
               const days = selectedAddOnDays[addOn.id] ?? [];
               return (
-                <View key={addOn.id} style={[styles.drawerAddOnCard, isSelected && styles.selectedDrawerAddOn]}>
+                <View
+                  key={addOn.id}
+                  style={[
+                    styles.drawerAddOnCard,
+                    isSelected && styles.selectedDrawerAddOn,
+                  ]}
+                >
                   <TouchableOpacity
                     testID={`addon-toggle-${addOn.id}`}
                     style={styles.addOnRow}
                     onPress={() => handleAddOnToggle(addOn.id)}
                   >
-                    <Image source={{ uri: addOn.image }} style={styles.addOnImage} />
+                    <Image
+                      source={{ uri: addOn.image }}
+                      style={styles.addOnImage}
+                    />
                     <View style={styles.addOnInfo}>
                       <Text style={styles.addOnName}>{addOn.name}</Text>
-                      <Text style={styles.addOnDescription}>{addOn.description}</Text>
+                      <Text style={styles.addOnDescription}>
+                        {addOn.description}
+                      </Text>
                       <Text style={styles.addOnPrice}>+₹{addOn.price}</Text>
                     </View>
                     {isSelected && (
@@ -944,24 +1053,38 @@ export default function MealDetailScreen() {
 
                   {isSelected && (
                     <View style={styles.daySelectorContainer}>
-                      <Text style={styles.daySelectorLabel}>Select days for this addon</Text>
+                      <Text style={styles.daySelectorLabel}>
+                        Select days for this addon
+                      </Text>
                       <View style={styles.daysRow}>
-                        {availableDays.map(d => {
+                        {availableDays.map((d) => {
                           const active = days.includes(d.key);
                           return (
                             <TouchableOpacity
                               key={d.key}
                               testID={`addon-${addOn.id}-day-${d.key}`}
-                              style={[styles.dayChip, active && styles.dayChipActive]}
+                              style={[
+                                styles.dayChip,
+                                active && styles.dayChipActive,
+                              ]}
                               onPress={() => toggleAddOnDay(addOn.id, d.key)}
                             >
-                              <Text style={[styles.dayChipText, active && styles.dayChipTextActive]}>{d.short}</Text>
+                              <Text
+                                style={[
+                                  styles.dayChipText,
+                                  active && styles.dayChipTextActive,
+                                ]}
+                              >
+                                {d.short}
+                              </Text>
                             </TouchableOpacity>
                           );
                         })}
                       </View>
                       {days.length === 0 && (
-                        <Text style={styles.applyAllDaysNote}>No day selected → applies to all plan days</Text>
+                        <Text style={styles.applyAllDaysNote}>
+                          No day selected → applies to all plan days
+                        </Text>
                       )}
                     </View>
                   )}
@@ -975,7 +1098,9 @@ export default function MealDetailScreen() {
               style={styles.doneButton}
               onPress={() => setShowAddOnsDrawer(false)}
             >
-              <Text style={styles.doneButtonText}>Done ({selectedAddOns.length} selected)</Text>
+              <Text style={styles.doneButtonText}>
+                Done ({selectedAddOns.length} selected)
+              </Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -987,23 +1112,23 @@ export default function MealDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: "#F8F9FA",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   scrollView: {
@@ -1011,21 +1136,21 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     height: 300,
-    position: 'relative',
+    position: "relative",
   },
   mealImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   imageOverlay: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
     height: 100,
   },
   content: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     marginTop: -24,
@@ -1036,89 +1161,89 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 8,
   },
   mealName: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     flex: 1,
     marginRight: 16,
   },
   ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   rating: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginLeft: 4,
   },
   reviewCount: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginLeft: 4,
   },
   description: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
     lineHeight: 24,
     marginBottom: 16,
   },
   priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   price: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#48479B',
+    fontWeight: "bold",
+    color: "#48479B",
   },
   originalPrice: {
     fontSize: 18,
-    color: '#999',
-    textDecorationLine: 'line-through',
+    color: "#999",
+    textDecorationLine: "line-through",
     marginLeft: 8,
   },
   tags: {
-    flexDirection: 'row',
-    marginLeft: 'auto',
+    flexDirection: "row",
+    marginLeft: "auto",
   },
   vegTag: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#10B981',
+    fontWeight: "600",
+    color: "#10B981",
   },
   eggTag: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#F59E0B',
+    fontWeight: "600",
+    color: "#F59E0B",
   },
   nonVegTag: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#EF4444',
+    fontWeight: "600",
+    color: "#EF4444",
   },
   section: {
     marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginBottom: 12,
   },
   nutritionGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   nutritionItem: {
-    alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    alignItems: "center",
+    backgroundColor: "#F8F9FA",
     padding: 16,
     borderRadius: 12,
     flex: 1,
@@ -1126,22 +1251,22 @@ const styles = StyleSheet.create({
   },
   nutritionValue: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#48479B',
+    fontWeight: "bold",
+    color: "#48479B",
   },
   nutritionLabel: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
     marginTop: 4,
   },
   ingredients: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
     lineHeight: 24,
   },
   mealTypeContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   mealTypeButton: {
@@ -1149,89 +1274,89 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#DDD',
-    backgroundColor: 'white',
+    borderColor: "#DDD",
+    backgroundColor: "white",
   },
   selectedMealType: {
-    color: '#48479B',
-    borderColor: '#48479B',
-    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    color: "#48479B",
+    borderColor: "#48479B",
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
   },
   mealTypeText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#48479B',
+    fontWeight: "500",
+    color: "#48479B",
   },
   planContainer: {
     gap: 12,
   },
   planCard: {
-    backgroundColor: '#F8F9FA',
+    backgroundColor: "#F8F9FA",
     borderRadius: 12,
     padding: 16,
     borderWidth: 2,
-    borderColor: 'transparent',
-    position: 'relative',
+    borderColor: "transparent",
+    position: "relative",
   },
   selectedPlan: {
-    borderColor: '#48479B',
-    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    borderColor: "#48479B",
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
   },
   popularBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: -8,
     right: 16,
-    backgroundColor: '#48479B',
+    backgroundColor: "#48479B",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   popularText: {
-    color: 'white',
+    color: "white",
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   planName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginBottom: 4,
   },
   planDuration: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginBottom: 8,
   },
   planPricing: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   planPrice: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#48479B',
+    fontWeight: "bold",
+    color: "#48479B",
   },
   planOriginalPrice: {
     fontSize: 14,
-    color: '#999',
-    textDecorationLine: 'line-through',
+    color: "#999",
+    textDecorationLine: "line-through",
     marginLeft: 8,
   },
   planDescription: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
   },
   toggleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 8,
   },
   trialNote: {
     fontSize: 14,
-    color: '#10B981',
-    fontStyle: 'italic',
+    color: "#10B981",
+    fontStyle: "italic",
   },
   selectedAddOnsPreview: {
     marginTop: 8,
@@ -1239,62 +1364,62 @@ const styles = StyleSheet.create({
   },
   selectedAddOnText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   moreAddOnsText: {
     fontSize: 14,
-    color: '#48479B',
-    fontWeight: '600',
+    color: "#48479B",
+    fontWeight: "600",
   },
   timeSlotContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   timeSlotButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#DDD',
-    backgroundColor: 'white',
+    borderColor: "#DDD",
+    backgroundColor: "white",
     gap: 6,
   },
   selectedTimeSlot: {
-    borderColor: '#48479B',
-    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    borderColor: "#48479B",
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
   },
   weekTypeRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
   },
   weekTypeButton: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#DDD',
-    backgroundColor: 'white',
+    borderColor: "#DDD",
+    backgroundColor: "white",
   },
   weekTypeSelected: {
-    borderColor: '#48479B',
-    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    borderColor: "#48479B",
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
   },
   weekTypeText: {
     fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
+    color: "#333",
+    fontWeight: "500",
   },
   weekTypeTextSelected: {
-    color: '#48479B',
-    fontWeight: '700',
+    color: "#48479B",
+    fontWeight: "700",
   },
   weekendOptionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
     marginTop: 4,
     marginBottom: 12,
@@ -1304,69 +1429,69 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#DDD',
-    backgroundColor: 'white',
+    borderColor: "#DDD",
+    backgroundColor: "white",
   },
   weekendOptionSelected: {
-    borderColor: '#48479B',
-    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    borderColor: "#48479B",
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
   },
   weekendOptionText: {
     fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
+    color: "#333",
+    fontWeight: "500",
   },
   weekendOptionTextSelected: {
-    color: '#48479B',
-    fontWeight: '700',
+    color: "#48479B",
+    fontWeight: "700",
   },
   timeSlotText: {
     fontSize: 14,
-    color: '#333',
+    color: "#333",
   },
   selectedTimeSlotText: {
-    color: '#48479B',
-    fontWeight: '600',
+    color: "#48479B",
+    fontWeight: "600",
   },
   dateSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8F9FA",
     padding: 16,
     borderRadius: 12,
     marginTop: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   dateContent: {
     marginLeft: 12,
   },
   dateLabel: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   dateValue: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
   },
   datePickerContainer: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: "#F8F9FA",
   },
   datePickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 20,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: "#F0F0F0",
   },
   datePickerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
   },
   datePickerContent: {
     flex: 1,
@@ -1374,31 +1499,31 @@ const styles = StyleSheet.create({
   },
   datePickerDescription: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
     lineHeight: 24,
     marginBottom: 24,
-    textAlign: 'center',
+    textAlign: "center",
   },
   dateOptionsContainer: {
     gap: 12,
   },
   dateOption: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: 'transparent',
-    shadowColor: '#000',
+    borderColor: "transparent",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   selectedDateOption: {
-    borderColor: '#48479B',
+    borderColor: "#48479B",
     // backgroundColor: 'rgba(163, 211, 151, 0.27)',
   },
   dateOptionContent: {
@@ -1406,85 +1531,85 @@ const styles = StyleSheet.create({
   },
   dateOptionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 4,
   },
   dateOptionSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   selectedIndicator: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#48479B',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#48479B",
+    justifyContent: "center",
+    alignItems: "center",
   },
   datePickerNote: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: "#EEF2FF",
     padding: 16,
     borderRadius: 12,
     marginTop: 24,
   },
   datePickerNoteText: {
     fontSize: 14,
-    color: '#4F46E5',
+    color: "#4F46E5",
     lineHeight: 20,
-    textAlign: 'center',
+    textAlign: "center",
   },
   bottomActions: {
     padding: 20,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: "#F0F0F0",
   },
   priceBreakdown: {
     marginBottom: 16,
   },
   totalPriceLabel: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   totalPriceValue: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#48479B',
+    fontWeight: "bold",
+    color: "#48479B",
   },
   trialDiscount: {
     fontSize: 12,
-    color: '#10B981',
-    fontWeight: '600',
+    color: "#10B981",
+    fontWeight: "600",
   },
   proceedButton: {
-    backgroundColor: '#48479B',
+    backgroundColor: "#48479B",
     paddingVertical: 16,
     borderRadius: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   proceedButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   drawerContainer: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: "#F8F9FA",
   },
   drawerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 20,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: "#F0F0F0",
   },
   drawerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
   },
   closeButton: {
     padding: 8,
@@ -1494,20 +1619,20 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   drawerAddOnCard: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: "transparent",
   },
   selectedDrawerAddOn: {
-    borderColor: '#48479B',
-    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    borderColor: "#48479B",
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
   },
   addOnRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   addOnImage: {
     width: 60,
@@ -1517,93 +1642,93 @@ const styles = StyleSheet.create({
   },
   drawerFooter: {
     padding: 20,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: "#F0F0F0",
   },
   doneButton: {
-    backgroundColor: '#48479B',
+    backgroundColor: "#48479B",
     paddingVertical: 16,
     borderRadius: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   doneButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   variantPill: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6",
     borderRadius: 16,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   variantPillText: {
     fontSize: 12,
-    color: '#374151',
-    fontWeight: '600',
+    color: "#374151",
+    fontWeight: "600",
   },
   addOnHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
   addOnToggle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#48479B',
+    fontWeight: "bold",
+    color: "#48479B",
   },
   addOnsContainer: {
     gap: 12,
   },
   selectedAddOn: {
-    borderColor: '#48479B',
-    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    borderColor: "#48479B",
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
   },
   addOnInfo: {
     flex: 1,
   },
   addOnName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 4,
   },
   addOnDescription: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginBottom: 4,
   },
   addOnPrice: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#48479B',
+    fontWeight: "600",
+    color: "#48479B",
   },
   addOnSelected: {
-    position: 'absolute',
+    position: "absolute",
     top: 8,
     right: 8,
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#48479B',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#48479B",
+    justifyContent: "center",
+    alignItems: "center",
   },
   daySelectorContainer: {
     marginTop: 12,
   },
   daySelectorLabel: {
     fontSize: 13,
-    color: '#666',
+    color: "#666",
     marginBottom: 8,
   },
   daysRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   dayChip: {
@@ -1611,150 +1736,150 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: 'white',
+    borderColor: "#E5E7EB",
+    backgroundColor: "white",
   },
   dayChipActive: {
-    borderColor: '#48479B',
-    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    borderColor: "#48479B",
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
   },
   dayChipText: {
     fontSize: 13,
-    color: '#333',
-    fontWeight: '500',
+    color: "#333",
+    fontWeight: "500",
   },
   dayChipTextActive: {
-    color: '#48479B',
-    fontWeight: '700',
+    color: "#48479B",
+    fontWeight: "700",
   },
   applyAllDaysNote: {
     marginTop: 6,
     fontSize: 12,
-    color: '#10B981',
+    color: "#10B981",
   },
   checkMark: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 
   emptyMealsContainer: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 40,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   emptyMealsTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     marginTop: 16,
     marginBottom: 8,
   },
   emptyMealsDescription: {
     fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
+    color: "#6B7280",
+    textAlign: "center",
   },
   mealsCard: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   mealsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 12,
   },
   mealsTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: "700",
+    color: "#111827",
   },
   mealsHeaderActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   mealsAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
-    backgroundColor: '#10B981',
+    backgroundColor: "#10B981",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
   },
   mealsAddBtnText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   mealsViewAllBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6",
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   mealsViewAllText: {
-    color: '#111827',
+    color: "#111827",
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   mealsRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
     paddingVertical: 4,
   },
   mealTinyCard: {
     width: 140,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
     borderRadius: 12,
     padding: 10,
-    backgroundColor: 'white',
+    backgroundColor: "white",
   },
   mealTinyThumb: {
-    width: '100%',
+    width: "100%",
     height: 70,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 8,
   },
   mealTinyName: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: "700",
+    color: "#111827",
   },
   mealTinyMeta: {
     fontSize: 12,
-    color: '#6B7280',
+    color: "#6B7280",
     marginTop: 2,
     marginBottom: 6,
   },
   mealTinyBadges: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 6,
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
   },
   toggleActiveBtn: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 8,
   },
   toggleActiveText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 0.3,
   },
   mealImageText: {
@@ -1770,8 +1895,8 @@ const styles = StyleSheet.create({
   },
   vegBadgeText: {
     fontSize: 10,
-    color: 'white',
-    fontWeight: '600',
+    color: "white",
+    fontWeight: "600",
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -1780,25 +1905,25 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: 'white',
+    fontWeight: "600",
+    color: "white",
   },
-   noAddOnsContainer: {
+  noAddOnsContainer: {
     padding: 20,
     marginVertical: 10,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6",
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   noAddOnsText: {
     fontSize: 16,
-    color: '#6B7280',
-    fontWeight: '500',
+    color: "#6B7280",
+    fontWeight: "500",
   },
- addOnsCardsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  addOnsCardsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     marginVertical: 10,
   },
 });

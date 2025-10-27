@@ -102,10 +102,11 @@ export default function MealCard({ meal, onPress, onTryNow, onSubscribe }: MealC
           <View style={styles.priceBlock}>
             <Text style={styles.startingFrom}>Starting from</Text>
             <View style={styles.priceContainer}>
-              <Text style={styles.price}>₹{meal.price}</Text>
+              
               {meal.originalPrice && (
                 <Text style={styles.originalPrice}>₹{meal.originalPrice}</Text>
               )}
+              <Text style={styles.price}>₹{meal.price}</Text>
             </View>
           </View>
         </View>
@@ -147,10 +148,10 @@ const styles = StyleSheet.create({
     marginRight: 16,
     marginBottom: 16,
     width: cardWidth,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
+    // shadowColor: '#000',
+    // shadowOffset: { width: 0, height: 3 },
+    // shadowOpacity: 0.1,
+    // shadowRadius: 6,
     elevation: 5,
     overflow: 'hidden',
     borderWidth: 1,
@@ -180,7 +181,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   name: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: Colors.text,
     marginBottom: 6,
@@ -190,6 +191,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   priceBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 2,
   },
   priceContainer: {
@@ -205,7 +209,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   price: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     color: Colors.primary,
     letterSpacing: -0.5,
@@ -227,7 +231,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: Colors.primary,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -237,12 +241,13 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: '700',
     fontSize: 11,
+
   },
   subscribeBtn: {
     flex: 1,
     backgroundColor: Colors.primary,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: Colors.primary,

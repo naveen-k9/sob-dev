@@ -36,7 +36,7 @@ export default function CategoryBrowserScreen() {
   const params = useLocalSearchParams<{ categoryId?: string }>();
   const initialCategoryId =
     typeof params.categoryId === "string" ? params.categoryId : null;
-  
+
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(
     initialCategoryId
   );
@@ -146,13 +146,22 @@ export default function CategoryBrowserScreen() {
     const sorted = combined.sort(
       (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
     );
-    console.log("[menu] Loaded categories:", sorted.length, sorted.map(c => `${c.name} (${c.group})`));
+    console.log(
+      "[menu] Loaded categories:",
+      sorted.length,
+      sorted.map((c) => `${c.name} (${c.group})`)
+    );
     return sorted;
   }, [mealTimeCategories, collectionCategories]);
 
   // Auto-select first category if none selected and no URL param
   useEffect(() => {
-    if (!activeCategoryId && allCategories.length > 0 && !initialCategoryId && !hasInitialized.current) {
+    if (
+      !activeCategoryId &&
+      allCategories.length > 0 &&
+      !initialCategoryId &&
+      !hasInitialized.current
+    ) {
       const firstCategory = allCategories[0];
       console.log("[menu] Auto-selecting first category:", firstCategory.name);
       setActiveCategoryId(firstCategory.id);
@@ -209,7 +218,11 @@ export default function CategoryBrowserScreen() {
     if (chipFilters.has("under-300"))
       list = list.filter((m) => (m.price ?? 0) < 300);
 
-    console.log(`[menu] Filtered meals for category ${activeCategoryId}:`, list.length, "meals");
+    console.log(
+      `[menu] Filtered meals for category ${activeCategoryId}:`,
+      list.length,
+      "meals"
+    );
 
     // Sort by featured status and then by name
     return list.sort((a, b) => {
@@ -283,13 +296,16 @@ export default function CategoryBrowserScreen() {
         });
         return;
       }
-      
+
       // Center the category in the viewport
       const target = Math.max(0, layout.x - (screenWidth - layout.width) / 2);
-      
+
       try {
-        console.log("Auto-scroll to category", id, layout, { target, immediate });
-        
+        console.log("Auto-scroll to category", id, layout, {
+          target,
+          immediate,
+        });
+
         if (immediate) {
           // For immediate scrolls (like on mount), do it without animation first
           scrollRef.current.scrollTo({ x: target, y: 0, animated: false });
@@ -335,24 +351,35 @@ export default function CategoryBrowserScreen() {
   useEffect(() => {
     if (initialCategoryId && allCategories.length > 0) {
       console.log("[menu] URL param categoryId detected:", initialCategoryId);
-      
-      const categoryExists = allCategories.some(c => c.id === initialCategoryId);
-      
+
+      const categoryExists = allCategories.some(
+        (c) => c.id === initialCategoryId
+      );
+
       if (categoryExists) {
-        console.log("[menu] Setting category from URL param:", initialCategoryId);
+        console.log(
+          "[menu] Setting category from URL param:",
+          initialCategoryId
+        );
         setActiveCategoryId(initialCategoryId);
         hasInitialized.current = true;
-        
+
         // Scroll to the category with smooth animation after layout is ready
         setTimeout(() => {
           scrollToCategory(initialCategoryId, false); // Smooth scroll for navigation
         }, 200);
       } else if (!hasInitialized.current) {
-        console.warn("[menu] Category from URL param not found:", initialCategoryId);
+        console.warn(
+          "[menu] Category from URL param not found:",
+          initialCategoryId
+        );
         // Fall back to first category if the requested one doesn't exist
         if (allCategories.length > 0) {
           const firstCategory = allCategories[0];
-          console.log("[menu] Falling back to first category:", firstCategory.name);
+          console.log(
+            "[menu] Falling back to first category:",
+            firstCategory.name
+          );
           setActiveCategoryId(firstCategory.id);
           hasInitialized.current = true;
         }
@@ -396,7 +423,7 @@ export default function CategoryBrowserScreen() {
         }}
       />
 
-      <View style={[styles.sectionMain, { marginTop: 0 }]}>
+      <View style={[styles.sectionMain, { marginTop: -27 }]}>
         <ScrollView
           ref={scrollRef}
           horizontal
@@ -428,10 +455,10 @@ export default function CategoryBrowserScreen() {
                 onPress={() => {
                   // Don't deselect if clicking same category - just keep it selected
                   console.log("[menu] Category clicked:", c.name, c.id);
-                  
+
                   // Update state immediately for instant visual feedback
                   setActiveCategoryId(c.id);
-                  
+
                   // Scroll after interactions complete for smooth animation
                   InteractionManager.runAfterInteractions(() => {
                     requestAnimationFrame(() => scrollToCategory(c.id, false));
@@ -441,12 +468,6 @@ export default function CategoryBrowserScreen() {
             </View>
           ))}
         </ScrollView>
-        {/* Active Category Name below ScrollView */}
-        {/* {activeCategoryName ? (
-          <View style={styles.activeCategoryNameWrap}>
-            <Text style={styles.activeCategoryNameText}>{activeCategoryName} Products</Text>
-          </View>
-        ) : null} */}
       </View>
 
       {isLoading ? (
@@ -519,6 +540,15 @@ export default function CategoryBrowserScreen() {
             )}
           </View> */}
 
+          {/* Active Category Name below ScrollView */}
+          {activeCategoryName ? (
+            <View style={styles.activeCategoryNameWrap}>
+              <Text style={styles.activeCategoryNameText}>
+                {activeCategoryName} Products
+              </Text>
+            </View>
+          ) : null}
+
           <View style={styles.mealGrid}>
             <FlatList
               key={`meals-${activeCategoryId}-${gridCols}`}
@@ -541,9 +571,12 @@ export default function CategoryBrowserScreen() {
               ListEmptyComponent={
                 activeCategoryId ? (
                   <View style={styles.emptyContainer}>
-                    <Text style={styles.empty}>No meals found in this category</Text>
+                    <Text style={styles.empty}>
+                      No meals found in this category
+                    </Text>
                     <Text style={styles.emptySubtext}>
-                      Try selecting a different category or adjusting your filters
+                      Try selecting a different category or adjusting your
+                      filters
                     </Text>
                   </View>
                 ) : null
@@ -601,7 +634,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginTop: 12,
   },
-  sectionMain: {},
+  sectionMain: {
+    paddingVertical: 0,
+  },
   clearText: { color: "#48479B", fontWeight: "600" },
   mealGrid: { paddingHorizontal: 16, marginTop: 12 },
   gridRow: { justifyContent: "space-between" },
@@ -650,14 +685,15 @@ const styles = StyleSheet.create({
   retryText: { color: "white", fontWeight: "600" },
   offersRow: { paddingLeft: 20, paddingVertical: 8 },
   horizontalContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     backgroundColor: "rgba(255,255,255,0.7)",
     paddingVertical: 9,
   },
   activeCategoryNameWrap: {
-    alignItems: "center",
+    alignItems: "flex-start",
     marginTop: 8,
     marginBottom: 4,
+    paddingHorizontal: 18,
   },
   activeCategoryNameText: { fontSize: 16, fontWeight: "700", color: "#000" },
 });

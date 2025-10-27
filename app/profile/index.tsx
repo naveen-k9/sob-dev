@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,8 +9,8 @@ import {
   FlatList,
   TextInput,
   Alert,
-} from 'react-native';
-import AddressBookModal from '@/components/AddressBookModal';
+} from "react-native";
+import AddressBookModal from "@/components/AddressBookModal";
 import {
   User,
   MapPin,
@@ -27,12 +27,12 @@ import {
   Edit,
   Heart,
   ArrowLeft,
-} from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
-import { router, Stack } from 'expo-router';
-import db from '@/db';
-import { Subscription } from '@/types';
-import { Colors } from '@/constants/colors';
+} from "lucide-react-native";
+import { useAuth } from "@/contexts/AuthContext";
+import { router, Stack } from "expo-router";
+import db from "@/db";
+import { Subscription } from "@/types";
+import { Colors } from "@/constants/colors";
 
 export default function ProfileScreen() {
   const { user, isGuest, logout } = useAuth();
@@ -40,52 +40,93 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [showAddressBook, setShowAddressBook] = useState<boolean>(false);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
-  const [editingPlanName, setEditingPlanName] = useState<string>('');
+  const [editingPlanName, setEditingPlanName] = useState<string>("");
 
   useEffect(() => {
     if (user) {
       loadUserSubscriptions();
     }
   }, [user]);
- 
+
   const loadUserSubscriptions = async () => {
     if (!user) return;
     try {
       const userSubs = await db.getUserSubscriptions(user.id);
       setSubscriptions(userSubs);
     } catch (error) {
-      console.error('Error loading subscriptions:', error);
+      console.error("Error loading subscriptions:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleLogin = () => {
-    router.push('/auth/login');
+    router.push("/auth/login");
   };
 
   const handleLogout = async () => {
     await logout();
-    router.replace('/auth/login');
+    router.replace("/auth/login");
   };
 
-  const isProfileIncomplete = !user?.name || user.name.trim() === '' || user.addresses.length === 0;
+  const isProfileIncomplete =
+    !user?.name || user.name.trim() === "" || user.addresses.length === 0;
 
   const menuItems = [
-    ...(isProfileIncomplete ? [{ 
-      icon: Edit, 
-      title: 'Complete Profile', 
-      onPress: () => router.push('/auth/basic-info'),
-      highlight: true 
-    }] : []),
-    { icon: User, title: 'Personal Information', onPress: () => router.push('/auth/basic-info') },
-    { icon: MapPin, title: 'Address Book', onPress: () => setShowAddressBook(true) },
-    { icon: Heart, title: 'Nutritionist Consultation', onPress: () => router.push('/nutritionist-contact' as any) },
-    { icon: Package, title: 'Corporate Catering', onPress: () => router.push('/corporate-catering' as any) },
-    { icon: CreditCard, title: 'Payment Methods', onPress: () => {} },
-    { icon: Bell, title: 'Notifications', onPress: () => router.push('/notifications' as any) },
-    { icon: HelpCircle, title: 'FAQs', onPress: () => router.push('/faqs' as any) },
-    { icon: MessageSquare, title: 'Support Tickets', onPress: () => router.push('/support' as any) },
+    ...(isProfileIncomplete
+      ? [
+          {
+            icon: Edit,
+            title: "Complete Profile",
+            onPress: () => router.push("/auth/basic-info"),
+            highlight: true,
+          },
+        ]
+      : []),
+    {
+      icon: User,
+      title: "Personal Information",
+      onPress: () => router.push("/auth/basic-info"),
+    },
+    {
+      icon: MapPin,
+      title: "Address Book",
+      onPress: () => setShowAddressBook(true),
+    },
+    {
+      icon: Wallet,
+      title: "My Wallet",
+      onPress: () => router.push("/wallet" as any),
+      badge: user?.walletBalance
+        ? `₹${user.walletBalance.toFixed(2)}`
+        : undefined,
+    },
+    {
+      icon: Heart,
+      title: "Nutritionist Consultation",
+      onPress: () => router.push("/nutritionist-contact" as any),
+    },
+    {
+      icon: Package,
+      title: "Corporate Catering",
+      onPress: () => router.push("/corporate-catering" as any),
+    },
+    { icon: CreditCard, title: "Payment Methods", onPress: () => {} },
+    {
+      icon: Bell,
+      title: "Notifications",
+      onPress: () => router.push("/notifications" as any),
+    },
+    {
+      icon: HelpCircle,
+      title: "FAQs",
+      onPress: () => router.push("/faqs" as any),
+    },
+    {
+      icon: MessageSquare,
+      title: "Support Tickets",
+      onPress: () => router.push("/support" as any),
+    },
   ];
 
   const handleEditPlanName = (subscription: Subscription) => {
@@ -95,46 +136,54 @@ export default function ProfileScreen() {
 
   const savePlanName = async (subscriptionId: string) => {
     if (!editingPlanName.trim()) {
-      Alert.alert('Error', 'Plan name cannot be empty');
+      Alert.alert("Error", "Plan name cannot be empty");
       return;
     }
 
     try {
-      await db.updateSubscription(subscriptionId, { planName: editingPlanName.trim() });
+      await db.updateSubscription(subscriptionId, {
+        planName: editingPlanName.trim(),
+      });
       setEditingPlanId(null);
-      setEditingPlanName('');
+      setEditingPlanName("");
       await loadUserSubscriptions(); // Reload to show updated name
     } catch (error) {
-      console.error('Error updating plan name:', error);
-      Alert.alert('Error', 'Failed to update plan name');
+      console.error("Error updating plan name:", error);
+      Alert.alert("Error", "Failed to update plan name");
     }
   };
 
   const cancelEditPlanName = () => {
     setEditingPlanId(null);
-    setEditingPlanName('');
+    setEditingPlanName("");
   };
 
   const renderSubscriptionCard = ({ item }: { item: Subscription }) => {
     const getStatusColor = (status: string) => {
       switch (status) {
-        case 'active': return '#10B981';
-        case 'paused': return '#F59E0B';
-        case 'cancelled': return '#EF4444';
-        case 'completed': return '#6B7280';
-        default: return '#6B7280';
+        case "active":
+          return "#10B981";
+        case "paused":
+          return "#F59E0B";
+        case "cancelled":
+          return "#EF4444";
+        case "completed":
+          return "#6B7280";
+        default:
+          return "#6B7280";
       }
     };
 
     const formatDate = (date: Date) => {
-      return new Date(date).toLocaleDateString('en-IN', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
+      return new Date(date).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
       });
     };
 
-    const deliveredMeals = (item.totalDeliveries || 0) - (item.remainingDeliveries || 0);
+    const deliveredMeals =
+      (item.totalDeliveries || 0) - (item.remainingDeliveries || 0);
     const isEditing = editingPlanId === item.id;
 
     return (
@@ -173,15 +222,22 @@ export default function ProfileScreen() {
                   </Text>
                   <Edit size={14} color="#48479B" style={styles.editIcon} />
                 </View>
-                <Text style={styles.subscriptionPlan}>Subscription #{item.id.slice(-6)}</Text>
+                <Text style={styles.subscriptionPlan}>
+                  Subscription #{item.id.slice(-6)}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(item.status) },
+            ]}
+          >
             <Text style={styles.statusText}>{item.status.toUpperCase()}</Text>
           </View>
         </View>
-        
+
         <View style={styles.subscriptionDetails}>
           <View style={styles.detailRow}>
             <Calendar size={16} color="#666" />
@@ -189,25 +245,23 @@ export default function ProfileScreen() {
               {formatDate(item.startDate)} - {formatDate(item.endDate)}
             </Text>
           </View>
-          
+
           <View style={styles.detailRow}>
             <Package size={16} color="#666" />
             <Text style={styles.detailText}>
               {deliveredMeals}/{item.totalDeliveries || 0} meals delivered
             </Text>
           </View>
-          
+
           <View style={styles.detailRow}>
             <Clock size={16} color="#666" />
-            <Text style={styles.detailText}>
-              Delivery: {item.deliveryTime}
-            </Text>
+            <Text style={styles.detailText}>Delivery: {item.deliveryTime}</Text>
           </View>
         </View>
-        
+
         <View style={styles.subscriptionFooter}>
           <Text style={styles.totalAmount}>₹{item.totalAmount}</Text>
-          {item.status === 'active' && (
+          {item.status === "active" && (
             <TouchableOpacity style={styles.manageButton}>
               <Text style={styles.manageButtonText}>Manage</Text>
             </TouchableOpacity>
@@ -236,18 +290,25 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-       <Stack.Screen
+      <Stack.Screen
         options={{
-          title: 'Profile',
+          title: "Profile",
           headerShown: true,
           headerStyle: { backgroundColor: Colors.primary },
-          headerTitleStyle: { color: Colors.background, fontSize: 18, fontWeight: '700' },
+          headerTitleStyle: {
+            color: Colors.background,
+            fontSize: 18,
+            fontWeight: "700",
+          },
           headerLeft: () => (
-           <View style={{ marginLeft: 18,marginRight:9 }}>
-              <TouchableOpacity  onPress={() => router.push('/')} testID="open-filter">
+            <View style={{ marginLeft: 18, marginRight: 9 }}>
+              <TouchableOpacity
+                onPress={() => router.push("/")}
+                testID="open-filter"
+              >
                 <ArrowLeft size={24} color={Colors.background} />
               </TouchableOpacity>
-           </View>
+            </View>
           ),
         }}
       />
@@ -257,7 +318,7 @@ export default function ProfileScreen() {
           <View style={styles.avatar}>
             <User size={32} color="#48479B" />
           </View>
-          <Text style={styles.name}>{user?.name || 'User'}</Text>
+          <Text style={styles.name}>{user?.name || "User"}</Text>
           <Text style={styles.phone}>{user?.phone}</Text>
         </View>
 
@@ -292,9 +353,9 @@ export default function ProfileScreen() {
               <Text style={styles.emptyDescription}>
                 Start your healthy meal journey today!
               </Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.browseButton}
-                onPress={() => router.push('/(tabs)')}
+                onPress={() => router.push("/(tabs)")}
               >
                 <Text style={styles.browseButtonText}>Browse Meals</Text>
               </TouchableOpacity>
@@ -305,24 +366,33 @@ export default function ProfileScreen() {
         {/* Menu Items */}
         <View style={styles.menu}>
           {menuItems.map((item, index) => (
-            <TouchableOpacity 
-              key={index} 
+            <TouchableOpacity
+              key={index}
               style={[
                 styles.menuItem,
-                item.highlight && styles.highlightMenuItem
-              ]} 
+                item.highlight && styles.highlightMenuItem,
+              ]}
               onPress={item.onPress}
             >
-              <item.icon 
-                size={20} 
-                color={item.highlight ? '#48479B' : '#666'} 
+              <item.icon
+                size={20}
+                color={item.highlight ? "#48479B" : "#666"}
               />
-              <Text style={[
-                styles.menuText,
-                item.highlight && styles.highlightMenuText
-              ]}>
+              <Text
+                style={[
+                  styles.menuText,
+                  item.highlight && styles.highlightMenuText,
+                ]}
+              >
                 {item.title}
               </Text>
+              {(item as any).badge && (
+                <View style={styles.balanceBadge}>
+                  <Text style={styles.balanceBadgeText}>
+                    {(item as any).badge}
+                  </Text>
+                </View>
+              )}
               {item.highlight && (
                 <View style={styles.highlightBadge}>
                   <Text style={styles.highlightBadgeText}>!</Text>
@@ -350,87 +420,87 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: "#F8F9FA",
   },
   guestContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 40,
   },
   guestTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginTop: 16,
     marginBottom: 8,
   },
   guestDescription: {
     fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
     lineHeight: 24,
     marginBottom: 24,
   },
   loginButton: {
-    backgroundColor: '#48479B',
+    backgroundColor: "#48479B",
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 8,
   },
   loginButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   header: {
-    alignItems: 'center',
+    alignItems: "center",
     padding: 32,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     marginBottom: 20,
   },
   avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(163, 211, 151, 0.27)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 16,
   },
   name: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginBottom: 4,
   },
   phone: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
   },
   menu: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     marginHorizontal: 20,
     borderRadius: 12,
     marginBottom: 20,
   },
   menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: "#F0F0F0",
   },
   menuText: {
     fontSize: 16,
-    color: '#333',
+    color: "#333",
     marginLeft: 16,
   },
   logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'white',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "white",
     marginHorizontal: 20,
     padding: 16,
     borderRadius: 12,
@@ -438,34 +508,34 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     fontSize: 16,
-    color: '#FF4444',
+    color: "#FF4444",
     marginLeft: 8,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   walletCard: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     marginHorizontal: 20,
     borderRadius: 12,
     padding: 20,
     marginBottom: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   walletHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   walletTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginLeft: 12,
   },
   walletBalance: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#48479B',
+    fontWeight: "bold",
+    color: "#48479B",
   },
   section: {
     marginHorizontal: 20,
@@ -473,22 +543,22 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginBottom: 16,
   },
   subscriptionCard: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
+    borderColor: "#F0F0F0",
   },
   subscriptionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 12,
   },
   subscriptionInfo: {
@@ -496,13 +566,13 @@ const styles = StyleSheet.create({
   },
   subscriptionMeal: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 4,
   },
   subscriptionPlan: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -511,110 +581,122 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: 'white',
+    fontWeight: "600",
+    color: "white",
   },
   subscriptionDetails: {
     marginBottom: 12,
   },
   detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 6,
   },
   detailText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginLeft: 8,
   },
   subscriptionFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: "#F0F0F0",
   },
   totalAmount: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#48479B',
+    fontWeight: "bold",
+    color: "#48479B",
   },
   manageButton: {
-    backgroundColor: '#48479B',
+    backgroundColor: "#48479B",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
   },
   manageButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   loadingContainer: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 40,
-    alignItems: 'center',
+    alignItems: "center",
   },
   loadingText: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
   },
   emptyContainer: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 40,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginTop: 16,
     marginBottom: 8,
   },
   emptyDescription: {
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
     marginBottom: 20,
   },
   browseButton: {
-    backgroundColor: '#48479B',
+    backgroundColor: "#48479B",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   browseButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   highlightMenuItem: {
-    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
   },
   highlightMenuText: {
-    color: '#48479B',
-    fontWeight: '600',
+    color: "#48479B",
+    fontWeight: "600",
   },
   highlightBadge: {
-    backgroundColor: '#48479B',
+    backgroundColor: "#48479B",
     width: 20,
     height: 20,
     borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 'auto',
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: "auto",
   },
   highlightBadgeText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: "bold",
+  },
+  balanceBadge: {
+    backgroundColor: "rgba(163, 211, 151, 0.5)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: "auto",
+  },
+  balanceBadgeText: {
+    color: "#48479B",
+    fontSize: 13,
+    fontWeight: "700",
   },
   planNameContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 4,
   },
   editIcon: {
@@ -625,43 +707,43 @@ const styles = StyleSheet.create({
   },
   editPlanInput: {
     borderWidth: 1,
-    borderColor: '#48479B',
+    borderColor: "#48479B",
     borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 8,
   },
   editPlanButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   saveButton: {
-    backgroundColor: '#48479B',
+    backgroundColor: "#48479B",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 4,
     flex: 1,
   },
   saveButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: "600",
+    textAlign: "center",
   },
   cancelButton: {
-    backgroundColor: '#F0F0F0',
+    backgroundColor: "#F0F0F0",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 4,
     flex: 1,
   },
   cancelButtonText: {
-    color: '#666',
+    color: "#666",
     fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: "600",
+    textAlign: "center",
   },
 });

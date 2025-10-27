@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -14,12 +14,12 @@ import {
   Animated,
   Dimensions,
   PanResponder,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import { useAuth } from '@/contexts/AuthContext';
-import { Platform } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import { useAuth } from "@/contexts/AuthContext";
+import { Platform } from "react-native";
+import * as WebBrowser from "expo-web-browser";
 import {
   Users,
   ChefHat,
@@ -51,14 +51,23 @@ import {
   Image as ImageIcon,
   Heart,
   Building2,
-} from 'lucide-react-native';
-import db from '@/db';
-import { seedIfEmpty } from '@/services/firebase';
-import { Subscription, User, AppSettings, KitchenStaff, DeliveryPerson, UserRole, TimeSlot, Meal } from '@/types';
-import PromotionalAdmin from '@/components/PromotionalAdmin';
-import RoleSelector from '@/components/RoleSelector';
-import PolygonMap from '@/components/PolygonMap';
-import PolygonSelector from '@/components/PolygonSelector';
+} from "lucide-react-native";
+import db from "@/db";
+import { seedIfEmpty } from "@/services/firebase";
+import {
+  Subscription,
+  User,
+  AppSettings,
+  KitchenStaff,
+  DeliveryPerson,
+  UserRole,
+  TimeSlot,
+  Meal,
+} from "@/types";
+import PromotionalAdmin from "@/components/PromotionalAdmin";
+import RoleSelector from "@/components/RoleSelector";
+import PolygonMap from "@/components/PolygonMap";
+import PolygonSelector from "@/components/PolygonSelector";
 
 interface DashboardCard {
   id: string;
@@ -75,7 +84,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({
     totalUsers: 156,
     activeOrders: 23,
-    totalRevenue: '₹45,230',
+    totalRevenue: "₹45,230",
     deliveryPartners: 8,
   });
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
@@ -89,29 +98,36 @@ export default function AdminDashboard() {
 
   const loadData = async () => {
     try {
+      // Clear cached AsyncStorage data to force fetch from Firebase
+      await db.clearCatalogCache();
+
       await seedIfEmpty();
-      const [allSubscriptions, allUsers, settings, kitchen, delivery] = await Promise.all([
-        db.getSubscriptions(),
-        db.getUsers(),
-        db.getAppSettings(),
-        db.getKitchenStaff(),
-        db.getDeliveryPersons()
-      ]);
+      const [allSubscriptions, allUsers, settings, kitchen, delivery] =
+        await Promise.all([
+          db.getSubscriptions(),
+          db.getUsers(),
+          db.getAppSettings(),
+          db.getKitchenStaff(),
+          db.getDeliveryPersons(),
+        ]);
       setSubscriptions(allSubscriptions);
       setUsers(allUsers);
       setAppSettings(settings);
       setKitchenStaff(kitchen);
       setDeliveryPersons(delivery);
-      
+
       // Update stats
       setStats({
         totalUsers: allUsers.length,
-        activeOrders: allSubscriptions.filter(sub => sub.status === 'active').length,
-        totalRevenue: `₹${allSubscriptions.reduce((sum, sub) => sum + sub.totalAmount, 0).toLocaleString()}`,
+        activeOrders: allSubscriptions.filter((sub) => sub.status === "active")
+          .length,
+        totalRevenue: `₹${allSubscriptions
+          .reduce((sum, sub) => sum + sub.totalAmount, 0)
+          .toLocaleString()}`,
         deliveryPartners: delivery.length,
       });
     } catch (error) {
-      console.error('Error loading admin data:', error);
+      console.error("Error loading admin data:", error);
     } finally {
       setLoading(false);
     }
@@ -119,56 +135,67 @@ export default function AdminDashboard() {
 
   const dashboardCards: DashboardCard[] = [
     {
-      id: '1',
-      title: 'Total Users',
+      id: "1",
+      title: "Total Users",
       value: stats.totalUsers.toString(),
       icon: Users,
-      color: '#48479B',
-      gradient: ['#48479B', '#2563EB'] as const,
+      color: "#48479B",
+      gradient: ["#48479B", "#2563EB"] as const,
       onPress: () => setShowUsersManagement(true),
     },
     {
-      id: '2',
-      title: 'Active Orders',
+      id: "2",
+      title: "Active Orders",
       value: stats.activeOrders.toString(),
       icon: ShoppingBag,
-      color: '#10B981',
-      gradient: ['#10B981', '#059669'] as const,
-      onPress: () => console.log('Navigate to Orders Management'),
+      color: "#10B981",
+      gradient: ["#10B981", "#059669"] as const,
+      onPress: () => console.log("Navigate to Orders Management"),
     },
     {
-      id: '3',
-      title: 'Revenue',
+      id: "3",
+      title: "Revenue",
       value: stats.totalRevenue,
       icon: BarChart3,
-      color: '#F59E0B',
-      gradient: ['#F59E0B', '#D97706'] as const,
-      onPress: () => console.log('Navigate to Reports'),
+      color: "#F59E0B",
+      gradient: ["#F59E0B", "#D97706"] as const,
+      onPress: () => console.log("Navigate to Reports"),
     },
     {
-      id: '4',
-      title: 'Delivery Partners',
+      id: "4",
+      title: "Delivery Partners",
       value: stats.deliveryPartners.toString(),
       icon: Truck,
-      color: '#8B5CF6',
-      gradient: ['#8B5CF6', '#7C3AED'] as const,
-      onPress: () => console.log('Navigate to Delivery Partners'),
+      color: "#8B5CF6",
+      gradient: ["#8B5CF6", "#7C3AED"] as const,
+      onPress: () => console.log("Navigate to Delivery Partners"),
     },
   ];
 
   const [showAddCategory, setShowAddCategory] = useState(false);
-  const [optionSearch, setOptionSearch] = useState<string>('');
+  const [optionSearch, setOptionSearch] = useState<string>("");
   const [showAddMeal, setShowAddMeal] = useState(false);
   const addMealDrawerAnim = useRef(new Animated.Value(0)).current;
-  const drawerWidth = Math.min(520, Math.floor(Dimensions.get('window').width * 0.92));
+  const drawerWidth = Math.min(
+    520,
+    Math.floor(Dimensions.get("window").width * 0.92)
+  );
   useEffect(() => {
     if (showAddMeal) {
       addMealDrawerAnim.setValue(0);
-      Animated.timing(addMealDrawerAnim, { toValue: 1, duration: 280, useNativeDriver: false }).start();
+      Animated.timing(addMealDrawerAnim, {
+        toValue: 1,
+        duration: 280,
+        useNativeDriver: false,
+      }).start();
     }
   }, [showAddMeal]);
   const closeAddMealDrawer = () => {
-    Animated.timing(addMealDrawerAnim, { toValue: 0, duration: 240, useNativeDriver: false }).start(({ finished }) => {
+    Animated.timing(addMealDrawerAnim, {
+      toValue: 0,
+      duration: 240,
+      useNativeDriver: false,
+    }).start(({ finished }) => {
       if (finished) setShowAddMeal(false);
     });
   };
@@ -189,70 +216,78 @@ export default function AdminDashboard() {
   const [locations, setLocations] = useState<any[]>([]);
   const [showViewCategories, setShowViewCategories] = useState(false);
   const [showViewMeals, setShowViewMeals] = useState(false);
-  const [selectedMealCategory, setSelectedMealCategory] = useState<string>('');
+  const [selectedMealCategory, setSelectedMealCategory] = useState<string>("");
   const [showViewLocations, setShowViewLocations] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [newCategoryDescription, setNewCategoryDescription] = useState('');
-  const [newMealName, setNewMealName] = useState('');
-  const [newMealDescription, setNewMealDescription] = useState('');
-  const [newMealPrice, setNewMealPrice] = useState('');
-  const [newMealOriginalPrice, setNewMealOriginalPrice] = useState('');
-  const [newMealCategoryId, setNewMealCategoryId] = useState('');
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryDescription, setNewCategoryDescription] = useState("");
+  const [newMealName, setNewMealName] = useState("");
+  const [newMealDescription, setNewMealDescription] = useState("");
+  const [newMealPrice, setNewMealPrice] = useState("");
+  const [newMealOriginalPrice, setNewMealOriginalPrice] = useState("");
+  const [newMealCategoryId, setNewMealCategoryId] = useState("");
   const [newMealCategoryIds, setNewMealCategoryIds] = useState<string[]>([]);
   const [newMealIsVeg, setNewMealIsVeg] = useState<boolean>(true);
   const [newMealHasEgg, setNewMealHasEgg] = useState<boolean>(false);
   const [newIsBasicThali, setNewIsBasicThali] = useState<boolean>(false);
-  const [newVegVariantPrice, setNewVegVariantPrice] = useState<string>('');
-  const [newNonVegVariantPrice, setNewNonVegVariantPrice] = useState<string>('');
-  const [newAllowDaySelection, setNewAllowDaySelection] = useState<boolean>(false);
-  const [newMealImageUrl, setNewMealImageUrl] = useState('');
+  const [newVegVariantPrice, setNewVegVariantPrice] = useState<string>("");
+  const [newNonVegVariantPrice, setNewNonVegVariantPrice] =
+    useState<string>("");
+  const [newAllowDaySelection, setNewAllowDaySelection] =
+    useState<boolean>(false);
+  const [newMealImageUrl, setNewMealImageUrl] = useState("");
   const [newMealIsActive, setNewMealIsActive] = useState<boolean>(true);
   const [newMealIsFeatured, setNewMealIsFeatured] = useState<boolean>(false);
   const [newMealIsDraft, setNewMealIsDraft] = useState<boolean>(true);
-  const [newMealPreparationTime, setNewMealPreparationTime] = useState('');
-  const [newMealTags, setNewMealTags] = useState('');
-  const [newMealCalories, setNewMealCalories] = useState('');
-  const [newMealProtein, setNewMealProtein] = useState('');
-  const [newMealCarbs, setNewMealCarbs] = useState('');
-  const [newMealFat, setNewMealFat] = useState('');
-  const [newMealFiber, setNewMealFiber] = useState('');
-  const [newLocationName, setNewLocationName] = useState('');
-  const [newLocationAddress, setNewLocationAddress] = useState('');
+  const [newMealPreparationTime, setNewMealPreparationTime] = useState("");
+  const [newMealTags, setNewMealTags] = useState("");
+  const [newMealCalories, setNewMealCalories] = useState("");
+  const [newMealProtein, setNewMealProtein] = useState("");
+  const [newMealCarbs, setNewMealCarbs] = useState("");
+  const [newMealFat, setNewMealFat] = useState("");
+  const [newMealFiber, setNewMealFiber] = useState("");
+  const [newLocationName, setNewLocationName] = useState("");
+  const [newLocationAddress, setNewLocationAddress] = useState("");
   const [notifyRequests, setNotifyRequests] = useState<any[]>([]);
   const [showCutoffSettings, setShowCutoffSettings] = useState(false);
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [cutoffTimes, setCutoffTimes] = useState({
-    skipCutoffTime: '09:00',
-    addOnCutoffTime: '08:00',
+    skipCutoffTime: "09:00",
+    addOnCutoffTime: "08:00",
   });
   const [showStaffDrawer, setShowStaffDrawer] = useState(false);
-  const [selectedSubscriptionId, setSelectedSubscriptionId] = useState<string>('');
-  const [staffType, setStaffType] = useState<'kitchen' | 'delivery'>('kitchen');
+  const [selectedSubscriptionId, setSelectedSubscriptionId] =
+    useState<string>("");
+  const [staffType, setStaffType] = useState<"kitchen" | "delivery">("kitchen");
   const [kitchenStaff, setKitchenStaff] = useState<KitchenStaff[]>([]);
   const [deliveryPersons, setDeliveryPersons] = useState<DeliveryPerson[]>([]);
   const [showPromotionalAdmin, setShowPromotionalAdmin] = useState(false);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [showTimeSlotsModal, setShowTimeSlotsModal] = useState<boolean>(false);
-  const [newSlotTime, setNewSlotTime] = useState<string>('');
-  const [newSlotLabel, setNewSlotLabel] = useState<string>('');
+  const [newSlotTime, setNewSlotTime] = useState<string>("");
+  const [newSlotLabel, setNewSlotLabel] = useState<string>("");
   const [assignSlotsMeal, setAssignSlotsMeal] = useState<Meal | null>(null);
   const [assignSelectedSlots, setAssignSelectedSlots] = useState<string[]>([]);
-  const [showUsersManagement, setShowUsersManagement] = useState<boolean>(false);
-  const [userSearch, setUserSearch] = useState<string>('');
-  const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [updatingUserId, setUpdatingUserId] = useState<string>('');
+  const [showUsersManagement, setShowUsersManagement] =
+    useState<boolean>(false);
+  const [userSearch, setUserSearch] = useState<string>("");
+  const [roleFilter, setRoleFilter] = useState<UserRole | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "inactive"
+  >("all");
+  const [updatingUserId, setUpdatingUserId] = useState<string>("");
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
-  const [selectedInvoiceSubscription, setSelectedInvoiceSubscription] = useState<Subscription | null>(null);
+  const [selectedInvoiceSubscription, setSelectedInvoiceSubscription] =
+    useState<Subscription | null>(null);
 
   const generateInvoiceHTML = (subscription: Subscription, user: User) => {
     const invoiceNumber = `INV-${subscription.id.slice(-8).toUpperCase()}`;
-    const invoiceDate = new Date().toLocaleDateString('en-IN');
-    const formatDate = (date: Date) => new Date(date).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+    const invoiceDate = new Date().toLocaleDateString("en-IN");
+    const formatDate = (date: Date) =>
+      new Date(date).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
 
     return `
 <!DOCTYPE html>
@@ -426,7 +461,9 @@ export default function AdminDashboard() {
                     </div>
                     <div class="info-row">
                         <span class="info-label">Subscription ID:</span>
-                        <span class="info-value">#${subscription.id.slice(-6)}</span>
+                        <span class="info-value">#${subscription.id.slice(
+                          -6
+                        )}</span>
                     </div>
                 </div>
                 
@@ -438,7 +475,7 @@ export default function AdminDashboard() {
                     </div>
                     <div class="info-row">
                         <span class="info-label">Email:</span>
-                        <span class="info-value">${user.email || 'N/A'}</span>
+                        <span class="info-value">${user.email || "N/A"}</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">Phone:</span>
@@ -446,7 +483,9 @@ export default function AdminDashboard() {
                     </div>
                     <div class="info-row">
                         <span class="info-label">Address:</span>
-                        <span class="info-value">${user.addresses?.[0]?.addressLine || 'N/A'}</span>
+                        <span class="info-value">${
+                          user.addresses?.[0]?.addressLine || "N/A"
+                        }</span>
                     </div>
                 </div>
             </div>
@@ -455,19 +494,27 @@ export default function AdminDashboard() {
                 <div class="section-title">Subscription Details</div>
                 <div class="detail-grid">
                     <div class="detail-item">
-                        <div class="detail-value">${formatDate(subscription.startDate)}</div>
+                        <div class="detail-value">${formatDate(
+                          subscription.startDate
+                        )}</div>
                         <div class="detail-label">Start Date</div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-value">${formatDate(subscription.endDate)}</div>
+                        <div class="detail-value">${formatDate(
+                          subscription.endDate
+                        )}</div>
                         <div class="detail-label">End Date</div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-value">${subscription.totalDeliveries}</div>
+                        <div class="detail-value">${
+                          subscription.totalDeliveries
+                        }</div>
                         <div class="detail-label">Total Meals</div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-value">${subscription.deliveryTime}</div>
+                        <div class="detail-value">${
+                          subscription.deliveryTime
+                        }</div>
                         <div class="detail-label">Delivery Time</div>
                     </div>
                 </div>
@@ -485,7 +532,9 @@ export default function AdminDashboard() {
                 </div>
                 <div class="summary-row">
                     <span>Remaining Amount:</span>
-                    <span>₹${subscription.totalAmount - (subscription.paidAmount || 0)}</span>
+                    <span>₹${
+                      subscription.totalAmount - (subscription.paidAmount || 0)
+                    }</span>
                 </div>
                 <div class="summary-row total">
                     <span>Total Amount:</span>
@@ -493,8 +542,17 @@ export default function AdminDashboard() {
                 </div>
                 <div style="margin-top: 15px;">
                     <span>Payment Status: </span>
-                    <span class="status-badge ${(subscription.paidAmount || 0) >= subscription.totalAmount ? 'status-paid' : 'status-pending'}">
-                        ${(subscription.paidAmount || 0) >= subscription.totalAmount ? 'Paid' : 'Pending'}
+                    <span class="status-badge ${
+                      (subscription.paidAmount || 0) >= subscription.totalAmount
+                        ? "status-paid"
+                        : "status-pending"
+                    }">
+                        ${
+                          (subscription.paidAmount || 0) >=
+                          subscription.totalAmount
+                            ? "Paid"
+                            : "Pending"
+                        }
                     </span>
                 </div>
             </div>
@@ -527,111 +585,128 @@ export default function AdminDashboard() {
   };
 
   const handleDownloadInvoice = async (subscription: Subscription) => {
-    const user = users.find(u => u.id === subscription.userId);
+    const user = users.find((u) => u.id === subscription.userId);
     if (!user) {
-      Alert.alert('Error', 'User not found for this subscription');
+      Alert.alert("Error", "User not found for this subscription");
       return;
     }
 
     try {
       const htmlContent = generateInvoiceHTML(subscription, user);
-      
-      if (Platform.OS === 'web') {
+
+      if (Platform.OS === "web") {
         // For web, open in new tab
-        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const blob = new Blob([htmlContent], { type: "text/html" });
         const url = URL.createObjectURL(blob);
-        const newWindow = window.open(url, '_blank');
+        const newWindow = window.open(url, "_blank");
         if (newWindow) {
           newWindow.document.title = `Invoice-${subscription.id.slice(-8)}`;
         }
       } else {
         // For mobile, use WebBrowser
-        const dataUri = `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`;
+        const dataUri = `data:text/html;charset=utf-8,${encodeURIComponent(
+          htmlContent
+        )}`;
         await WebBrowser.openBrowserAsync(dataUri);
       }
-      
-      console.log('Invoice generated successfully');
+
+      console.log("Invoice generated successfully");
     } catch (error) {
-      console.error('Error generating invoice:', error);
-      Alert.alert('Error', 'Failed to generate invoice');
+      console.error("Error generating invoice:", error);
+      Alert.alert("Error", "Failed to generate invoice");
     }
   };
 
   const handleExportSalesReport = async () => {
     try {
-      console.log('Exporting sales report...');
-      
+      console.log("Exporting sales report...");
+
       // Prepare CSV data
-      const csvData = subscriptions.map(subscription => {
-        const user = users.find(u => u.id === subscription.userId);
+      const csvData = subscriptions.map((subscription) => {
+        const user = users.find((u) => u.id === subscription.userId);
         return {
           subscriptionId: subscription.id,
-          userName: user?.name || 'Unknown User',
-          planName: subscription.planName || `${subscription.totalDeliveries} Day Plan`,
+          userName: user?.name || "Unknown User",
+          planName:
+            subscription.planName || `${subscription.totalDeliveries} Day Plan`,
           amount: subscription.totalAmount,
-          paymentStatus: (subscription.paidAmount || 0) >= subscription.totalAmount ? 'Paid' : 'Pending',
-          dateOfPurchase: new Date(subscription.createdAt || subscription.startDate).toLocaleDateString('en-IN')
+          paymentStatus:
+            (subscription.paidAmount || 0) >= subscription.totalAmount
+              ? "Paid"
+              : "Pending",
+          dateOfPurchase: new Date(
+            subscription.createdAt || subscription.startDate
+          ).toLocaleDateString("en-IN"),
         };
       });
 
       // Create CSV content
-      const csvHeaders = 'Subscription ID,User Name,Plan Name,Amount,Payment Status,Date of Purchase\n';
-      const csvRows = csvData.map(row => 
-        `${row.subscriptionId},"${row.userName}","${row.planName}",${row.amount},${row.paymentStatus},${row.dateOfPurchase}`
-      ).join('\n');
+      const csvHeaders =
+        "Subscription ID,User Name,Plan Name,Amount,Payment Status,Date of Purchase\n";
+      const csvRows = csvData
+        .map(
+          (row) =>
+            `${row.subscriptionId},"${row.userName}","${row.planName}",${row.amount},${row.paymentStatus},${row.dateOfPurchase}`
+        )
+        .join("\n");
       const csvContent = csvHeaders + csvRows;
 
-      if (Platform.OS === 'web') {
+      if (Platform.OS === "web") {
         // For web, create and download CSV file
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `sales-report-${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.visibility = 'hidden';
+        link.setAttribute("href", url);
+        link.setAttribute(
+          "download",
+          `sales-report-${new Date().toISOString().split("T")[0]}.csv`
+        );
+        link.style.visibility = "hidden";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
-        Alert.alert('Success', 'Sales report exported successfully!');
+
+        Alert.alert("Success", "Sales report exported successfully!");
       } else {
         // For mobile, show CSV content in a modal or share
         Alert.alert(
-          'Sales Report',
+          "Sales Report",
           `CSV data prepared with ${csvData.length} records. In a real app, this would be saved to device storage or shared.`,
           [
-            { text: 'OK' },
+            { text: "OK" },
             {
-              text: 'View Data',
+              text: "View Data",
               onPress: () => {
-                console.log('CSV Content:', csvContent);
-                Alert.alert('CSV Data', csvContent.substring(0, 500) + '...');
-              }
-            }
+                console.log("CSV Content:", csvContent);
+                Alert.alert("CSV Data", csvContent.substring(0, 500) + "...");
+              },
+            },
           ]
         );
       }
-      
-      console.log('Sales report export completed');
+
+      console.log("Sales report export completed");
     } catch (error) {
-      console.error('Error exporting sales report:', error);
-      Alert.alert('Error', 'Failed to export sales report');
+      console.error("Error exporting sales report:", error);
+      Alert.alert("Error", "Failed to export sales report");
     }
   };
 
   const handlePrintInvoice = async (subscription: Subscription) => {
-    const user = users.find(u => u.id === subscription.userId);
+    const user = users.find((u) => u.id === subscription.userId);
     if (!user) {
-      Alert.alert('Error', 'User not found for this subscription');
+      Alert.alert("Error", "User not found for this subscription");
       return;
     }
 
     try {
       const htmlContent = generateInvoiceHTML(subscription, user);
-      
-      if (Platform.OS === 'web') {
+
+      if (Platform.OS === "web") {
         // For web, open in new tab and trigger print
-        const printWindow = window.open('', '_blank');
+        const printWindow = window.open("", "_blank");
         if (printWindow) {
           printWindow.document.write(htmlContent);
           printWindow.document.close();
@@ -642,18 +717,25 @@ export default function AdminDashboard() {
         }
       } else {
         // For mobile, same as download (open in browser)
-        const dataUri = `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`;
+        const dataUri = `data:text/html;charset=utf-8,${encodeURIComponent(
+          htmlContent
+        )}`;
         await WebBrowser.openBrowserAsync(dataUri);
       }
-      
-      console.log('Invoice print initiated');
+
+      console.log("Invoice print initiated");
     } catch (error) {
-      console.error('Error printing invoice:', error);
-      Alert.alert('Error', 'Failed to print invoice');
+      console.error("Error printing invoice:", error);
+      Alert.alert("Error", "Failed to print invoice");
     }
   };
 
-  type ManagementGroup = 'Primary' | 'Catalog' | 'Operations' | 'Marketing' | 'Reports';
+  type ManagementGroup =
+    | "Primary"
+    | "Catalog"
+    | "Operations"
+    | "Marketing"
+    | "Reports";
 
   const managementOptions: Array<{
     id: string;
@@ -665,210 +747,202 @@ export default function AdminDashboard() {
     group: ManagementGroup;
   }> = [
     {
-      id: '1',
-      title: 'Add Category',
-      description: 'Add new meal categories',
-      icon: Plus,
-      color: '#48479B',
-      onPress: () => setShowAddCategory(true),
-      group: 'Catalog',
+      id: "1",
+      title: "Categories Management",
+      description: "Full CRUD for meal categories",
+      icon: Package,
+      color: "#8B5CF6",
+      onPress: () => router.push("/admin/categories" as any),
+      group: "Catalog",
     },
     {
-      id: '2',
-      title: 'Add Meal',
-      description: 'Add new meals to menu',
+      id: "2",
+      title: "Meals Management",
+      description: "Full CRUD for meals with addons",
       icon: ChefHat,
-      color: '#10B981',
-      onPress: async () => {
-        try {
-          const cats = await db.getCategories();
-          setCategories(cats);
-        } catch (e) {
-          console.log('failed to load categories for add meal', e);
-        }
-        setShowAddMeal(true);
-      },
-      group: 'Primary',
+      color: "#10B981",
+      onPress: () => router.push("/admin/meals" as any),
+      group: "Primary",
     },
     {
-      id: '3',
-      title: 'Add Location',
-      description: 'Add serviceable locations',
-      icon: MapPin,
-      color: '#F59E0B',
-      onPress: () => setShowAddLocation(true),
-      group: 'Operations',
-    },
-    {
-      id: '4',
-      title: 'Manual Subscription',
-      description: 'Create manual subscriptions',
+      id: "2b",
+      title: "Add-ons Management",
+      description: "Manage meal add-ons",
       icon: Plus,
-      color: '#EF4444',
-      onPress: () => router.push('/admin/manual-subscription' as any),
-      group: 'Primary',
+      color: "#F59E0B",
+      onPress: () => router.push("/admin/addons" as any),
+      group: "Catalog",
     },
     {
-      id: '5',
-      title: 'Users Management',
-      description: 'Manage users and roles',
-      icon: Users,
-      color: '#2563EB',
-      onPress: () => setShowUsersManagement(true),
-      group: 'Operations',
-    },
-    {
-      id: '6',
-      title: 'View Categories',
-      description: 'Manage meal categories',
-      icon: Package,
-      color: '#8B5CF6',
-      onPress: () => loadCategories(),
-      group: 'Catalog',
-    },
-    {
-      id: '7',
-      title: 'View Meals',
-      description: 'Manage meals menu',
-      icon: FileText,
-      color: '#06B6D4',
-      onPress: () => openMealsModal(),
-      group: 'Catalog',
-    },
-    {
-      id: '8',
-      title: 'View Locations',
-      description: 'Manage delivery locations',
+      id: "3",
+      title: "Add Location",
+      description: "Add serviceable locations",
       icon: MapPin,
-      color: '#84CC16',
-      onPress: () => loadLocations(),
-      group: 'Operations',
+      color: "#F59E0B",
+      onPress: () => setShowAddLocation(true),
+      group: "Operations",
     },
     {
-      id: '9',
-      title: 'Toggle Subscriptions',
-      description: 'Show/hide subscription list',
-      icon: Bell,
-      color: '#F97316',
-      onPress: () => setShowSubscriptions(!showSubscriptions),
-      group: 'Primary',
+      id: "4",
+      title: "Manual Subscription",
+      description: "Create manual subscriptions",
+      icon: Plus,
+      color: "#EF4444",
+      onPress: () => router.push("/admin/manual-subscription" as any),
+      group: "Primary",
     },
     {
-      id: '10',
-      title: 'Cutoff Settings',
-      description: 'Configure skip & add-on cutoff times',
-      icon: Clock,
-      color: '#EC4899',
-      onPress: () => loadCutoffSettings(),
-      group: 'Operations',
+      id: "5",
+      title: "Users Management",
+      description: "Manage users and roles",
+      icon: Users,
+      color: "#2563EB",
+      onPress: () => setShowUsersManagement(true),
+      group: "Operations",
     },
     {
-      id: '11',
-      title: 'Promotional Sections',
-      description: 'Manage homepage promotional content',
-      icon: Megaphone,
-      color: '#48479B',
-      onPress: () => setShowPromotionalAdmin(true),
-      group: 'Marketing',
-    },
-    {
-      id: '12',
-      title: 'Support Tickets',
-      description: 'Manage customer support tickets',
-      icon: MessageSquare,
-      color: '#8B5CF6',
-      onPress: () => router.push('/admin/support' as any),
-      group: 'Primary',
-    },
-    {
-      id: '13',
-      title: 'Sales Report',
-      description: 'Export sales data to CSV',
-      icon: FileDown,
-      color: '#059669',
-      onPress: () => handleExportSalesReport(),
-      group: 'Reports',
-    },
-    {
-      id: '17',
-      title: 'Push Center',
-      description: 'Send notifications to users',
-      icon: Bell,
-      color: '#DC2626',
-      onPress: () => router.push('/admin/push-center' as any),
-      group: 'Marketing',
-    },
-    {
-      id: '14',
-      title: 'Banners Management',
-      description: 'Manage homepage banners and promotions',
-      icon: ImageIcon,
-      color: '#F59E0B',
-      onPress: () => router.push('/admin/banners' as any),
-      group: 'Marketing',
-    },
-    {
-      id: '15',
-      title: 'Testimonials Management',
-      description: 'Manage customer testimonials and reviews',
-      icon: MessageSquare,
-      color: '#10B981',
-      onPress: () => router.push('/admin/testimonials' as any),
-      group: 'Marketing',
-    },
-    {
-      id: '16',
-      title: 'Nutritionist Requests',
-      description: 'Manage nutritionist consultation requests',
-      icon: Heart,
-      color: '#EC4899',
-      onPress: () => router.push('/admin/nutritionist-requests' as any),
-      group: 'Operations',
-    },
-    {
-      id: '18',
-      title: 'Corporate Catering',
-      description: 'Manage corporate catering requests and quotations',
-      icon: Building2,
-      color: '#0EA5E9',
-      onPress: () => router.push('/admin/corporate-catering' as any),
-      group: 'Marketing',
-    },
-    {
-      id: '19',
-      title: 'Addons Management',
-      description: 'Manage meal add-ons',
-      icon: Package,
-      color: '#22C55E',
-      onPress: () => router.push('/admin/addons' as any),
-      group: 'Catalog',
-    },
-    {
-      id: '21',
-      title: 'Time Slots',
-      description: 'Create and manage delivery slots',
-      icon: Clock,
-      color: '#0EA5E9',
-      onPress: () => openTimeSlotsModal(),
-      group: 'Operations',
-    },
-    {
-      id: '20',
-      title: 'Subscriptions',
-      description: 'View all subscriptions (live)',
+      id: "7",
+      title: "View Meals (Legacy)",
+      description: "View meals inline",
       icon: FileText,
-      color: '#0EA5E9',
-      onPress: () => router.push('/admin/subscriptions' as any),
-      group: 'Primary',
+      color: "#06B6D4",
+      onPress: () => openMealsModal(),
+      group: "Catalog",
     },
     {
-      id: '22',
-      title: 'Service Area Requests',
-      description: 'Manage notify me requests from non-serviceable areas',
+      id: "8",
+      title: "View Locations",
+      description: "Manage delivery locations",
+      icon: MapPin,
+      color: "#84CC16",
+      onPress: () => loadLocations(),
+      group: "Operations",
+    },
+    {
+      id: "9",
+      title: "Toggle Subscriptions",
+      description: "Show/hide subscription list",
       icon: Bell,
-      color: '#8B5CF6',
-      onPress: () => router.push('/admin/service-area-requests' as any),
-      group: 'Operations',
+      color: "#F97316",
+      onPress: () => setShowSubscriptions(!showSubscriptions),
+      group: "Primary",
+    },
+    {
+      id: "10",
+      title: "Cutoff Settings",
+      description: "Configure skip & add-on cutoff times",
+      icon: Clock,
+      color: "#EC4899",
+      onPress: () => loadCutoffSettings(),
+      group: "Operations",
+    },
+    {
+      id: "11",
+      title: "Promotional Sections",
+      description: "Manage homepage promotional content",
+      icon: Megaphone,
+      color: "#48479B",
+      onPress: () => setShowPromotionalAdmin(true),
+      group: "Marketing",
+    },
+    {
+      id: "12",
+      title: "Support Tickets",
+      description: "Manage customer support tickets",
+      icon: MessageSquare,
+      color: "#8B5CF6",
+      onPress: () => router.push("/admin/support" as any),
+      group: "Primary",
+    },
+    {
+      id: "13",
+      title: "Sales Report",
+      description: "Export sales data to CSV",
+      icon: FileDown,
+      color: "#059669",
+      onPress: () => handleExportSalesReport(),
+      group: "Reports",
+    },
+    {
+      id: "17",
+      title: "Push Center",
+      description: "Send notifications to users",
+      icon: Bell,
+      color: "#DC2626",
+      onPress: () => router.push("/admin/push-center" as any),
+      group: "Marketing",
+    },
+    {
+      id: "14",
+      title: "Banners Management",
+      description: "Manage homepage banners and promotions",
+      icon: ImageIcon,
+      color: "#F59E0B",
+      onPress: () => router.push("/admin/banners" as any),
+      group: "Marketing",
+    },
+    {
+      id: "15",
+      title: "Testimonials Management",
+      description: "Manage customer testimonials and reviews",
+      icon: MessageSquare,
+      color: "#10B981",
+      onPress: () => router.push("/admin/testimonials" as any),
+      group: "Marketing",
+    },
+    {
+      id: "16",
+      title: "Nutritionist Requests",
+      description: "Manage nutritionist consultation requests",
+      icon: Heart,
+      color: "#EC4899",
+      onPress: () => router.push("/admin/nutritionist-requests" as any),
+      group: "Operations",
+    },
+    {
+      id: "18",
+      title: "Corporate Catering",
+      description: "Manage corporate catering requests and quotations",
+      icon: Building2,
+      color: "#0EA5E9",
+      onPress: () => router.push("/admin/corporate-catering" as any),
+      group: "Marketing",
+    },
+    {
+      id: "19",
+      title: "Addons Management",
+      description: "Manage meal add-ons",
+      icon: Package,
+      color: "#22C55E",
+      onPress: () => router.push("/admin/addons" as any),
+      group: "Catalog",
+    },
+    {
+      id: "21",
+      title: "Time Slots",
+      description: "Create and manage delivery slots",
+      icon: Clock,
+      color: "#0EA5E9",
+      onPress: () => openTimeSlotsModal(),
+      group: "Operations",
+    },
+    {
+      id: "20",
+      title: "Subscriptions",
+      description: "View all subscriptions (live)",
+      icon: FileText,
+      color: "#0EA5E9",
+      onPress: () => router.push("/admin/subscriptions" as any),
+      group: "Primary",
+    },
+    {
+      id: "22",
+      title: "Service Area Requests",
+      description: "Manage notify me requests from non-serviceable areas",
+      icon: Bell,
+      color: "#8B5CF6",
+      onPress: () => router.push("/admin/service-area-requests" as any),
+      group: "Operations",
     },
   ];
 
@@ -877,9 +951,9 @@ export default function AdminDashboard() {
       const cats = await db.getCategories();
       setCategories(cats);
       setShowViewCategories(true);
-      console.log('Categories loaded:', cats.length);
+      console.log("Categories loaded:", cats.length);
     } catch (error) {
-      console.error('Error loading categories:', error);
+      console.error("Error loading categories:", error);
     }
   };
 
@@ -889,9 +963,9 @@ export default function AdminDashboard() {
       const categoriesData = await db.getCategories();
       setMeals(mealsData);
       setCategories(categoriesData);
-      console.log('Meals loaded:', mealsData.length);
+      console.log("Meals loaded:", mealsData.length);
     } catch (error) {
-      console.error('Error loading meals:', error);
+      console.error("Error loading meals:", error);
     }
   };
 
@@ -905,9 +979,9 @@ export default function AdminDashboard() {
       const locs = await db.getServiceableLocations();
       setLocations(locs);
       setShowViewLocations(true);
-      console.log('Locations loaded:', locs.length);
+      console.log("Locations loaded:", locs.length);
     } catch (error) {
-      console.error('Error loading locations:', error);
+      console.error("Error loading locations:", error);
     }
   };
 
@@ -915,9 +989,9 @@ export default function AdminDashboard() {
     try {
       const slots = await db.getTimeSlots();
       setTimeSlots(slots);
-      console.log('Time slots loaded:', slots.length);
+      console.log("Time slots loaded:", slots.length);
     } catch (e) {
-      console.log('loadTimeSlots error', e);
+      console.log("loadTimeSlots error", e);
     }
   };
 
@@ -928,17 +1002,21 @@ export default function AdminDashboard() {
 
   const handleAddTimeSlot = async () => {
     if (!newSlotTime.trim()) {
-      Alert.alert('Error', 'Enter time range (e.g., 12PM-2PM)');
+      Alert.alert("Error", "Enter time range (e.g., 12PM-2PM)");
       return;
     }
     try {
-      await db.createTimeSlot({ time: newSlotTime.trim(), label: newSlotLabel.trim() || undefined, isActive: true });
-      setNewSlotTime('');
-      setNewSlotLabel('');
+      await db.createTimeSlot({
+        time: newSlotTime.trim(),
+        label: newSlotLabel.trim() || undefined,
+        isActive: true,
+      });
+      setNewSlotTime("");
+      setNewSlotLabel("");
       await loadTimeSlots();
     } catch (e) {
-      console.log('add slot error', e);
-      Alert.alert('Error', 'Failed to add slot');
+      console.log("add slot error", e);
+      Alert.alert("Error", "Failed to add slot");
     }
   };
 
@@ -947,7 +1025,7 @@ export default function AdminDashboard() {
       await db.toggleTimeSlotActive(slotId);
       await loadTimeSlots();
     } catch (e) {
-      console.log('toggle slot error', e);
+      console.log("toggle slot error", e);
     }
   };
 
@@ -959,44 +1037,46 @@ export default function AdminDashboard() {
       setAssignSelectedSlots(current);
       setShowAssignSlots(true);
     } catch (e) {
-      console.log('openAssignSlotsModal error', e);
+      console.log("openAssignSlotsModal error", e);
     }
   };
 
   const [showAssignSlots, setShowAssignSlots] = useState<boolean>(false);
   const [showEditMeal, setShowEditMeal] = useState<boolean>(false);
-  const [editMealId, setEditMealId] = useState<string>('');
-  const [editMealName, setEditMealName] = useState<string>('');
-  const [editMealDescription, setEditMealDescription] = useState<string>('');
-  const [editMealPrice, setEditMealPrice] = useState<string>('');
-  const [editMealOriginalPrice, setEditMealOriginalPrice] = useState<string>('');
-  const [editMealImageUrl, setEditMealImageUrl] = useState<string>('');
+  const [editMealId, setEditMealId] = useState<string>("");
+  const [editMealName, setEditMealName] = useState<string>("");
+  const [editMealDescription, setEditMealDescription] = useState<string>("");
+  const [editMealPrice, setEditMealPrice] = useState<string>("");
+  const [editMealOriginalPrice, setEditMealOriginalPrice] =
+    useState<string>("");
+  const [editMealImageUrl, setEditMealImageUrl] = useState<string>("");
   const [editMealIsVeg, setEditMealIsVeg] = useState<boolean>(true);
   const [editMealHasEgg, setEditMealHasEgg] = useState<boolean>(false);
   const [editMealIsActive, setEditMealIsActive] = useState<boolean>(true);
   const [editMealIsFeatured, setEditMealIsFeatured] = useState<boolean>(false);
   const [editMealIsDraft, setEditMealIsDraft] = useState<boolean>(false);
-  const [editMealPreparationTime, setEditMealPreparationTime] = useState<string>('');
-  const [editMealTags, setEditMealTags] = useState<string>('');
+  const [editMealPreparationTime, setEditMealPreparationTime] =
+    useState<string>("");
+  const [editMealTags, setEditMealTags] = useState<string>("");
   const [editMealCategoryIds, setEditMealCategoryIds] = useState<string[]>([]);
-  const [editMealCategoryId, setEditMealCategoryId] = useState<string>('');
+  const [editMealCategoryId, setEditMealCategoryId] = useState<string>("");
 
   const saveAssignSlots = async () => {
     if (!assignSlotsMeal) return;
     try {
       await db.assignTimeSlotsToMeal(assignSlotsMeal.id, assignSelectedSlots);
-      Alert.alert('Success', 'Time slots updated for meal');
+      Alert.alert("Success", "Time slots updated for meal");
       setShowAssignSlots(false);
       await loadMealsData();
     } catch (e) {
-      console.log('saveAssignSlots error', e);
-      Alert.alert('Error', 'Failed to update time slots');
+      console.log("saveAssignSlots error", e);
+      Alert.alert("Error", "Failed to update time slots");
     }
   };
 
   const handleAddCategory = async () => {
     if (!newCategoryName.trim() || !newCategoryDescription.trim()) {
-      Alert.alert('Error', 'Please fill all fields');
+      Alert.alert("Error", "Please fill all fields");
       return;
     }
     try {
@@ -1004,13 +1084,13 @@ export default function AdminDashboard() {
         name: newCategoryName,
         description: newCategoryDescription,
       });
-      setNewCategoryName('');
-      setNewCategoryDescription('');
+      setNewCategoryName("");
+      setNewCategoryDescription("");
       setShowAddCategory(false);
-      Alert.alert('Success', 'Category added successfully!');
+      Alert.alert("Success", "Category added successfully!");
     } catch (error) {
-      console.error('Error adding category:', error);
-      Alert.alert('Error', 'Failed to add category');
+      console.error("Error adding category:", error);
+      Alert.alert("Error", "Failed to add category");
     }
   };
 
@@ -1019,63 +1099,97 @@ export default function AdminDashboard() {
       const cats = await db.getCategories();
       setCategories(cats);
     } catch (e) {
-      console.log('openEditMeal: failed to load categories', e);
+      console.log("openEditMeal: failed to load categories", e);
     }
     setEditMealId(meal.id);
     setEditMealName(meal.name);
     setEditMealDescription(meal.description);
     setEditMealPrice(String(meal.price));
-    setEditMealOriginalPrice(meal.originalPrice ? String(meal.originalPrice) : '');
-    setEditMealImageUrl(meal.images?.[0] ?? '');
+    setEditMealOriginalPrice(
+      meal.originalPrice ? String(meal.originalPrice) : ""
+    );
+    setEditMealImageUrl(meal.images?.[0] ?? "");
     setEditMealIsVeg(!!meal.isVeg);
     setEditMealHasEgg(!!meal.hasEgg);
     setEditMealIsActive(!!meal.isActive);
     setEditMealIsFeatured(!!meal.isFeatured);
     setEditMealIsDraft(!!meal.isDraft);
-    setEditMealPreparationTime(meal.preparationTime ? String(meal.preparationTime) : '');
-    setEditMealTags((meal.tags || []).join(', '));
-    const catIds = Array.isArray(meal.categoryIds) && meal.categoryIds.length > 0 ? meal.categoryIds : (meal.categoryId ? [meal.categoryId] : []);
+    setEditMealPreparationTime(
+      meal.preparationTime ? String(meal.preparationTime) : ""
+    );
+    setEditMealTags((meal.tags || []).join(", "));
+    const catIds =
+      Array.isArray(meal.categoryIds) && meal.categoryIds.length > 0
+        ? meal.categoryIds
+        : meal.categoryId
+        ? [meal.categoryId]
+        : [];
     setEditMealCategoryIds(catIds);
-    setEditMealCategoryId(meal.categoryId || (catIds[0] ?? ''));
+    setEditMealCategoryId(meal.categoryId || (catIds[0] ?? ""));
     setShowEditMeal(true);
   };
 
   const handleAddMeal = async () => {
-    if (!newMealName.trim() || !newMealDescription.trim() || !newMealPrice.trim() || !newMealCategoryId.trim()) {
-      Alert.alert('Error', 'Please fill all required fields');
+    if (
+      !newMealName.trim() ||
+      !newMealDescription.trim() ||
+      !newMealPrice.trim() ||
+      !newMealCategoryId.trim()
+    ) {
+      Alert.alert("Error", "Please fill all required fields");
       return;
     }
     try {
       const price = parseFloat(newMealPrice);
-      const originalPrice = newMealOriginalPrice.trim() ? parseFloat(newMealOriginalPrice) : undefined;
-      const preparationTime = newMealPreparationTime.trim() ? parseInt(newMealPreparationTime, 10) : undefined;
-      const nutritionInfo = (newMealCalories || newMealProtein || newMealCarbs || newMealFat || newMealFiber)
-        ? {
-            calories: parseInt(newMealCalories || '0', 10),
-            protein: parseInt(newMealProtein || '0', 10),
-            carbs: parseInt(newMealCarbs || '0', 10),
-            fat: parseInt(newMealFat || '0', 10),
-            fiber: parseInt(newMealFiber || '0', 10),
-          }
+      const originalPrice = newMealOriginalPrice.trim()
+        ? parseFloat(newMealOriginalPrice)
         : undefined;
+      const preparationTime = newMealPreparationTime.trim()
+        ? parseInt(newMealPreparationTime, 10)
+        : undefined;
+      const nutritionInfo =
+        newMealCalories ||
+        newMealProtein ||
+        newMealCarbs ||
+        newMealFat ||
+        newMealFiber
+          ? {
+              calories: parseInt(newMealCalories || "0", 10),
+              protein: parseInt(newMealProtein || "0", 10),
+              carbs: parseInt(newMealCarbs || "0", 10),
+              fat: parseInt(newMealFat || "0", 10),
+              fiber: parseInt(newMealFiber || "0", 10),
+            }
+          : undefined;
       const tags = newMealTags
-        .split(',')
-        .map(t => t.trim())
+        .split(",")
+        .map((t) => t.trim())
         .filter(Boolean);
 
-      const categoryIdsPayload = newMealCategoryIds.length > 0 ? newMealCategoryIds : (newMealCategoryId ? [newMealCategoryId] : []);
+      const categoryIdsPayload =
+        newMealCategoryIds.length > 0
+          ? newMealCategoryIds
+          : newMealCategoryId
+          ? [newMealCategoryId]
+          : [];
 
-      const variantPricing = newIsBasicThali ? {
-        veg: newVegVariantPrice.trim() ? parseFloat(newVegVariantPrice) : price,
-        nonveg: newNonVegVariantPrice.trim() ? parseFloat(newNonVegVariantPrice) : price,
-      } : undefined;
+      const variantPricing = newIsBasicThali
+        ? {
+            veg: newVegVariantPrice.trim()
+              ? parseFloat(newVegVariantPrice)
+              : price,
+            nonveg: newNonVegVariantPrice.trim()
+              ? parseFloat(newNonVegVariantPrice)
+              : price,
+          }
+        : undefined;
 
       await db.addMeal({
         name: newMealName.trim(),
         description: newMealDescription.trim(),
         price,
         originalPrice,
-        categoryId: categoryIdsPayload[0] || '',
+        categoryId: categoryIdsPayload[0] || "",
         categoryIds: categoryIdsPayload,
         isVeg: newMealIsVeg,
         hasEgg: newMealHasEgg,
@@ -1090,41 +1204,41 @@ export default function AdminDashboard() {
         variantPricing,
         allowDaySelection: newAllowDaySelection,
       });
-      setNewMealName('');
-      setNewMealDescription('');
-      setNewMealPrice('');
-      setNewMealOriginalPrice('');
-      setNewMealCategoryId('');
+      setNewMealName("");
+      setNewMealDescription("");
+      setNewMealPrice("");
+      setNewMealOriginalPrice("");
+      setNewMealCategoryId("");
       setNewMealCategoryIds([]);
       setNewMealIsVeg(true);
       setNewMealHasEgg(false);
       setNewIsBasicThali(false);
-      setNewVegVariantPrice('');
-      setNewNonVegVariantPrice('');
+      setNewVegVariantPrice("");
+      setNewNonVegVariantPrice("");
       setNewAllowDaySelection(false);
-      setNewMealImageUrl('');
+      setNewMealImageUrl("");
       setNewMealIsActive(true);
       setNewMealIsFeatured(false);
       setNewMealIsDraft(true);
-      setNewMealPreparationTime('');
-      setNewMealTags('');
-      setNewMealCalories('');
-      setNewMealProtein('');
-      setNewMealCarbs('');
-      setNewMealFat('');
-      setNewMealFiber('');
+      setNewMealPreparationTime("");
+      setNewMealTags("");
+      setNewMealCalories("");
+      setNewMealProtein("");
+      setNewMealCarbs("");
+      setNewMealFat("");
+      setNewMealFiber("");
       setShowAddMeal(false);
-      Alert.alert('Success', 'Meal added successfully!');
+      Alert.alert("Success", "Meal added successfully!");
       await loadMealsData();
     } catch (error) {
-      console.error('Error adding meal:', error);
-      Alert.alert('Error', 'Failed to add meal');
+      console.error("Error adding meal:", error);
+      Alert.alert("Error", "Failed to add meal");
     }
   };
 
   const handleAddLocation = async () => {
     if (!newLocationName.trim() || !newLocationAddress.trim()) {
-      Alert.alert('Error', 'Please fill all fields');
+      Alert.alert("Error", "Please fill all fields");
       return;
     }
     try {
@@ -1132,13 +1246,13 @@ export default function AdminDashboard() {
         name: newLocationName,
         address: newLocationAddress,
       });
-      setNewLocationName('');
-      setNewLocationAddress('');
+      setNewLocationName("");
+      setNewLocationAddress("");
       setShowAddLocation(false);
-      Alert.alert('Success', 'Location added successfully!');
+      Alert.alert("Success", "Location added successfully!");
     } catch (error) {
-      console.error('Error adding location:', error);
-      Alert.alert('Error', 'Failed to add location');
+      console.error("Error adding location:", error);
+      Alert.alert("Error", "Failed to add location");
     }
   };
 
@@ -1147,7 +1261,7 @@ export default function AdminDashboard() {
       const requests = await db.getNotifyRequests();
       setNotifyRequests(requests);
     } catch (error) {
-      console.error('Error loading notify requests:', error);
+      console.error("Error loading notify requests:", error);
     }
   };
 
@@ -1159,25 +1273,35 @@ export default function AdminDashboard() {
     loadMealsData();
   }, []);
 
-  const handleAssignSubscription = async (subscriptionId: string, assigneeId: string, role: 'kitchen' | 'delivery') => {
+  const handleAssignSubscription = async (
+    subscriptionId: string,
+    assigneeId: string,
+    role: "kitchen" | "delivery"
+  ) => {
     try {
       await db.assignSubscription(subscriptionId, assigneeId, role);
       setShowStaffDrawer(false);
       loadData(); // Reload data to show updated assignments
-      
-      const staffName = role === 'kitchen' 
-        ? kitchenStaff.find(s => s.id === assigneeId)?.name 
-        : deliveryPersons.find(s => s.id === assigneeId)?.name;
-      
-      Alert.alert('Success', `Subscription assigned to ${staffName}`);
-      console.log(`Subscription ${subscriptionId} assigned to ${role}: ${assigneeId}`);
+
+      const staffName =
+        role === "kitchen"
+          ? kitchenStaff.find((s) => s.id === assigneeId)?.name
+          : deliveryPersons.find((s) => s.id === assigneeId)?.name;
+
+      Alert.alert("Success", `Subscription assigned to ${staffName}`);
+      console.log(
+        `Subscription ${subscriptionId} assigned to ${role}: ${assigneeId}`
+      );
     } catch (error) {
-      console.error('Error assigning subscription:', error);
-      Alert.alert('Error', 'Failed to assign subscription');
+      console.error("Error assigning subscription:", error);
+      Alert.alert("Error", "Failed to assign subscription");
     }
   };
 
-  const openStaffDrawer = (subscriptionId: string, type: 'kitchen' | 'delivery') => {
+  const openStaffDrawer = (
+    subscriptionId: string,
+    type: "kitchen" | "delivery"
+  ) => {
     setSelectedSubscriptionId(subscriptionId);
     setStaffType(type);
     setShowStaffDrawer(true);
@@ -1186,24 +1310,30 @@ export default function AdminDashboard() {
   const renderSubscriptionCard = ({ item }: { item: Subscription }) => {
     const getStatusColor = (status: string) => {
       switch (status) {
-        case 'active': return '#10B981';
-        case 'paused': return '#F59E0B';
-        case 'cancelled': return '#EF4444';
-        case 'completed': return '#6B7280';
-        default: return '#6B7280';
+        case "active":
+          return "#10B981";
+        case "paused":
+          return "#F59E0B";
+        case "cancelled":
+          return "#EF4444";
+        case "completed":
+          return "#6B7280";
+        default:
+          return "#6B7280";
       }
     };
 
     const formatDate = (date: Date) => {
-      return new Date(date).toLocaleDateString('en-IN', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
+      return new Date(date).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
       });
     };
 
-    const user = users.find(u => u.id === item.userId);
-    const deliveredMeals = (item.totalDeliveries || 0) - (item.remainingDeliveries || 0);
+    const user = users.find((u) => u.id === item.userId);
+    const deliveredMeals =
+      (item.totalDeliveries || 0) - (item.remainingDeliveries || 0);
 
     const handleGenerateInvoice = () => {
       setSelectedInvoiceSubscription(item);
@@ -1214,15 +1344,22 @@ export default function AdminDashboard() {
       <View style={styles.subscriptionCard}>
         <View style={styles.subscriptionHeader}>
           <View style={styles.subscriptionInfo}>
-            <Text style={styles.subscriptionUser}>{user?.name || 'Unknown User'}</Text>
+            <Text style={styles.subscriptionUser}>
+              {user?.name || "Unknown User"}
+            </Text>
             <Text style={styles.subscriptionPhone}>{user?.phone}</Text>
             <Text style={styles.subscriptionId}>ID: #{item.id.slice(-6)}</Text>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(item.status) },
+            ]}
+          >
             <Text style={styles.statusText}>{item.status.toUpperCase()}</Text>
           </View>
         </View>
-        
+
         <View style={styles.subscriptionDetails}>
           <View style={styles.detailRow}>
             <Calendar size={16} color="#9CA3AF" />
@@ -1230,22 +1367,20 @@ export default function AdminDashboard() {
               {formatDate(item.startDate)} - {formatDate(item.endDate)}
             </Text>
           </View>
-          
+
           <View style={styles.detailRow}>
             <Package size={16} color="#9CA3AF" />
             <Text style={styles.detailText}>
               {deliveredMeals}/{item.totalDeliveries} meals delivered
             </Text>
           </View>
-          
+
           <View style={styles.detailRow}>
             <Clock size={16} color="#9CA3AF" />
-            <Text style={styles.detailText}>
-              Delivery: {item.deliveryTime}
-            </Text>
+            <Text style={styles.detailText}>Delivery: {item.deliveryTime}</Text>
           </View>
         </View>
-        
+
         <View style={styles.subscriptionFooter}>
           <View>
             <Text style={styles.totalAmount}>₹{item.totalAmount}</Text>
@@ -1259,21 +1394,21 @@ export default function AdminDashboard() {
             <Text style={styles.invoiceButtonText}>Invoice</Text>
           </TouchableOpacity>
         </View>
-        
+
         {/* Assignment Buttons */}
         <View style={styles.assignmentSection}>
           <Text style={styles.assignmentTitle}>Assign to Staff:</Text>
           <View style={styles.assignButtons}>
-            <TouchableOpacity 
-              style={[styles.assignButton, { backgroundColor: '#10B981' }]}
-              onPress={() => openStaffDrawer(item.id, 'kitchen')}
+            <TouchableOpacity
+              style={[styles.assignButton, { backgroundColor: "#10B981" }]}
+              onPress={() => openStaffDrawer(item.id, "kitchen")}
             >
               <ChefHat size={16} color="white" />
               <Text style={styles.assignButtonText}>Kitchen</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.assignButton, { backgroundColor: '#48479B' }]}
-              onPress={() => openStaffDrawer(item.id, 'delivery')}
+            <TouchableOpacity
+              style={[styles.assignButton, { backgroundColor: "#48479B" }]}
+              onPress={() => openStaffDrawer(item.id, "delivery")}
             >
               <Truck size={16} color="white" />
               <Text style={styles.assignButtonText}>Delivery</Text>
@@ -1283,12 +1418,16 @@ export default function AdminDashboard() {
             <View style={styles.assignmentStatus}>
               {item.assignedKitchenId && (
                 <Text style={styles.assignedText}>
-                  ✓ Kitchen: {kitchenStaff.find(s => s.id === item.assignedKitchenId)?.name || item.assignedKitchenId}
+                  ✓ Kitchen:{" "}
+                  {kitchenStaff.find((s) => s.id === item.assignedKitchenId)
+                    ?.name || item.assignedKitchenId}
                 </Text>
               )}
               {item.assignedDeliveryId && (
                 <Text style={styles.assignedText}>
-                  ✓ Delivery: {deliveryPersons.find(s => s.id === item.assignedDeliveryId)?.name || item.assignedDeliveryId}
+                  ✓ Delivery:{" "}
+                  {deliveryPersons.find((s) => s.id === item.assignedDeliveryId)
+                    ?.name || item.assignedDeliveryId}
                 </Text>
               )}
             </View>
@@ -1300,145 +1439,162 @@ export default function AdminDashboard() {
 
   const loadCutoffSettings = async () => {
     try {
-      console.log('Loading cutoff settings in admin...');
+      console.log("Loading cutoff settings in admin...");
       const settings = await db.getAppSettings();
-      console.log('Cutoff settings loaded in admin:', settings);
+      console.log("Cutoff settings loaded in admin:", settings);
       setCutoffTimes({
         skipCutoffTime: settings.skipCutoffTime,
         addOnCutoffTime: settings.addOnCutoffTime,
       });
       setShowCutoffSettings(true);
     } catch (error) {
-      console.error('Error loading cutoff settings:', error);
+      console.error("Error loading cutoff settings:", error);
     }
   };
 
   const saveCutoffSettings = async () => {
     try {
-      console.log('Saving cutoff settings:', cutoffTimes);
+      console.log("Saving cutoff settings:", cutoffTimes);
       const updatedSettings = await db.updateAppSettings(cutoffTimes);
-      console.log('Updated settings saved:', updatedSettings);
+      console.log("Updated settings saved:", updatedSettings);
       setShowCutoffSettings(false);
-      Alert.alert('Success', 'Cutoff times updated successfully!');
+      Alert.alert("Success", "Cutoff times updated successfully!");
       loadData(); // Reload data to get updated settings
     } catch (error) {
-      console.error('Error saving cutoff settings:', error);
-      Alert.alert('Error', 'Failed to update cutoff times');
+      console.error("Error saving cutoff settings:", error);
+      Alert.alert("Error", "Failed to update cutoff times");
     }
   };
 
   const handleToggleDraftMode = async (mealId: string) => {
     try {
-      console.log('Toggling draft mode for meal:', mealId);
+      console.log("Toggling draft mode for meal:", mealId);
       const updatedMeal = await db.toggleMealDraftStatus(mealId);
       if (updatedMeal) {
         await loadMealsData();
-        const statusText = updatedMeal.isDraft ? 'moved to draft mode' : 'published live';
+        const statusText = updatedMeal.isDraft
+          ? "moved to draft mode"
+          : "published live";
         Alert.alert(
-          'Draft Mode Updated',
-          `Meal "${updatedMeal.name}" has been ${statusText}.\n\n${updatedMeal.isDraft ? 'This meal is now only visible to admins.' : 'This meal is now visible to all users.'}`
+          "Draft Mode Updated",
+          `Meal "${updatedMeal.name}" has been ${statusText}.\n\n${
+            updatedMeal.isDraft
+              ? "This meal is now only visible to admins."
+              : "This meal is now visible to all users."
+          }`
         );
       }
     } catch (error) {
-      console.error('Error toggling draft mode:', error);
-      Alert.alert('Error', 'Failed to update draft mode');
+      console.error("Error toggling draft mode:", error);
+      Alert.alert("Error", "Failed to update draft mode");
     }
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/auth/role-selection');
-          },
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          await logout();
+          router.replace("/auth/role-selection");
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const changeUserRole = async (targetUser: User, newRole: UserRole) => {
     try {
       if (targetUser.role === newRole) {
-        Alert.alert('No change', 'User already has this role');
+        Alert.alert("No change", "User already has this role");
         return;
       }
       setUpdatingUserId(targetUser.id);
-      console.log('Updating user role', { userId: targetUser.id, from: targetUser.role, to: newRole });
+      console.log("Updating user role", {
+        userId: targetUser.id,
+        from: targetUser.role,
+        to: newRole,
+      });
       const updated = await db.updateUser(targetUser.id, { role: newRole });
       if (!updated) {
-        Alert.alert('Error', 'Failed to update user');
+        Alert.alert("Error", "Failed to update user");
         return;
       }
-      setUsers(prev => prev.map(u => (u.id === updated.id ? updated : u)));
-      Alert.alert('Success', `Role updated to ${newRole}`);
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      Alert.alert("Success", `Role updated to ${newRole}`);
     } catch (e) {
-      console.error('changeUserRole error', e);
-      Alert.alert('Error', 'Could not update role');
+      console.error("changeUserRole error", e);
+      Alert.alert("Error", "Could not update role");
     } finally {
-      setUpdatingUserId('');
+      setUpdatingUserId("");
     }
   };
 
   const toggleUserActive = async (targetUser: User) => {
     try {
       setUpdatingUserId(targetUser.id);
-      const updated = await db.updateUser(targetUser.id, { isActive: !targetUser.isActive });
+      const updated = await db.updateUser(targetUser.id, {
+        isActive: !targetUser.isActive,
+      });
       if (updated) {
-        setUsers(prev => prev.map(u => (u.id === updated.id ? updated : u)));
+        setUsers((prev) =>
+          prev.map((u) => (u.id === updated.id ? updated : u))
+        );
       }
     } catch (e) {
-      console.error('toggleUserActive error', e);
-      Alert.alert('Error', 'Could not update user status');
+      console.error("toggleUserActive error", e);
+      Alert.alert("Error", "Could not update user status");
     } finally {
-      setUpdatingUserId('');
+      setUpdatingUserId("");
     }
   };
 
   const quickBar = [
-    managementOptions.find(o => o.id === '2'), // Add Meal
-    managementOptions.find(o => o.id === '20'), // Subscriptions
-    managementOptions.find(o => o.id === '12'), // Support Tickets
-    managementOptions.find(o => o.id === '17'), // Push Center
-    managementOptions.find(o => o.id === '19'), // Addons
-    managementOptions.find(o => o.id === '6'),  // View Categories
-    managementOptions.find(o => o.id === '7'),  // View Meals
+    managementOptions.find((o) => o.id === "2"), // Add Meal
+    managementOptions.find((o) => o.id === "20"), // Subscriptions
+    managementOptions.find((o) => o.id === "12"), // Support Tickets
+    managementOptions.find((o) => o.id === "17"), // Push Center
+    managementOptions.find((o) => o.id === "19"), // Addons
+    managementOptions.find((o) => o.id === "6"), // View Categories
+    managementOptions.find((o) => o.id === "7"), // View Meals
   ].filter(Boolean) as typeof managementOptions;
 
-  const filteredUsers = users.filter(u => {
+  const filteredUsers = users.filter((u) => {
     const q = userSearch.toLowerCase();
-    const matchesQuery = (
+    const matchesQuery =
       u.name.toLowerCase().includes(q) ||
       u.phone.toLowerCase().includes(q) ||
-      (u.email || '').toLowerCase().includes(q)
-    );
-    const matchesRole = roleFilter === 'all' ? true : u.role === roleFilter;
-    const matchesStatus = statusFilter === 'all' ? true : statusFilter === 'active' ? u.isActive : !u.isActive;
+      (u.email || "").toLowerCase().includes(q);
+    const matchesRole = roleFilter === "all" ? true : u.role === roleFilter;
+    const matchesStatus =
+      statusFilter === "all"
+        ? true
+        : statusFilter === "active"
+        ? u.isActive
+        : !u.isActive;
     return matchesQuery && matchesRole && matchesStatus;
   });
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={['#1F2937', '#111827']}
-        style={styles.gradient}
-      >
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <LinearGradient colors={["#1F2937", "#111827"]} style={styles.gradient}>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Header */}
           <View style={styles.header}>
             <View>
               <Text style={styles.greeting}>Welcome back,</Text>
-              <Text style={styles.userName}>{user?.name || 'Admin'}</Text>
+              <Text style={styles.userName}>{user?.name || "Admin"}</Text>
             </View>
             <View style={styles.headerActions}>
               <RoleSelector currentRole="admin" />
-              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <TouchableOpacity
+                style={styles.logoutButton}
+                onPress={handleLogout}
+              >
                 <LogOut size={24} color="white" />
               </TouchableOpacity>
             </View>
@@ -1487,13 +1643,23 @@ export default function AdminDashboard() {
               />
             </View>
 
-            {(['Primary','Catalog','Operations','Marketing','Reports'] as ManagementGroup[]).map((group) => {
+            {(
+              [
+                "Primary",
+                "Catalog",
+                "Operations",
+                "Marketing",
+                "Reports",
+              ] as ManagementGroup[]
+            ).map((group) => {
               const grouped = managementOptions
-                .filter(o => o.group === group)
-                .filter(o =>
-                  optionSearch.trim() === ''
+                .filter((o) => o.group === group)
+                .filter((o) =>
+                  optionSearch.trim() === ""
                     ? true
-                    : (o.title + ' ' + o.description).toLowerCase().includes(optionSearch.toLowerCase())
+                    : (o.title + " " + o.description)
+                        .toLowerCase()
+                        .includes(optionSearch.toLowerCase())
                 );
               if (grouped.length === 0) return null;
               return (
@@ -1510,11 +1676,18 @@ export default function AdminDashboard() {
                           onPress={option.onPress}
                           activeOpacity={0.8}
                         >
-                          <View style={[styles.optionIcon, { backgroundColor: option.color }]}>
+                          <View
+                            style={[
+                              styles.optionIcon,
+                              { backgroundColor: option.color },
+                            ]}
+                          >
                             <IconComponent size={24} color="white" />
                           </View>
                           <Text style={styles.optionTitle}>{option.title}</Text>
-                          <Text style={styles.optionDescription}>{option.description}</Text>
+                          <Text style={styles.optionDescription}>
+                            {option.description}
+                          </Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -1538,7 +1711,7 @@ export default function AdminDashboard() {
                         const cats = await db.getCategories();
                         setCategories(cats);
                       } catch (e) {
-                        console.log('load categories for meals card add', e);
+                        console.log("load categories for meals card add", e);
                       }
                       setShowAddMeal(true);
                     }}
@@ -1561,25 +1734,51 @@ export default function AdminDashboard() {
                 <View style={styles.emptyMealsContainer}>
                   <ChefHat size={48} color="#9CA3AF" />
                   <Text style={styles.emptyMealsTitle}>No Meals</Text>
-                  <Text style={styles.emptyMealsDescription}>Create your first meal to get started.</Text>
+                  <Text style={styles.emptyMealsDescription}>
+                    Create your first meal to get started.
+                  </Text>
                 </View>
               ) : (
                 <View>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={styles.mealsRow}> 
+                    <View style={styles.mealsRow}>
                       {meals.slice(0, 6).map((meal) => (
                         <View key={meal.id} style={styles.mealTinyCard}>
                           <View style={styles.mealTinyThumb}>
                             <Text style={styles.mealImageText}>🍽️</Text>
                           </View>
-                          <Text numberOfLines={1} style={styles.mealTinyName}>{meal.name}</Text>
+                          <Text numberOfLines={1} style={styles.mealTinyName}>
+                            {meal.name}
+                          </Text>
                           <Text style={styles.mealTinyMeta}>₹{meal.price}</Text>
                           <View style={styles.mealTinyBadges}>
-                            <View style={[styles.vegBadge, { backgroundColor: meal.isVeg ? '#4CAF50' : '#F44336' }]}>
-                              <Text style={styles.vegBadgeText}>{meal.isVeg ? 'Veg' : 'Non-Veg'}</Text>
+                            <View
+                              style={[
+                                styles.vegBadge,
+                                {
+                                  backgroundColor: meal.isVeg
+                                    ? "#4CAF50"
+                                    : "#F44336",
+                                },
+                              ]}
+                            >
+                              <Text style={styles.vegBadgeText}>
+                                {meal.isVeg ? "Veg" : "Non-Veg"}
+                              </Text>
                             </View>
-                            <View style={[styles.statusBadge, { backgroundColor: meal.isActive ? '#10B981' : '#6B7280' }]}>
-                              <Text style={styles.statusText}>{meal.isActive ? 'Active' : 'Inactive'}</Text>
+                            <View
+                              style={[
+                                styles.statusBadge,
+                                {
+                                  backgroundColor: meal.isActive
+                                    ? "#10B981"
+                                    : "#6B7280",
+                                },
+                              ]}
+                            >
+                              <Text style={styles.statusText}>
+                                {meal.isActive ? "Active" : "Inactive"}
+                              </Text>
                             </View>
                           </View>
                         </View>
@@ -1594,19 +1793,23 @@ export default function AdminDashboard() {
           {/* All Subscriptions */}
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>All Customer Subscriptions</Text>
+              <Text style={styles.sectionTitle}>
+                All Customer Subscriptions
+              </Text>
               <TouchableOpacity
                 style={styles.createButton}
-                onPress={() => router.push('/admin/manual-subscription')}
+                onPress={() => router.push("/admin/manual-subscription")}
               >
                 <Plus size={16} color="white" />
                 <Text style={styles.createButtonText}>Create Manual</Text>
               </TouchableOpacity>
             </View>
-            {showSubscriptions && (
-              loading ? (
+            {showSubscriptions &&
+              (loading ? (
                 <View style={styles.loadingContainer}>
-                  <Text style={styles.loadingText}>Loading subscriptions...</Text>
+                  <Text style={styles.loadingText}>
+                    Loading subscriptions...
+                  </Text>
                 </View>
               ) : subscriptions.length > 0 ? (
                 <FlatList
@@ -1624,14 +1827,17 @@ export default function AdminDashboard() {
                     No users have created subscriptions yet.
                   </Text>
                 </View>
-              )
-            )}
+              ))}
           </View>
 
           {/* Quick Access */}
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Quick Access</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickBar}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.quickBar}
+            >
               {quickBar.map((option) => {
                 const IconC = option.icon;
                 return (
@@ -1660,7 +1866,8 @@ export default function AdminDashboard() {
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                Assign to {staffType === 'kitchen' ? 'Kitchen Staff' : 'Delivery Person'}
+                Assign to{" "}
+                {staffType === "kitchen" ? "Kitchen Staff" : "Delivery Person"}
               </Text>
               <TouchableOpacity
                 style={styles.closeButton}
@@ -1671,61 +1878,108 @@ export default function AdminDashboard() {
             </View>
 
             <ScrollView style={styles.modalContent}>
-              {staffType === 'kitchen' ? (
+              {staffType === "kitchen" ? (
                 <View>
-                  <Text style={styles.sectionSubtitle}>Select Kitchen Staff Member</Text>
-                  {kitchenStaff.filter(staff => staff.isActive).map((staff) => (
-                    <TouchableOpacity
-                      key={staff.id}
-                      style={styles.staffCard}
-                      onPress={() => handleAssignSubscription(selectedSubscriptionId, staff.id, 'kitchen')}
-                    >
-                      <View style={styles.staffInfo}>
-                        <View style={[styles.staffIcon, { backgroundColor: '#10B981' }]}>
-                          <ChefHat size={20} color="white" />
-                        </View>
-                        <View style={styles.staffDetails}>
-                          <Text style={styles.staffName}>{staff.name}</Text>
-                          <Text style={styles.staffRole}>{staff.role.charAt(0).toUpperCase() + staff.role.slice(1)}</Text>
-                          <Text style={styles.staffContact}>{staff.phone}</Text>
-                        </View>
-                      </View>
-                      <Check size={20} color="#10B981" />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              ) : (
-                <View>
-                  <Text style={styles.sectionSubtitle}>Select Delivery Person</Text>
-                  {deliveryPersons.filter(person => person.isActive).map((person) => (
-                    <TouchableOpacity
-                      key={person.id}
-                      style={styles.staffCard}
-                      onPress={() => handleAssignSubscription(selectedSubscriptionId, person.id, 'delivery')}
-                    >
-                      <View style={styles.staffInfo}>
-                        <View style={[styles.staffIcon, { backgroundColor: '#48479B' }]}>
-                          <Truck size={20} color="white" />
-                        </View>
-                        <View style={styles.staffDetails}>
-                          <Text style={styles.staffName}>{person.name}</Text>
-                          <Text style={styles.staffRole}>Delivery Person</Text>
-                          <Text style={styles.staffContact}>{person.phone}</Text>
-                          <Text style={styles.staffVehicle}>Vehicle: {person.vehicleNumber}</Text>
-                          <View style={styles.availabilityBadge}>
-                            <View style={[
-                              styles.statusDot, 
-                              { backgroundColor: person.isAvailable ? '#10B981' : '#EF4444' }
-                            ]} />
-                            <Text style={styles.availabilityText}>
-                              {person.isAvailable ? 'Available' : 'Busy'}
+                  <Text style={styles.sectionSubtitle}>
+                    Select Kitchen Staff Member
+                  </Text>
+                  {kitchenStaff
+                    .filter((staff) => staff.isActive)
+                    .map((staff) => (
+                      <TouchableOpacity
+                        key={staff.id}
+                        style={styles.staffCard}
+                        onPress={() =>
+                          handleAssignSubscription(
+                            selectedSubscriptionId,
+                            staff.id,
+                            "kitchen"
+                          )
+                        }
+                      >
+                        <View style={styles.staffInfo}>
+                          <View
+                            style={[
+                              styles.staffIcon,
+                              { backgroundColor: "#10B981" },
+                            ]}
+                          >
+                            <ChefHat size={20} color="white" />
+                          </View>
+                          <View style={styles.staffDetails}>
+                            <Text style={styles.staffName}>{staff.name}</Text>
+                            <Text style={styles.staffRole}>
+                              {staff.role.charAt(0).toUpperCase() +
+                                staff.role.slice(1)}
+                            </Text>
+                            <Text style={styles.staffContact}>
+                              {staff.phone}
                             </Text>
                           </View>
                         </View>
-                      </View>
-                      <Check size={20} color="#48479B" />
-                    </TouchableOpacity>
-                  ))}
+                        <Check size={20} color="#10B981" />
+                      </TouchableOpacity>
+                    ))}
+                </View>
+              ) : (
+                <View>
+                  <Text style={styles.sectionSubtitle}>
+                    Select Delivery Person
+                  </Text>
+                  {deliveryPersons
+                    .filter((person) => person.isActive)
+                    .map((person) => (
+                      <TouchableOpacity
+                        key={person.id}
+                        style={styles.staffCard}
+                        onPress={() =>
+                          handleAssignSubscription(
+                            selectedSubscriptionId,
+                            person.id,
+                            "delivery"
+                          )
+                        }
+                      >
+                        <View style={styles.staffInfo}>
+                          <View
+                            style={[
+                              styles.staffIcon,
+                              { backgroundColor: "#48479B" },
+                            ]}
+                          >
+                            <Truck size={20} color="white" />
+                          </View>
+                          <View style={styles.staffDetails}>
+                            <Text style={styles.staffName}>{person.name}</Text>
+                            <Text style={styles.staffRole}>
+                              Delivery Person
+                            </Text>
+                            <Text style={styles.staffContact}>
+                              {person.phone}
+                            </Text>
+                            <Text style={styles.staffVehicle}>
+                              Vehicle: {person.vehicleNumber}
+                            </Text>
+                            <View style={styles.availabilityBadge}>
+                              <View
+                                style={[
+                                  styles.statusDot,
+                                  {
+                                    backgroundColor: person.isAvailable
+                                      ? "#10B981"
+                                      : "#EF4444",
+                                  },
+                                ]}
+                              />
+                              <Text style={styles.availabilityText}>
+                                {person.isAvailable ? "Available" : "Busy"}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                        <Check size={20} color="#48479B" />
+                      </TouchableOpacity>
+                    ))}
                 </View>
               )}
             </ScrollView>
@@ -1758,7 +2012,12 @@ export default function AdminDashboard() {
                 <TextInput
                   style={styles.timeInput}
                   value={cutoffTimes.skipCutoffTime}
-                  onChangeText={(text) => setCutoffTimes(prev => ({ ...prev, skipCutoffTime: text }))}
+                  onChangeText={(text) =>
+                    setCutoffTimes((prev) => ({
+                      ...prev,
+                      skipCutoffTime: text,
+                    }))
+                  }
                   placeholder="09:00"
                   placeholderTextColor="#9CA3AF"
                 />
@@ -1772,14 +2031,21 @@ export default function AdminDashboard() {
                 <TextInput
                   style={styles.timeInput}
                   value={cutoffTimes.addOnCutoffTime}
-                  onChangeText={(text) => setCutoffTimes(prev => ({ ...prev, addOnCutoffTime: text }))}
+                  onChangeText={(text) =>
+                    setCutoffTimes((prev) => ({
+                      ...prev,
+                      addOnCutoffTime: text,
+                    }))
+                  }
                   placeholder="08:00"
                   placeholderTextColor="#9CA3AF"
                 />
               </View>
 
               <View style={styles.currentSettings}>
-                <Text style={styles.currentSettingsTitle}>Current Settings</Text>
+                <Text style={styles.currentSettingsTitle}>
+                  Current Settings
+                </Text>
                 {appSettings && (
                   <View>
                     <Text style={styles.currentSettingText}>
@@ -1898,22 +2164,38 @@ export default function AdminDashboard() {
 
               <View style={styles.settingSection}>
                 <Text style={styles.settingTitle}>Category</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{ marginTop: 8 }}
+                >
                   {categories.map((cat) => (
                     <TouchableOpacity
                       key={cat.id}
                       testID={`add-meal-category-${cat.id}`}
-                      style={[styles.categoryFilterChip, newMealCategoryId === cat.id && styles.categoryFilterChipActive]}
+                      style={[
+                        styles.categoryFilterChip,
+                        newMealCategoryId === cat.id &&
+                          styles.categoryFilterChipActive,
+                      ]}
                       onPress={() => setNewMealCategoryId(cat.id)}
                     >
-                      <Text style={[styles.categoryFilterText, newMealCategoryId === cat.id && styles.categoryFilterTextActive]}>
+                      <Text
+                        style={[
+                          styles.categoryFilterText,
+                          newMealCategoryId === cat.id &&
+                            styles.categoryFilterTextActive,
+                        ]}
+                      >
                         {cat.name}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
-                {newMealCategoryId === '' && (
-                  <Text style={[styles.settingDescription, { marginTop: 8 }]}>Please select a category</Text>
+                {newMealCategoryId === "" && (
+                  <Text style={[styles.settingDescription, { marginTop: 8 }]}>
+                    Please select a category
+                  </Text>
                 )}
               </View>
 
@@ -1925,21 +2207,42 @@ export default function AdminDashboard() {
                     style={[styles.chip, newMealIsVeg && styles.chipActive]}
                     onPress={() => setNewMealIsVeg(true)}
                   >
-                    <Text style={[styles.chipText, newMealIsVeg && styles.chipTextActive]}>Veg</Text>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        newMealIsVeg && styles.chipTextActive,
+                      ]}
+                    >
+                      Veg
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     testID="add-meal-nonveg"
                     style={[styles.chip, !newMealIsVeg && styles.chipActive]}
                     onPress={() => setNewMealIsVeg(false)}
                   >
-                    <Text style={[styles.chipText, !newMealIsVeg && styles.chipTextActive]}>Non-Veg</Text>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        !newMealIsVeg && styles.chipTextActive,
+                      ]}
+                    >
+                      Non-Veg
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     testID="add-meal-hasegg"
                     style={[styles.chip, newMealHasEgg && styles.chipActive]}
                     onPress={() => setNewMealHasEgg(!newMealHasEgg)}
                   >
-                    <Text style={[styles.chipText, newMealHasEgg && styles.chipTextActive]}>{newMealHasEgg ? 'Egg ✓' : 'Egg ✗'}</Text>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        newMealHasEgg && styles.chipTextActive,
+                      ]}
+                    >
+                      {newMealHasEgg ? "Egg ✓" : "Egg ✗"}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1987,21 +2290,45 @@ export default function AdminDashboard() {
                     style={[styles.chip, newMealIsActive && styles.chipActive]}
                     onPress={() => setNewMealIsActive(!newMealIsActive)}
                   >
-                    <Text style={[styles.chipText, newMealIsActive && styles.chipTextActive]}>{newMealIsActive ? 'Active' : 'Inactive'}</Text>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        newMealIsActive && styles.chipTextActive,
+                      ]}
+                    >
+                      {newMealIsActive ? "Active" : "Inactive"}
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     testID="add-meal-featured"
-                    style={[styles.chip, newMealIsFeatured && styles.chipActive]}
+                    style={[
+                      styles.chip,
+                      newMealIsFeatured && styles.chipActive,
+                    ]}
                     onPress={() => setNewMealIsFeatured(!newMealIsFeatured)}
                   >
-                    <Text style={[styles.chipText, newMealIsFeatured && styles.chipTextActive]}>{newMealIsFeatured ? 'Featured ✓' : 'Featured ✗'}</Text>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        newMealIsFeatured && styles.chipTextActive,
+                      ]}
+                    >
+                      {newMealIsFeatured ? "Featured ✓" : "Featured ✗"}
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     testID="add-meal-draft"
                     style={[styles.chip, newMealIsDraft && styles.chipActive]}
                     onPress={() => setNewMealIsDraft(!newMealIsDraft)}
                   >
-                    <Text style={[styles.chipText, newMealIsDraft && styles.chipTextActive]}>{newMealIsDraft ? 'Draft' : 'Live'}</Text>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        newMealIsDraft && styles.chipTextActive,
+                      ]}
+                    >
+                      {newMealIsDraft ? "Draft" : "Live"}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2098,7 +2425,12 @@ export default function AdminDashboard() {
               <Animated.View
                 style={[
                   styles.drawerBackdrop,
-                  { opacity: addMealDrawerAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.35] }) },
+                  {
+                    opacity: addMealDrawerAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 0.35],
+                    }),
+                  },
                 ]}
               />
             </TouchableWithoutFeedback>
@@ -2106,7 +2438,17 @@ export default function AdminDashboard() {
               {...addMealPan.panHandlers}
               style={[
                 styles.drawerSheet,
-                { width: drawerWidth, transform: [{ translateX: addMealDrawerAnim.interpolate({ inputRange: [0, 1], outputRange: [drawerWidth, 0] }) }] },
+                {
+                  width: drawerWidth,
+                  transform: [
+                    {
+                      translateX: addMealDrawerAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [drawerWidth, 0],
+                      }),
+                    },
+                  ],
+                },
               ]}
             >
               <SafeAreaView style={styles.modalContainer}>
@@ -2148,29 +2490,52 @@ export default function AdminDashboard() {
 
                   <View style={styles.settingSection}>
                     <Text style={styles.settingTitle}>Categories</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={{ marginTop: 8 }}
+                    >
                       {categories.map((cat) => {
                         const active = newMealCategoryIds.includes(cat.id);
                         return (
                           <TouchableOpacity
                             key={cat.id}
                             testID={`add-meal-category-${cat.id}`}
-                            style={[styles.categoryFilterChip, (active || newMealCategoryId === cat.id) && styles.categoryFilterChipActive]}
+                            style={[
+                              styles.categoryFilterChip,
+                              (active || newMealCategoryId === cat.id) &&
+                                styles.categoryFilterChipActive,
+                            ]}
                             onPress={() => {
                               setNewMealCategoryId(cat.id);
-                              setNewMealCategoryIds(prev => active ? prev.filter(id => id !== cat.id) : [...prev, cat.id]);
+                              setNewMealCategoryIds((prev) =>
+                                active
+                                  ? prev.filter((id) => id !== cat.id)
+                                  : [...prev, cat.id]
+                              );
                             }}
                           >
-                            <Text style={[styles.categoryFilterText, (active || newMealCategoryId === cat.id) && styles.categoryFilterTextActive]}>
+                            <Text
+                              style={[
+                                styles.categoryFilterText,
+                                (active || newMealCategoryId === cat.id) &&
+                                  styles.categoryFilterTextActive,
+                              ]}
+                            >
                               {cat.name}
                             </Text>
                           </TouchableOpacity>
                         );
                       })}
                     </ScrollView>
-                    {newMealCategoryIds.length === 0 && newMealCategoryId === '' && (
-                      <Text style={[styles.settingDescription, { marginTop: 8 }]}>Please select at least one category</Text>
-                    )}
+                    {newMealCategoryIds.length === 0 &&
+                      newMealCategoryId === "" && (
+                        <Text
+                          style={[styles.settingDescription, { marginTop: 8 }]}
+                        >
+                          Please select at least one category
+                        </Text>
+                      )}
                   </View>
 
                   <View style={styles.settingSection}>
@@ -2181,46 +2546,100 @@ export default function AdminDashboard() {
                         style={[styles.chip, newMealIsVeg && styles.chipActive]}
                         onPress={() => setNewMealIsVeg(true)}
                       >
-                        <Text style={[styles.chipText, newMealIsVeg && styles.chipTextActive]}>Veg</Text>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            newMealIsVeg && styles.chipTextActive,
+                          ]}
+                        >
+                          Veg
+                        </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         testID="add-meal-nonveg"
-                        style={[styles.chip, !newMealIsVeg && styles.chipActive]}
+                        style={[
+                          styles.chip,
+                          !newMealIsVeg && styles.chipActive,
+                        ]}
                         onPress={() => setNewMealIsVeg(false)}
                       >
-                        <Text style={[styles.chipText, !newMealIsVeg && styles.chipTextActive]}>Non-Veg</Text>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            !newMealIsVeg && styles.chipTextActive,
+                          ]}
+                        >
+                          Non-Veg
+                        </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         testID="add-meal-hasegg"
-                        style={[styles.chip, newMealHasEgg && styles.chipActive]}
+                        style={[
+                          styles.chip,
+                          newMealHasEgg && styles.chipActive,
+                        ]}
                         onPress={() => setNewMealHasEgg(!newMealHasEgg)}
                       >
-                        <Text style={[styles.chipText, newMealHasEgg && styles.chipTextActive]}>{newMealHasEgg ? 'Egg ✓' : 'Egg ✗'}</Text>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            newMealHasEgg && styles.chipTextActive,
+                          ]}
+                        >
+                          {newMealHasEgg ? "Egg ✓" : "Egg ✗"}
+                        </Text>
                       </TouchableOpacity>
                     </View>
                     <View style={{ height: 12 }} />
-                    <Text style={styles.settingTitle}>Basic Thali & Variants</Text>
+                    <Text style={styles.settingTitle}>
+                      Basic Thali & Variants
+                    </Text>
                     <View style={styles.roleChipsRow}>
                       <TouchableOpacity
                         testID="add-meal-basic-thali"
-                        style={[styles.chip, newIsBasicThali && styles.chipActive]}
+                        style={[
+                          styles.chip,
+                          newIsBasicThali && styles.chipActive,
+                        ]}
                         onPress={() => setNewIsBasicThali(!newIsBasicThali)}
                       >
-                        <Text style={[styles.chipText, newIsBasicThali && styles.chipTextActive]}>{newIsBasicThali ? 'Basic Thali ✓' : 'Basic Thali ✗'}</Text>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            newIsBasicThali && styles.chipTextActive,
+                          ]}
+                        >
+                          {newIsBasicThali ? "Basic Thali ✓" : "Basic Thali ✗"}
+                        </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         testID="add-meal-allow-day-selection"
-                        style={[styles.chip, newAllowDaySelection && styles.chipActive]}
-                        onPress={() => setNewAllowDaySelection(!newAllowDaySelection)}
+                        style={[
+                          styles.chip,
+                          newAllowDaySelection && styles.chipActive,
+                        ]}
+                        onPress={() =>
+                          setNewAllowDaySelection(!newAllowDaySelection)
+                        }
                       >
-                        <Text style={[styles.chipText, newAllowDaySelection && styles.chipTextActive]}>
-                          {newAllowDaySelection ? 'Allow Day Selection ✓' : 'Allow Day Selection ✗'}
+                        <Text
+                          style={[
+                            styles.chipText,
+                            newAllowDaySelection && styles.chipTextActive,
+                          ]}
+                        >
+                          {newAllowDaySelection
+                            ? "Allow Day Selection ✓"
+                            : "Allow Day Selection ✗"}
                         </Text>
                       </TouchableOpacity>
                     </View>
                     {newIsBasicThali && (
                       <View style={{ marginTop: 12 }}>
-                        <Text style={styles.settingDescription}>Set variant prices (leave blank to fallback to base price)</Text>
+                        <Text style={styles.settingDescription}>
+                          Set variant prices (leave blank to fallback to base
+                          price)
+                        </Text>
                         <TextInput
                           testID="add-meal-veg-price"
                           style={styles.timeInput}
@@ -2284,24 +2703,54 @@ export default function AdminDashboard() {
                     <View style={styles.roleChipsRow}>
                       <TouchableOpacity
                         testID="add-meal-active"
-                        style={[styles.chip, newMealIsActive && styles.chipActive]}
+                        style={[
+                          styles.chip,
+                          newMealIsActive && styles.chipActive,
+                        ]}
                         onPress={() => setNewMealIsActive(!newMealIsActive)}
                       >
-                        <Text style={[styles.chipText, newMealIsActive && styles.chipTextActive]}>{newMealIsActive ? 'Active' : 'Inactive'}</Text>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            newMealIsActive && styles.chipTextActive,
+                          ]}
+                        >
+                          {newMealIsActive ? "Active" : "Inactive"}
+                        </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         testID="add-meal-featured"
-                        style={[styles.chip, newMealIsFeatured && styles.chipActive]}
+                        style={[
+                          styles.chip,
+                          newMealIsFeatured && styles.chipActive,
+                        ]}
                         onPress={() => setNewMealIsFeatured(!newMealIsFeatured)}
                       >
-                        <Text style={[styles.chipText, newMealIsFeatured && styles.chipTextActive]}>{newMealIsFeatured ? 'Featured ✓' : 'Featured ✗'}</Text>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            newMealIsFeatured && styles.chipTextActive,
+                          ]}
+                        >
+                          {newMealIsFeatured ? "Featured ✓" : "Featured ✗"}
+                        </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         testID="add-meal-draft"
-                        style={[styles.chip, newMealIsDraft && styles.chipActive]}
+                        style={[
+                          styles.chip,
+                          newMealIsDraft && styles.chipActive,
+                        ]}
                         onPress={() => setNewMealIsDraft(!newMealIsDraft)}
                       >
-                        <Text style={[styles.chipText, newMealIsDraft && styles.chipTextActive]}>{newMealIsDraft ? 'Draft' : 'Live'}</Text>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            newMealIsDraft && styles.chipTextActive,
+                          ]}
+                        >
+                          {newMealIsDraft ? "Draft" : "Live"}
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -2329,7 +2778,9 @@ export default function AdminDashboard() {
                   </View>
 
                   <View style={styles.settingSection}>
-                    <Text style={styles.settingTitle}>Nutrition (optional)</Text>
+                    <Text style={styles.settingTitle}>
+                      Nutrition (optional)
+                    </Text>
                     <TextInput
                       testID="add-meal-cal"
                       style={styles.timeInput}
@@ -2437,14 +2888,21 @@ export default function AdminDashboard() {
 
               <TouchableOpacity
                 style={styles.saveButton}
-                onPress={() => console.log('Map selection feature - would open polygon selector')}
+                onPress={() =>
+                  console.log(
+                    "Map selection feature - would open polygon selector"
+                  )
+                }
               >
                 <Text style={styles.saveButtonText}>Select Area on Map</Text>
               </TouchableOpacity>
               <PolygonSelector />
 
               <TouchableOpacity
-                style={[styles.saveButton, { backgroundColor: '#10B981', marginTop: 10 }]}
+                style={[
+                  styles.saveButton,
+                  { backgroundColor: "#10B981", marginTop: 10 },
+                ]}
                 onPress={handleAddLocation}
               >
                 <Text style={styles.saveButtonText}>Add Location</Text>
@@ -2461,7 +2919,9 @@ export default function AdminDashboard() {
         >
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Categories ({categories.length})</Text>
+              <Text style={styles.modalTitle}>
+                Categories ({categories.length})
+              </Text>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setShowViewCategories(false)}
@@ -2475,10 +2935,19 @@ export default function AdminDashboard() {
                 <View key={category.id} style={styles.itemCard}>
                   <View style={styles.itemInfo}>
                     <Text style={styles.itemName}>{category.name}</Text>
-                    <Text style={styles.itemDescription}>{category.description}</Text>
-                    <Text style={styles.itemDescription}>Group: {category.group ? (category.group === 'meal-time' ? 'Meal-time' : 'Collection') : '—'}</Text>
+                    <Text style={styles.itemDescription}>
+                      {category.description}
+                    </Text>
+                    <Text style={styles.itemDescription}>
+                      Group:{" "}
+                      {category.group
+                        ? category.group === "meal-time"
+                          ? "Meal-time"
+                          : "Collection"
+                        : "—"}
+                    </Text>
                     <Text style={styles.itemStatus}>
-                      Status: {category.isActive ? 'Active' : 'Inactive'}
+                      Status: {category.isActive ? "Active" : "Inactive"}
                     </Text>
                   </View>
                   <View style={styles.itemActions}>
@@ -2503,8 +2972,13 @@ export default function AdminDashboard() {
         >
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Delivery Time Slots ({timeSlots.length})</Text>
-              <TouchableOpacity style={styles.closeButton} onPress={() => setShowTimeSlotsModal(false)}>
+              <Text style={styles.modalTitle}>
+                Delivery Time Slots ({timeSlots.length})
+              </Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowTimeSlotsModal(false)}
+              >
                 <X size={24} color="#374151" />
               </TouchableOpacity>
             </View>
@@ -2527,20 +3001,30 @@ export default function AdminDashboard() {
                   onChangeText={setNewSlotLabel}
                 />
                 <View style={{ height: 12 }} />
-                <TouchableOpacity style={styles.saveButton} onPress={handleAddTimeSlot}>
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleAddTimeSlot}
+                >
                   <Text style={styles.saveButtonText}>Add Slot</Text>
                 </TouchableOpacity>
               </View>
 
-              {timeSlots.map(slot => (
+              {timeSlots.map((slot) => (
                 <View key={slot.id} style={styles.itemCard}>
                   <View style={styles.itemInfo}>
                     <Text style={styles.itemName}>{slot.time}</Text>
-                    <Text style={styles.itemDescription}>{slot.label || '—'}</Text>
-                    <Text style={styles.itemStatus}>Status: {(slot.isActive ?? true) ? 'Active' : 'Inactive'}</Text>
+                    <Text style={styles.itemDescription}>
+                      {slot.label || "—"}
+                    </Text>
+                    <Text style={styles.itemStatus}>
+                      Status: {slot.isActive ?? true ? "Active" : "Inactive"}
+                    </Text>
                   </View>
                   <View style={styles.itemActions}>
-                    <TouchableOpacity style={styles.editButton} onPress={() => toggleSlotActive(slot.id)}>
+                    <TouchableOpacity
+                      style={styles.editButton}
+                      onPress={() => toggleSlotActive(slot.id)}
+                    >
                       <ToggleRight size={16} color="white" />
                     </TouchableOpacity>
                   </View>
@@ -2558,29 +3042,53 @@ export default function AdminDashboard() {
         >
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Assign Time Slots{assignSlotsMeal ? ` • ${assignSlotsMeal.name}` : ''}</Text>
-              <TouchableOpacity style={styles.closeButton} onPress={() => setShowAssignSlots(false)}>
+              <Text style={styles.modalTitle}>
+                Assign Time Slots
+                {assignSlotsMeal ? ` • ${assignSlotsMeal.name}` : ""}
+              </Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowAssignSlots(false)}
+              >
                 <X size={24} color="#374151" />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalContent}>
               <View style={styles.settingSection}>
-                <Text style={styles.settingDescription}>Select one or more delivery time slots for this meal.</Text>
-                {timeSlots.map(slot => {
+                <Text style={styles.settingDescription}>
+                  Select one or more delivery time slots for this meal.
+                </Text>
+                {timeSlots.map((slot) => {
                   const active = assignSelectedSlots.includes(slot.id);
                   return (
                     <TouchableOpacity
                       key={slot.id}
-                      style={[styles.staffCard, { borderColor: active ? '#48479B' : '#E5E7EB' }]}
-                      onPress={() => setAssignSelectedSlots(prev => active ? prev.filter(id => id !== slot.id) : [...prev, slot.id])}
+                      style={[
+                        styles.staffCard,
+                        { borderColor: active ? "#48479B" : "#E5E7EB" },
+                      ]}
+                      onPress={() =>
+                        setAssignSelectedSlots((prev) =>
+                          active
+                            ? prev.filter((id) => id !== slot.id)
+                            : [...prev, slot.id]
+                        )
+                      }
                     >
                       <View style={styles.staffInfo}>
-                        <View style={[styles.staffIcon, { backgroundColor: active ? '#48479B' : '#9CA3AF' }]}>
+                        <View
+                          style={[
+                            styles.staffIcon,
+                            { backgroundColor: active ? "#48479B" : "#9CA3AF" },
+                          ]}
+                        >
                           <Clock size={20} color="white" />
                         </View>
                         <View style={styles.staffDetails}>
                           <Text style={styles.staffName}>{slot.time}</Text>
-                          <Text style={styles.staffContact}>{slot.label || '—'}</Text>
+                          <Text style={styles.staffContact}>
+                            {slot.label || "—"}
+                          </Text>
                         </View>
                       </View>
                       {active ? <Check size={20} color="#48479B" /> : <View />}
@@ -2588,7 +3096,10 @@ export default function AdminDashboard() {
                   );
                 })}
                 <View style={{ height: 12 }} />
-                <TouchableOpacity style={styles.saveButton} onPress={saveAssignSlots}>
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={saveAssignSlots}
+                >
                   <Text style={styles.saveButtonText}>Save</Text>
                 </TouchableOpacity>
               </View>
@@ -2604,7 +3115,9 @@ export default function AdminDashboard() {
         >
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Meals Management ({meals.length})</Text>
+              <Text style={styles.modalTitle}>
+                Meals Management ({meals.length})
+              </Text>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setShowViewMeals(false)}
@@ -2617,32 +3130,48 @@ export default function AdminDashboard() {
               {/* Category Filter */}
               <View style={styles.filterSection}>
                 <Text style={styles.filterTitle}>Filter by Category:</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryFilter}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.categoryFilter}
+                >
                   <TouchableOpacity
                     style={[
                       styles.categoryFilterChip,
-                      selectedMealCategory === '' && styles.categoryFilterChipActive
+                      selectedMealCategory === "" &&
+                        styles.categoryFilterChipActive,
                     ]}
-                    onPress={() => setSelectedMealCategory('')}
+                    onPress={() => setSelectedMealCategory("")}
                   >
-                    <Text style={[
-                      styles.categoryFilterText,
-                      selectedMealCategory === '' && styles.categoryFilterTextActive
-                    ]}>All</Text>
+                    <Text
+                      style={[
+                        styles.categoryFilterText,
+                        selectedMealCategory === "" &&
+                          styles.categoryFilterTextActive,
+                      ]}
+                    >
+                      All
+                    </Text>
                   </TouchableOpacity>
                   {categories.map((category) => (
                     <TouchableOpacity
                       key={category.id}
                       style={[
                         styles.categoryFilterChip,
-                        selectedMealCategory === category.id && styles.categoryFilterChipActive
+                        selectedMealCategory === category.id &&
+                          styles.categoryFilterChipActive,
                       ]}
                       onPress={() => setSelectedMealCategory(category.id)}
                     >
-                      <Text style={[
-                        styles.categoryFilterText,
-                        selectedMealCategory === category.id && styles.categoryFilterTextActive
-                      ]}>{category.name}</Text>
+                      <Text
+                        style={[
+                          styles.categoryFilterText,
+                          selectedMealCategory === category.id &&
+                            styles.categoryFilterTextActive,
+                        ]}
+                      >
+                        {category.name}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -2650,14 +3179,18 @@ export default function AdminDashboard() {
 
               {/* Meals List */}
               {meals
-                .filter(meal => {
-                  if (selectedMealCategory === '') return true;
+                .filter((meal) => {
+                  if (selectedMealCategory === "") return true;
                   const primaryMatch = meal.categoryId === selectedMealCategory;
-                  const multiMatch = Array.isArray(meal.categoryIds) && meal.categoryIds.includes(selectedMealCategory);
+                  const multiMatch =
+                    Array.isArray(meal.categoryIds) &&
+                    meal.categoryIds.includes(selectedMealCategory);
                   return primaryMatch || multiMatch;
                 })
                 .map((meal) => {
-                  const category = categories.find(cat => cat.id === meal.categoryId);
+                  const category = categories.find(
+                    (cat) => cat.id === meal.categoryId
+                  );
                   return (
                     <View key={meal.id} style={styles.mealCard}>
                       <View style={styles.mealImageContainer}>
@@ -2671,102 +3204,146 @@ export default function AdminDashboard() {
                           </View>
                         )}
                       </View>
-                      
+
                       <View style={styles.mealInfo}>
                         <View style={styles.mealHeader}>
                           <Text style={styles.mealName}>{meal.name}</Text>
                           <View style={styles.mealBadges}>
-                            <View style={[
-                              styles.vegBadge,
-                              { backgroundColor: meal.isVeg ? '#4CAF50' : '#F44336' }
-                            ]}>
+                            <View
+                              style={[
+                                styles.vegBadge,
+                                {
+                                  backgroundColor: meal.isVeg
+                                    ? "#4CAF50"
+                                    : "#F44336",
+                                },
+                              ]}
+                            >
                               <Text style={styles.vegBadgeText}>
-                                {meal.isVeg ? '🟢 Veg' : '🔴 Non-Veg'}
+                                {meal.isVeg ? "🟢 Veg" : "🔴 Non-Veg"}
                               </Text>
                             </View>
-                            <View style={[
-                              styles.statusBadge,
-                              { backgroundColor: meal.isActive ? '#10B981' : '#6B7280' }
-                            ]}>
+                            <View
+                              style={[
+                                styles.statusBadge,
+                                {
+                                  backgroundColor: meal.isActive
+                                    ? "#10B981"
+                                    : "#6B7280",
+                                },
+                              ]}
+                            >
                               <Text style={styles.statusText}>
-                                {meal.isActive ? 'Active' : 'Inactive'}
+                                {meal.isActive ? "Active" : "Inactive"}
                               </Text>
                             </View>
-                            <View style={[
-                              styles.draftBadge,
-                              { backgroundColor: meal.isDraft ? '#F59E0B' : '#10B981' }
-                            ]}>
+                            <View
+                              style={[
+                                styles.draftBadge,
+                                {
+                                  backgroundColor: meal.isDraft
+                                    ? "#F59E0B"
+                                    : "#10B981",
+                                },
+                              ]}
+                            >
                               <Text style={styles.draftBadgeText}>
-                                {meal.isDraft ? '📝 Draft' : '✅ Live'}
+                                {meal.isDraft ? "📝 Draft" : "✅ Live"}
                               </Text>
                             </View>
                           </View>
                         </View>
-                        
+
                         <Text style={styles.mealDescription} numberOfLines={2}>
                           {meal.description}
                         </Text>
-                        
+
                         <View style={styles.mealDetails}>
                           <Text style={styles.mealPrice}>₹{meal.price}</Text>
                           {meal.originalPrice && (
-                            <Text style={styles.mealOriginalPrice}>₹{meal.originalPrice}</Text>
+                            <Text style={styles.mealOriginalPrice}>
+                              ₹{meal.originalPrice}
+                            </Text>
                           )}
-                          <Text style={styles.mealCategory}>• {category?.name || 'Uncategorized'}</Text>
+                          <Text style={styles.mealCategory}>
+                            • {category?.name || "Uncategorized"}
+                          </Text>
                         </View>
-                        
+
                         {meal.rating && (
                           <View style={styles.mealRating}>
-                            <Text style={styles.ratingText}>⭐ {meal.rating}</Text>
-                            <Text style={styles.reviewCount}>({meal.reviewCount} reviews)</Text>
+                            <Text style={styles.ratingText}>
+                              ⭐ {meal.rating}
+                            </Text>
+                            <Text style={styles.reviewCount}>
+                              ({meal.reviewCount} reviews)
+                            </Text>
                           </View>
                         )}
-                        
+
                         <View style={styles.mealActions}>
-                          <TouchableOpacity 
+                          <TouchableOpacity
                             style={styles.previewButton}
                             onPress={() => {
-                              console.log('Opening meal preview for:', meal.name);
+                              console.log(
+                                "Opening meal preview for:",
+                                meal.name
+                              );
                               router.push(`/meal/${meal.id}` as any);
                             }}
                           >
                             <Eye size={16} color="white" />
-                            <Text style={styles.previewButtonText}>Preview</Text>
+                            <Text style={styles.previewButtonText}>
+                              Preview
+                            </Text>
                           </TouchableOpacity>
-                          
-                         
-                          <TouchableOpacity 
+
+                          <TouchableOpacity
                             style={styles.categoryButton}
                             onPress={() => openAssignSlotsModal(meal)}
                           >
                             <Clock size={16} color="white" />
-                            <Text style={styles.categoryButtonText}>Time Slots</Text>
+                            <Text style={styles.categoryButtonText}>
+                              Time Slots
+                            </Text>
                           </TouchableOpacity>
-                          
-                          <TouchableOpacity 
+
+                          <TouchableOpacity
                             style={styles.categoryButton}
                             onPress={() => {
-                              console.log('Assign category for meal:', meal.name);
+                              console.log(
+                                "Assign category for meal:",
+                                meal.name
+                              );
                               Alert.alert(
-                                'Assign Category',
-                                `Current category: ${category?.name || 'None'}\n\nIn a full implementation, this would open a category selection modal.`,
-                                [
-                                  { text: 'OK' }
-                                ]
+                                "Assign Category",
+                                `Current category: ${
+                                  category?.name || "None"
+                                }\n\nIn a full implementation, this would open a category selection modal.`,
+                                [{ text: "OK" }]
                               );
                             }}
                           >
                             <Settings size={16} color="white" />
-                            <Text style={styles.categoryButtonText}>Category</Text>
+                            <Text style={styles.categoryButtonText}>
+                              Category
+                            </Text>
                           </TouchableOpacity>
-                          
-                          <TouchableOpacity style={styles.editButton} onPress={() => openEditMeal(meal)}>
+
+                          <TouchableOpacity
+                            style={styles.editButton}
+                            onPress={() => openEditMeal(meal)}
+                          >
                             <Edit size={16} color="white" />
                           </TouchableOpacity>
-                           <TouchableOpacity 
+                          <TouchableOpacity
                             style={[
                               styles.draftToggleButton,
-                              { backgroundColor: meal.isDraft ? '#F59E0B' : '#10B981' }
+                              {
+                                backgroundColor: meal.isDraft
+                                  ? "#F59E0B"
+                                  : "#10B981",
+                              },
                             ]}
                             onPress={() => handleToggleDraftMode(meal.id)}
                           >
@@ -2776,11 +3353,10 @@ export default function AdminDashboard() {
                               <ToggleRight size={16} color="white" />
                             )}
                             <Text style={styles.draftToggleText}>
-                              {meal.isDraft ? 'Draft' : 'Live'}
+                              {meal.isDraft ? "Draft" : "Live"}
                             </Text>
                           </TouchableOpacity>
 
-                          
                           <TouchableOpacity style={styles.deleteButton}>
                             <Trash2 size={16} color="white" />
                           </TouchableOpacity>
@@ -2788,20 +3364,23 @@ export default function AdminDashboard() {
                       </View>
                     </View>
                   );
-                })
-              }
-              
-              {meals.filter(meal => {
-                if (selectedMealCategory === '') return true;
+                })}
+
+              {meals.filter((meal) => {
+                if (selectedMealCategory === "") return true;
                 const primaryMatch = meal.categoryId === selectedMealCategory;
-                const multiMatch = Array.isArray(meal.categoryIds) && meal.categoryIds.includes(selectedMealCategory);
+                const multiMatch =
+                  Array.isArray(meal.categoryIds) &&
+                  meal.categoryIds.includes(selectedMealCategory);
                 return primaryMatch || multiMatch;
               }).length === 0 && (
                 <View style={styles.emptyMealsContainer}>
                   <ChefHat size={48} color="#9CA3AF" />
                   <Text style={styles.emptyMealsTitle}>No Meals Found</Text>
                   <Text style={styles.emptyMealsDescription}>
-                    {selectedMealCategory ? 'No meals in this category.' : 'No meals available.'}
+                    {selectedMealCategory
+                      ? "No meals in this category."
+                      : "No meals available."}
                   </Text>
                 </View>
               )}
@@ -2818,7 +3397,10 @@ export default function AdminDashboard() {
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Meal</Text>
-              <TouchableOpacity style={styles.closeButton} onPress={() => setShowEditMeal(false)}>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowEditMeal(false)}
+              >
                 <X size={24} color="#374151" />
               </TouchableOpacity>
             </View>
@@ -2847,20 +3429,38 @@ export default function AdminDashboard() {
 
               <View style={styles.settingSection}>
                 <Text style={styles.settingTitle}>Categories</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{ marginTop: 8 }}
+                >
                   {categories.map((cat) => {
                     const active = editMealCategoryIds.includes(cat.id);
                     return (
                       <TouchableOpacity
                         key={cat.id}
                         testID={`edit-meal-category-${cat.id}`}
-                        style={[styles.categoryFilterChip, (active || editMealCategoryId === cat.id) && styles.categoryFilterChipActive]}
+                        style={[
+                          styles.categoryFilterChip,
+                          (active || editMealCategoryId === cat.id) &&
+                            styles.categoryFilterChipActive,
+                        ]}
                         onPress={() => {
                           setEditMealCategoryId(cat.id);
-                          setEditMealCategoryIds(prev => active ? prev.filter(id => id !== cat.id) : [...prev, cat.id]);
+                          setEditMealCategoryIds((prev) =>
+                            active
+                              ? prev.filter((id) => id !== cat.id)
+                              : [...prev, cat.id]
+                          );
                         }}
                       >
-                        <Text style={[styles.categoryFilterText, (active || editMealCategoryId === cat.id) && styles.categoryFilterTextActive]}>
+                        <Text
+                          style={[
+                            styles.categoryFilterText,
+                            (active || editMealCategoryId === cat.id) &&
+                              styles.categoryFilterTextActive,
+                          ]}
+                        >
                           {cat.name}
                         </Text>
                       </TouchableOpacity>
@@ -2868,7 +3468,9 @@ export default function AdminDashboard() {
                   })}
                 </ScrollView>
                 {editMealCategoryIds.length === 0 && (
-                  <Text style={[styles.settingDescription, { marginTop: 8 }]}>Please select at least one category</Text>
+                  <Text style={[styles.settingDescription, { marginTop: 8 }]}>
+                    Please select at least one category
+                  </Text>
                 )}
               </View>
 
@@ -2880,21 +3482,42 @@ export default function AdminDashboard() {
                     style={[styles.chip, editMealIsVeg && styles.chipActive]}
                     onPress={() => setEditMealIsVeg(true)}
                   >
-                    <Text style={[styles.chipText, editMealIsVeg && styles.chipTextActive]}>Veg</Text>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        editMealIsVeg && styles.chipTextActive,
+                      ]}
+                    >
+                      Veg
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     testID="edit-meal-nonveg"
                     style={[styles.chip, !editMealIsVeg && styles.chipActive]}
                     onPress={() => setEditMealIsVeg(false)}
                   >
-                    <Text style={[styles.chipText, !editMealIsVeg && styles.chipTextActive]}>Non-Veg</Text>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        !editMealIsVeg && styles.chipTextActive,
+                      ]}
+                    >
+                      Non-Veg
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     testID="edit-meal-hasegg"
                     style={[styles.chip, editMealHasEgg && styles.chipActive]}
                     onPress={() => setEditMealHasEgg(!editMealHasEgg)}
                   >
-                    <Text style={[styles.chipText, editMealHasEgg && styles.chipTextActive]}>{editMealHasEgg ? 'Egg ✓' : 'Egg ✗'}</Text>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        editMealHasEgg && styles.chipTextActive,
+                      ]}
+                    >
+                      {editMealHasEgg ? "Egg ✓" : "Egg ✗"}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2942,21 +3565,45 @@ export default function AdminDashboard() {
                     style={[styles.chip, editMealIsActive && styles.chipActive]}
                     onPress={() => setEditMealIsActive(!editMealIsActive)}
                   >
-                    <Text style={[styles.chipText, editMealIsActive && styles.chipTextActive]}>{editMealIsActive ? 'Active' : 'Inactive'}</Text>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        editMealIsActive && styles.chipTextActive,
+                      ]}
+                    >
+                      {editMealIsActive ? "Active" : "Inactive"}
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     testID="edit-meal-featured"
-                    style={[styles.chip, editMealIsFeatured && styles.chipActive]}
+                    style={[
+                      styles.chip,
+                      editMealIsFeatured && styles.chipActive,
+                    ]}
                     onPress={() => setEditMealIsFeatured(!editMealIsFeatured)}
                   >
-                    <Text style={[styles.chipText, editMealIsFeatured && styles.chipTextActive]}>{editMealIsFeatured ? 'Featured ✓' : 'Featured ✗'}</Text>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        editMealIsFeatured && styles.chipTextActive,
+                      ]}
+                    >
+                      {editMealIsFeatured ? "Featured ✓" : "Featured ✗"}
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     testID="edit-meal-draft"
                     style={[styles.chip, editMealIsDraft && styles.chipActive]}
                     onPress={() => setEditMealIsDraft(!editMealIsDraft)}
                   >
-                    <Text style={[styles.chipText, editMealIsDraft && styles.chipTextActive]}>{editMealIsDraft ? 'Draft' : 'Live'}</Text>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        editMealIsDraft && styles.chipTextActive,
+                      ]}
+                    >
+                      {editMealIsDraft ? "Draft" : "Live"}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2987,16 +3634,31 @@ export default function AdminDashboard() {
                 testID="edit-meal-submit"
                 style={styles.saveButton}
                 onPress={async () => {
-                  if (!editMealId) { Alert.alert('Error', 'No meal selected'); return; }
-                  if (!editMealName.trim() || !editMealDescription.trim() || !editMealPrice.trim() || editMealCategoryIds.length === 0) {
-                    Alert.alert('Error', 'Please fill all required fields');
+                  if (!editMealId) {
+                    Alert.alert("Error", "No meal selected");
+                    return;
+                  }
+                  if (
+                    !editMealName.trim() ||
+                    !editMealDescription.trim() ||
+                    !editMealPrice.trim() ||
+                    editMealCategoryIds.length === 0
+                  ) {
+                    Alert.alert("Error", "Please fill all required fields");
                     return;
                   }
                   try {
                     const price = parseFloat(editMealPrice);
-                    const originalPrice = editMealOriginalPrice.trim() ? parseFloat(editMealOriginalPrice) : undefined;
-                    const preparationTime = editMealPreparationTime.trim() ? parseInt(editMealPreparationTime, 10) : undefined;
-                    const tags = editMealTags.split(',').map(t => t.trim()).filter(Boolean);
+                    const originalPrice = editMealOriginalPrice.trim()
+                      ? parseFloat(editMealOriginalPrice)
+                      : undefined;
+                    const preparationTime = editMealPreparationTime.trim()
+                      ? parseInt(editMealPreparationTime, 10)
+                      : undefined;
+                    const tags = editMealTags
+                      .split(",")
+                      .map((t) => t.trim())
+                      .filter(Boolean);
                     const payload: Partial<Meal> = {
                       name: editMealName.trim(),
                       description: editMealDescription.trim(),
@@ -3014,13 +3676,13 @@ export default function AdminDashboard() {
                       tags: tags.length ? tags : undefined,
                     };
                     const updated = await db.updateMeal(editMealId, payload);
-                    if (!updated) throw new Error('Update failed');
-                    Alert.alert('Success', 'Meal updated successfully');
+                    if (!updated) throw new Error("Update failed");
+                    Alert.alert("Success", "Meal updated successfully");
                     setShowEditMeal(false);
                     await loadMealsData();
                   } catch (e) {
-                    console.log('edit meal save error', e);
-                    Alert.alert('Error', 'Failed to update meal');
+                    console.log("edit meal save error", e);
+                    Alert.alert("Error", "Failed to update meal");
                   }
                 }}
               >
@@ -3038,7 +3700,9 @@ export default function AdminDashboard() {
         >
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Locations ({locations.length})</Text>
+              <Text style={styles.modalTitle}>
+                Locations ({locations.length})
+              </Text>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setShowViewLocations(false)}
@@ -3059,7 +3723,7 @@ export default function AdminDashboard() {
                       Radius: {location.radius}km
                     </Text>
                     <Text style={styles.itemStatus}>
-                      Status: {location.isActive ? 'Active' : 'Inactive'}
+                      Status: {location.isActive ? "Active" : "Inactive"}
                     </Text>
                   </View>
                   <View style={styles.itemActions}>
@@ -3072,17 +3736,24 @@ export default function AdminDashboard() {
                   </View>
                 </View>
               ))}
-              
+
               {notifyRequests.length > 0 && (
                 <View style={styles.notifySection}>
-                  <Text style={styles.sectionSubtitle}>Notify Me Requests ({notifyRequests.length})</Text>
+                  <Text style={styles.sectionSubtitle}>
+                    Notify Me Requests ({notifyRequests.length})
+                  </Text>
                   {notifyRequests.map((request) => (
                     <View key={request.id} style={styles.notifyCard}>
                       <Text style={styles.itemName}>{request.name}</Text>
-                      <Text style={styles.itemDescription}>{request.phone}</Text>
-                      <Text style={styles.itemDescription}>{request.location}</Text>
+                      <Text style={styles.itemDescription}>
+                        {request.phone}
+                      </Text>
+                      <Text style={styles.itemDescription}>
+                        {request.location}
+                      </Text>
                       <Text style={styles.itemStatus}>
-                        Requested: {new Date(request.createdAt).toLocaleDateString()}
+                        Requested:{" "}
+                        {new Date(request.createdAt).toLocaleDateString()}
                       </Text>
                     </View>
                   ))}
@@ -3117,34 +3788,61 @@ export default function AdminDashboard() {
                     <View style={styles.invoiceDetails}>
                       <View style={styles.invoiceRow}>
                         <Text style={styles.invoiceLabel}>Invoice Number:</Text>
-                        <Text style={styles.invoiceValue}>INV-{selectedInvoiceSubscription.id.slice(-8).toUpperCase()}</Text>
+                        <Text style={styles.invoiceValue}>
+                          INV-
+                          {selectedInvoiceSubscription.id
+                            .slice(-8)
+                            .toUpperCase()}
+                        </Text>
                       </View>
                       <View style={styles.invoiceRow}>
                         <Text style={styles.invoiceLabel}>Customer:</Text>
-                        <Text style={styles.invoiceValue}>{users.find(u => u.id === selectedInvoiceSubscription.userId)?.name}</Text>
+                        <Text style={styles.invoiceValue}>
+                          {
+                            users.find(
+                              (u) => u.id === selectedInvoiceSubscription.userId
+                            )?.name
+                          }
+                        </Text>
                       </View>
                       <View style={styles.invoiceRow}>
-                        <Text style={styles.invoiceLabel}>Subscription ID:</Text>
-                        <Text style={styles.invoiceValue}>#{selectedInvoiceSubscription.id.slice(-6)}</Text>
+                        <Text style={styles.invoiceLabel}>
+                          Subscription ID:
+                        </Text>
+                        <Text style={styles.invoiceValue}>
+                          #{selectedInvoiceSubscription.id.slice(-6)}
+                        </Text>
                       </View>
                       <View style={styles.invoiceRow}>
                         <Text style={styles.invoiceLabel}>Total Amount:</Text>
-                        <Text style={styles.invoiceValue}>₹{selectedInvoiceSubscription.totalAmount}</Text>
+                        <Text style={styles.invoiceValue}>
+                          ₹{selectedInvoiceSubscription.totalAmount}
+                        </Text>
                       </View>
                       <View style={styles.invoiceRow}>
                         <Text style={styles.invoiceLabel}>Paid Amount:</Text>
-                        <Text style={styles.invoiceValue}>₹{selectedInvoiceSubscription.paidAmount || 0}</Text>
+                        <Text style={styles.invoiceValue}>
+                          ₹{selectedInvoiceSubscription.paidAmount || 0}
+                        </Text>
                       </View>
                       <View style={styles.invoiceRow}>
                         <Text style={styles.invoiceLabel}>Payment Status:</Text>
-                        <Text style={[
-                          styles.invoiceValue,
-                          {
-                            color: (selectedInvoiceSubscription.paidAmount || 0) >= selectedInvoiceSubscription.totalAmount 
-                              ? '#10B981' : '#EF4444'
-                          }
-                        ]}>
-                          {(selectedInvoiceSubscription.paidAmount || 0) >= selectedInvoiceSubscription.totalAmount ? 'Paid' : 'Pending'}
+                        <Text
+                          style={[
+                            styles.invoiceValue,
+                            {
+                              color:
+                                (selectedInvoiceSubscription.paidAmount || 0) >=
+                                selectedInvoiceSubscription.totalAmount
+                                  ? "#10B981"
+                                  : "#EF4444",
+                            },
+                          ]}
+                        >
+                          {(selectedInvoiceSubscription.paidAmount || 0) >=
+                          selectedInvoiceSubscription.totalAmount
+                            ? "Paid"
+                            : "Pending"}
                         </Text>
                       </View>
                     </View>
@@ -3152,39 +3850,67 @@ export default function AdminDashboard() {
 
                   <View style={styles.invoiceActions}>
                     <TouchableOpacity
-                      style={[styles.invoiceActionButton, { backgroundColor: '#48479B' }]}
-                      onPress={() => handleDownloadInvoice(selectedInvoiceSubscription)}
+                      style={[
+                        styles.invoiceActionButton,
+                        { backgroundColor: "#48479B" },
+                      ]}
+                      onPress={() =>
+                        handleDownloadInvoice(selectedInvoiceSubscription)
+                      }
                     >
                       <Download size={20} color="white" />
                       <Text style={styles.invoiceActionText}>Download PDF</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.invoiceActionButton, { backgroundColor: '#10B981' }]}
-                      onPress={() => handlePrintInvoice(selectedInvoiceSubscription)}
+                      style={[
+                        styles.invoiceActionButton,
+                        { backgroundColor: "#10B981" },
+                      ]}
+                      onPress={() =>
+                        handlePrintInvoice(selectedInvoiceSubscription)
+                      }
                     >
                       <Printer size={20} color="white" />
-                      <Text style={styles.invoiceActionText}>Print Invoice</Text>
+                      <Text style={styles.invoiceActionText}>
+                        Print Invoice
+                      </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.invoiceActionButton, { backgroundColor: '#8B5CF6' }]}
+                      style={[
+                        styles.invoiceActionButton,
+                        { backgroundColor: "#8B5CF6" },
+                      ]}
                       onPress={() => {
-                        const user = users.find(u => u.id === selectedInvoiceSubscription.userId);
+                        const user = users.find(
+                          (u) => u.id === selectedInvoiceSubscription.userId
+                        );
                         if (user) {
-                          const shareText = `Invoice for ${user.name}\nSubscription ID: #${selectedInvoiceSubscription.id.slice(-6)}\nAmount: ₹${selectedInvoiceSubscription.totalAmount}`;
-                          if (Platform.OS === 'web') {
+                          const shareText = `Invoice for ${
+                            user.name
+                          }\nSubscription ID: #${selectedInvoiceSubscription.id.slice(
+                            -6
+                          )}\nAmount: ₹${
+                            selectedInvoiceSubscription.totalAmount
+                          }`;
+                          if (Platform.OS === "web") {
                             navigator.clipboard.writeText(shareText);
-                            Alert.alert('Success', 'Invoice details copied to clipboard');
+                            Alert.alert(
+                              "Success",
+                              "Invoice details copied to clipboard"
+                            );
                           } else {
-                            console.log('Share invoice:', shareText);
-                            Alert.alert('Share', shareText);
+                            console.log("Share invoice:", shareText);
+                            Alert.alert("Share", shareText);
                           }
                         }
                       }}
                     >
                       <Share size={20} color="white" />
-                      <Text style={styles.invoiceActionText}>Share Details</Text>
+                      <Text style={styles.invoiceActionText}>
+                        Share Details
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -3208,7 +3934,10 @@ export default function AdminDashboard() {
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Users Management</Text>
-              <TouchableOpacity style={styles.closeButton} onPress={() => setShowUsersManagement(false)}>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowUsersManagement(false)}
+              >
                 <X size={24} color="#374151" />
               </TouchableOpacity>
             </View>
@@ -3224,32 +3953,66 @@ export default function AdminDashboard() {
                   onChangeText={setUserSearch}
                 />
                 <View style={{ height: 12 }} />
-                <Text style={[styles.settingDescription, { marginBottom: 8 }]}>Role</Text>
+                <Text style={[styles.settingDescription, { marginBottom: 8 }]}>
+                  Role
+                </Text>
                 <View style={styles.roleChipsRow}>
-                  {(['all','customer','kitchen','delivery','admin'] as Array<UserRole | 'all'>).map((r) => (
+                  {(
+                    [
+                      "all",
+                      "customer",
+                      "kitchen",
+                      "delivery",
+                      "admin",
+                    ] as Array<UserRole | "all">
+                  ).map((r) => (
                     <TouchableOpacity
                       key={r}
                       testID={`users-filter-role-${r}`}
                       onPress={() => setRoleFilter(r)}
-                      style={[styles.chip, (roleFilter === r) && styles.chipActive]}
+                      style={[
+                        styles.chip,
+                        roleFilter === r && styles.chipActive,
+                      ]}
                     >
-                      <Text style={[styles.chipText, (roleFilter === r) && styles.chipTextActive]}>
-                        {r === 'all' ? 'All' : r.charAt(0).toUpperCase() + r.slice(1)}
+                      <Text
+                        style={[
+                          styles.chipText,
+                          roleFilter === r && styles.chipTextActive,
+                        ]}
+                      >
+                        {r === "all"
+                          ? "All"
+                          : r.charAt(0).toUpperCase() + r.slice(1)}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
                 <View style={{ height: 12 }} />
-                <Text style={[styles.settingDescription, { marginBottom: 8 }]}>Status</Text>
+                <Text style={[styles.settingDescription, { marginBottom: 8 }]}>
+                  Status
+                </Text>
                 <View style={styles.roleChipsRow}>
-                  {(['all','active','inactive'] as Array<'all'|'active'|'inactive'>).map((s) => (
+                  {(
+                    ["all", "active", "inactive"] as Array<
+                      "all" | "active" | "inactive"
+                    >
+                  ).map((s) => (
                     <TouchableOpacity
                       key={s}
                       testID={`users-filter-status-${s}`}
                       onPress={() => setStatusFilter(s)}
-                      style={[styles.chip, (statusFilter === s) && styles.chipActive]}
+                      style={[
+                        styles.chip,
+                        statusFilter === s && styles.chipActive,
+                      ]}
                     >
-                      <Text style={[styles.chipText, (statusFilter === s) && styles.chipTextActive]}>
+                      <Text
+                        style={[
+                          styles.chipText,
+                          statusFilter === s && styles.chipTextActive,
+                        ]}
+                      >
                         {s.charAt(0).toUpperCase() + s.slice(1)}
                       </Text>
                     </TouchableOpacity>
@@ -3261,39 +4024,88 @@ export default function AdminDashboard() {
                 <View key={u.id} style={styles.userRow}>
                   <View style={styles.userInfo}>
                     <Text style={styles.userItemName}>{u.name}</Text>
-                    <Text style={styles.userMeta}>{u.phone} • {u.email}</Text>
+                    <Text style={styles.userMeta}>
+                      {u.phone} • {u.email}
+                    </Text>
                     <View style={styles.userBadges}>
-                      <View style={[styles.roleBadge, { backgroundColor: u.role === 'admin' ? '#EF4444' : u.role === 'kitchen' ? '#10B981' : u.role === 'delivery' ? '#F59E0B' : '#48479B' }]}>
-                        <Text style={styles.roleBadgeText}>{u.role.toUpperCase()}</Text>
+                      <View
+                        style={[
+                          styles.roleBadge,
+                          {
+                            backgroundColor:
+                              u.role === "admin"
+                                ? "#EF4444"
+                                : u.role === "kitchen"
+                                ? "#10B981"
+                                : u.role === "delivery"
+                                ? "#F59E0B"
+                                : "#48479B",
+                          },
+                        ]}
+                      >
+                        <Text style={styles.roleBadgeText}>
+                          {u.role.toUpperCase()}
+                        </Text>
                       </View>
-                      <View style={[styles.statusPill, { backgroundColor: u.isActive ? '#D1FAE5' : '#FEE2E2' }]}>
-                        <Text style={[styles.statusPillText, { color: u.isActive ? '#065F46' : '#991B1B' }]}>{u.isActive ? 'Active' : 'Inactive'}</Text>
+                      <View
+                        style={[
+                          styles.statusPill,
+                          {
+                            backgroundColor: u.isActive ? "#D1FAE5" : "#FEE2E2",
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusPillText,
+                            { color: u.isActive ? "#065F46" : "#991B1B" },
+                          ]}
+                        >
+                          {u.isActive ? "Active" : "Inactive"}
+                        </Text>
                       </View>
                     </View>
                   </View>
                   <View style={styles.userActions}>
                     <View style={styles.roleChipsRow}>
-                      {(['customer','kitchen','delivery'] as UserRole[]).map((r) => (
-                        <TouchableOpacity
-                          key={r}
-                          testID={`set-role-${u.id}-${r}`}
-                          onPress={() => changeUserRole(u, r)}
-                          disabled={updatingUserId === u.id}
-                          style={[styles.chip, u.role === r && styles.chipActive]}
-                        >
-                          <Text style={[styles.chipText, u.role === r && styles.chipTextActive]}>
-                            {r === 'customer' ? 'Normal' : r.charAt(0).toUpperCase() + r.slice(1)}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                      {(["customer", "kitchen", "delivery"] as UserRole[]).map(
+                        (r) => (
+                          <TouchableOpacity
+                            key={r}
+                            testID={`set-role-${u.id}-${r}`}
+                            onPress={() => changeUserRole(u, r)}
+                            disabled={updatingUserId === u.id}
+                            style={[
+                              styles.chip,
+                              u.role === r && styles.chipActive,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.chipText,
+                                u.role === r && styles.chipTextActive,
+                              ]}
+                            >
+                              {r === "customer"
+                                ? "Normal"
+                                : r.charAt(0).toUpperCase() + r.slice(1)}
+                            </Text>
+                          </TouchableOpacity>
+                        )
+                      )}
                     </View>
                     <TouchableOpacity
                       testID={`toggle-active-${u.id}`}
                       onPress={() => toggleUserActive(u)}
-                      style={[styles.toggleActiveBtn, { backgroundColor: u.isActive ? '#6B7280' : '#10B981' }]}
+                      style={[
+                        styles.toggleActiveBtn,
+                        { backgroundColor: u.isActive ? "#6B7280" : "#10B981" },
+                      ]}
                       disabled={updatingUserId === u.id}
                     >
-                      <Text style={styles.toggleActiveText}>{u.isActive ? 'Deactivate' : 'Activate'}</Text>
+                      <Text style={styles.toggleActiveText}>
+                        {u.isActive ? "Deactivate" : "Activate"}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -3303,7 +4115,9 @@ export default function AdminDashboard() {
                 <View style={styles.emptyContainer}>
                   <Users size={48} color="#9CA3AF" />
                   <Text style={styles.emptyTitle}>No users found</Text>
-                  <Text style={styles.emptyDescription}>Try a different search.</Text>
+                  <Text style={styles.emptyDescription}>
+                    Try a different search.
+                  </Text>
                 </View>
               )}
             </ScrollView>
@@ -3325,63 +4139,63 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 30,
   },
   greeting: {
     fontSize: 16,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
   },
   userName: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
+    fontWeight: "bold",
+    color: "white",
     marginTop: 4,
   },
   headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   logoutButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   statsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     paddingHorizontal: 20,
     marginBottom: 30,
   },
   statCard: {
-    width: '48%',
-    marginRight: '2%',
+    width: "48%",
+    marginRight: "2%",
     marginBottom: 16,
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   statGradient: {
     padding: 20,
   },
   statContent: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   statValue: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
+    fontWeight: "bold",
+    color: "white",
     marginTop: 8,
   },
   statTitle: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: "rgba(255, 255, 255, 0.8)",
     marginTop: 4,
-    textAlign: 'center',
+    textAlign: "center",
   },
   sectionContainer: {
     paddingHorizontal: 20,
@@ -3389,14 +4203,14 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
+    fontWeight: "bold",
+    color: "white",
     marginBottom: 16,
   },
   groupTitle: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#9CA3AF',
+    fontWeight: "700",
+    color: "#9CA3AF",
     marginBottom: 8,
     letterSpacing: 0.4,
   },
@@ -3405,55 +4219,55 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    color: 'white',
+    borderColor: "rgba(255,255,255,0.15)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    color: "white",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
   },
   optionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
   },
   optionCard: {
-    width: '48%',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    width: "48%",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   optionIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 12,
   },
   optionTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
+    fontWeight: "600",
+    color: "white",
     marginBottom: 4,
   },
   optionDescription: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     lineHeight: 16,
   },
   quickBar: {
     paddingRight: 20,
   },
   quickPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderColor: 'rgba(255,255,255,0.15)',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.15)",
     borderWidth: 1,
     paddingVertical: 10,
     paddingHorizontal: 14,
@@ -3462,29 +4276,29 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   quickPillText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     letterSpacing: 0.2,
   },
   quickActionButton: {
-    display: 'none',
+    display: "none",
   },
   quickActionText: {
-    display: 'none',
+    display: "none",
   },
   subscriptionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   subscriptionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 12,
   },
   subscriptionInfo: {
@@ -3492,18 +4306,18 @@ const styles = StyleSheet.create({
   },
   subscriptionUser: {
     fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
+    fontWeight: "600",
+    color: "white",
     marginBottom: 2,
   },
   subscriptionPhone: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     marginBottom: 2,
   },
   subscriptionId: {
     fontSize: 12,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -3512,164 +4326,164 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: 'white',
+    fontWeight: "600",
+    color: "white",
   },
   subscriptionDetails: {
     marginBottom: 12,
   },
   detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 6,
   },
   detailText: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     marginLeft: 8,
   },
   subscriptionFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
   },
   totalAmount: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#10B981',
+    fontWeight: "bold",
+    color: "#10B981",
   },
   paidAmount: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
   },
   loadingContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 12,
     padding: 40,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   loadingText: {
     fontSize: 16,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
   },
   emptyContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 12,
     padding: 40,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: 'white',
+    fontWeight: "600",
+    color: "white",
     marginTop: 16,
     marginBottom: 8,
   },
   emptyDescription: {
     fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
+    color: "#9CA3AF",
+    textAlign: "center",
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
   },
   createButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#10B981',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#10B981",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
   },
   createButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     marginLeft: 4,
   },
   assignmentSection: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
   },
   assignmentTitle: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     marginBottom: 8,
   },
   assignButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
     marginBottom: 8,
   },
   assignButton: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: "row",
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     gap: 4,
   },
   assignButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   assignmentStatus: {
     marginTop: 4,
   },
   assignedText: {
     fontSize: 12,
-    color: '#10B981',
+    color: "#10B981",
     marginBottom: 2,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: "#F9FAFB",
   },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: "#E5E7EB",
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#374151',
+    fontWeight: "bold",
+    color: "#374151",
   },
   closeButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6",
   },
   modalContent: {
     flex: 1,
     padding: 20,
   },
   settingSection: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -3677,78 +4491,78 @@ const styles = StyleSheet.create({
   },
   settingTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     marginBottom: 8,
   },
   settingDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
     marginBottom: 16,
     lineHeight: 20,
   },
   timeInput: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: "#D1D5DB",
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#374151',
-    backgroundColor: '#F9FAFB',
+    color: "#374151",
+    backgroundColor: "#F9FAFB",
   },
   currentSettings: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: "#EEF2FF",
     borderRadius: 12,
     padding: 20,
     marginBottom: 24,
   },
   currentSettingsTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     marginBottom: 12,
   },
   currentSettingText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
     marginBottom: 4,
   },
   saveButton: {
-    backgroundColor: '#48479B',
+    backgroundColor: "#48479B",
     borderRadius: 12,
     paddingVertical: 16,
-    alignItems: 'center',
+    alignItems: "center",
   },
   saveButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   drawerOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     bottom: 0,
     left: 0,
     right: 0,
   },
   drawerBackdrop: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#000',
+    backgroundColor: "#000",
   },
   drawerSheet: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     bottom: 0,
     right: 0,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: "#F9FAFB",
     borderTopLeftRadius: 16,
     borderBottomLeftRadius: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: -2, height: 0 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -3756,37 +4570,37 @@ const styles = StyleSheet.create({
   },
   sectionSubtitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     marginBottom: 16,
   },
   staffCard: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: '#000',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   staffInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   staffIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   staffDetails: {
@@ -3794,28 +4608,28 @@ const styles = StyleSheet.create({
   },
   staffName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     marginBottom: 2,
   },
   staffRole: {
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
     marginBottom: 2,
   },
   staffContact: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     marginBottom: 2,
   },
   staffVehicle: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     marginBottom: 4,
   },
   availabilityBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   statusDot: {
     width: 8,
@@ -3825,60 +4639,60 @@ const styles = StyleSheet.create({
   },
   availabilityText: {
     fontSize: 12,
-    fontWeight: '500',
-    color: '#374151',
+    fontWeight: "500",
+    color: "#374151",
   },
   itemCard: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#000',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   itemInfo: {
     flex: 1,
   },
   itemName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     marginBottom: 4,
   },
   itemDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
     marginBottom: 2,
   },
   itemPrice: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#10B981',
+    fontWeight: "bold",
+    color: "#10B981",
     marginBottom: 2,
   },
   itemStatus: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
   },
   itemActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   editButton: {
-    backgroundColor: '#48479B',
+    backgroundColor: "#48479B",
     padding: 8,
     borderRadius: 6,
   },
   deleteButton: {
-    backgroundColor: '#EF4444',
+    backgroundColor: "#EF4444",
     padding: 8,
     borderRadius: 6,
   },
@@ -3886,22 +4700,22 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: "#E5E7EB",
   },
   notifyCard: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: "#FEF3C7",
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#F59E0B',
+    borderColor: "#F59E0B",
   },
   filterSection: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -3909,47 +4723,47 @@ const styles = StyleSheet.create({
   },
   filterTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     marginBottom: 12,
   },
   categoryFilter: {
-    flexDirection: 'row',
+    flexDirection: "row",
   },
   categoryFilterChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6",
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   categoryFilterChipActive: {
-    backgroundColor: '#48479B',
-    borderColor: '#48479B',
+    backgroundColor: "#48479B",
+    borderColor: "#48479B",
   },
   categoryFilterText: {
     fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
+    color: "#6B7280",
+    fontWeight: "500",
   },
   categoryFilterTextActive: {
-    color: 'white',
+    color: "white",
   },
   mealCard: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    flexDirection: 'row',
-    shadowColor: '#000',
+    flexDirection: "row",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   mealImageContainer: {
     marginRight: 16,
@@ -3958,9 +4772,9 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
   },
   mealImageText: {
     fontSize: 24,
@@ -3969,20 +4783,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mealHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 8,
   },
   mealName: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     flex: 1,
     marginRight: 8,
   },
   mealBadges: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 4,
   },
   vegBadge: {
@@ -3992,82 +4806,82 @@ const styles = StyleSheet.create({
   },
   vegBadgeText: {
     fontSize: 10,
-    color: 'white',
-    fontWeight: '600',
+    color: "white",
+    fontWeight: "600",
   },
   mealDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
     marginBottom: 8,
     lineHeight: 20,
   },
   mealDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   mealPrice: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#10B981',
+    fontWeight: "bold",
+    color: "#10B981",
     marginRight: 8,
   },
   mealOriginalPrice: {
     fontSize: 14,
-    color: '#9CA3AF',
-    textDecorationLine: 'line-through',
+    color: "#9CA3AF",
+    textDecorationLine: "line-through",
     marginRight: 8,
   },
   mealCategory: {
     fontSize: 12,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   mealRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 12,
   },
   ratingText: {
     fontSize: 14,
-    color: '#F59E0B',
-    fontWeight: '600',
+    color: "#F59E0B",
+    fontWeight: "600",
     marginRight: 4,
   },
   reviewCount: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
   },
   mealActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   previewButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#48479B',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#48479B",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
     gap: 4,
   },
   previewButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   categoryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#8B5CF6',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#8B5CF6",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
     gap: 4,
   },
   categoryButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   draftBadge: {
     paddingHorizontal: 6,
@@ -4076,62 +4890,62 @@ const styles = StyleSheet.create({
   },
   draftBadgeText: {
     fontSize: 10,
-    color: 'white',
-    fontWeight: '600',
+    color: "white",
+    fontWeight: "600",
   },
   draftToggleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
     gap: 4,
   },
   draftToggleText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   emptyMealsContainer: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 40,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   emptyMealsTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     marginTop: 16,
     marginBottom: 8,
   },
   emptyMealsDescription: {
     fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
+    color: "#6B7280",
+    textAlign: "center",
   },
   invoiceButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#48479B',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#48479B",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     gap: 4,
   },
   invoiceButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   invoicePreview: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 20,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -4139,72 +4953,72 @@ const styles = StyleSheet.create({
   },
   invoiceTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#374151',
+    fontWeight: "bold",
+    color: "#374151",
     marginBottom: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
   invoiceDetails: {
     gap: 12,
   },
   invoiceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: "#F3F4F6",
   },
   invoiceLabel: {
     fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
+    color: "#6B7280",
+    fontWeight: "500",
   },
   invoiceValue: {
     fontSize: 14,
-    color: '#374151',
-    fontWeight: '600',
+    color: "#374151",
+    fontWeight: "600",
   },
   invoiceActions: {
     gap: 12,
   },
   invoiceActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderRadius: 12,
     gap: 8,
   },
   invoiceActionText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   userRow: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   userInfo: {
     marginBottom: 12,
   },
   userItemName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: "600",
+    color: "#111827",
     marginBottom: 2,
   },
   userMeta: {
     fontSize: 12,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   userBadges: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
     marginTop: 8,
   },
@@ -4214,9 +5028,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   roleBadgeText: {
-    color: 'white',
+    color: "white",
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   statusPill: {
     paddingHorizontal: 8,
@@ -4225,133 +5039,133 @@ const styles = StyleSheet.create({
   },
   statusPillText: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   userActions: {
     gap: 12,
   },
   roleChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6",
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   chipActive: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
+    backgroundColor: "#111827",
+    borderColor: "#111827",
   },
   chipText: {
     fontSize: 12,
-    color: '#374151',
-    fontWeight: '600',
+    color: "#374151",
+    fontWeight: "600",
   },
   chipTextActive: {
-    color: 'white',
+    color: "white",
   },
   mealsCard: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   mealsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 12,
   },
   mealsTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: "700",
+    color: "#111827",
   },
   mealsHeaderActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   mealsAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
-    backgroundColor: '#10B981',
+    backgroundColor: "#10B981",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
   },
   mealsAddBtnText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   mealsViewAllBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6",
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   mealsViewAllText: {
-    color: '#111827',
+    color: "#111827",
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   mealsRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
     paddingVertical: 4,
   },
   mealTinyCard: {
     width: 140,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
     borderRadius: 12,
     padding: 10,
-    backgroundColor: 'white',
+    backgroundColor: "white",
   },
   mealTinyThumb: {
-    width: '100%',
+    width: "100%",
     height: 70,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 8,
   },
   mealTinyName: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: "700",
+    color: "#111827",
   },
   mealTinyMeta: {
     fontSize: 12,
-    color: '#6B7280',
+    color: "#6B7280",
     marginTop: 2,
     marginBottom: 6,
   },
   mealTinyBadges: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 6,
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
   },
   toggleActiveBtn: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 8,
   },
   toggleActiveText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 0.3,
   },
 });

@@ -1,4 +1,4 @@
-export type UserRole = 'customer' | 'admin' | 'kitchen' | 'delivery';
+export type UserRole = "customer" | "admin" | "kitchen" | "delivery";
 
 export interface User {
   id: string;
@@ -34,7 +34,7 @@ export interface Polygon {
 export interface Address {
   id: string;
   userId: string;
-  type: 'home' | 'work' | 'other';
+  type: "home" | "work" | "other";
   label: string;
   name: string;
   phone: string;
@@ -50,14 +50,13 @@ export interface Address {
   };
   isDefault: boolean;
   deliveryInstructions?: string;
- 
+
   phoneNumber: string;
   addressText: string;
   createdAt: Date;
   updatedAt?: Date;
   notes?: string;
   extra?: any;
-
 }
 export interface Category {
   id: string;
@@ -107,6 +106,7 @@ export interface Meal {
   variantPricing?: { veg?: number; nonveg?: number };
   allowDaySelection?: boolean;
   availableTimeSlotIds?: string[];
+  addonIds?: string[];
 }
 
 export interface AddOn {
@@ -115,7 +115,7 @@ export interface AddOn {
   description: string;
   image: string;
   price: number;
-  category:string;
+  category: string;
   isVeg?: boolean;
   isActive?: boolean;
 }
@@ -139,10 +139,10 @@ export interface Subscription {
   deliveryTime?: string;
   deliveryTimeSlot?: string;
   excludeWeekends?: boolean;
-  weekType: 'none' | 'mon-fri' | 'mon-sat';
+  weekType: "none" | "mon-fri" | "mon-sat";
   weekendExclusion?: string;
-  status: 'active' | 'paused' | 'cancelled' | 'completed';
-  paymentStatus?: 'pending' | 'paid' | 'failed' | 'refunded';
+  status: "active" | "paused" | "cancelled" | "completed";
+  paymentStatus?: "pending" | "paid" | "failed" | "refunded";
   totalAmount: number;
   paidAmount?: number;
   remainingDeliveries?: number;
@@ -171,8 +171,16 @@ export interface Order {
   deliveryFee: number;
   discount: number;
   finalAmount: number;
-  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'waiting_for_ack' | 'delivered' | 'cancelled';
-  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  status:
+    | "pending"
+    | "confirmed"
+    | "preparing"
+    | "ready"
+    | "out_for_delivery"
+    | "waiting_for_ack"
+    | "delivered"
+    | "cancelled";
+  paymentStatus: "pending" | "paid" | "failed" | "refunded";
   paymentMethod: string;
   addressId: string;
   deliveryTime: string;
@@ -188,7 +196,7 @@ export interface OrderItem {
   mealId: string;
   quantity: number;
   price: number;
-  mealType: 'veg' | 'nonveg' | 'egg';
+  mealType: "veg" | "nonveg" | "egg";
 }
 
 export interface OrderAddOn {
@@ -202,7 +210,7 @@ export interface Banner {
   title: string;
   subtitle?: string;
   image: string;
-  actionType: 'category' | 'meal' | 'offer' | 'external';
+  actionType: "category" | "meal" | "offer" | "external";
   actionValue: string;
   isActive: boolean;
   sortOrder: number;
@@ -225,7 +233,7 @@ export interface Offer {
   title: string;
   description: string;
   image: string;
-  discountType: 'percentage' | 'fixed' | 'cashback';
+  discountType: "percentage" | "fixed" | "cashback";
   discountValue: number;
   minOrderAmount?: number;
   maxDiscount?: number;
@@ -235,19 +243,19 @@ export interface Offer {
   isActive: boolean;
   usageLimit?: number;
   usedCount: number;
-  offerType: 'discount' | 'cashback' | 'deal';
+  offerType: "discount" | "cashback" | "deal";
   longDescription?: string;
   terms?: string[];
   discount?: string;
   code?: string;
   validUntil?: string;
-  benefitType?: 'meal' | 'amount';
+  benefitType?: "meal" | "amount";
 }
 
 export interface WalletTransaction {
   id: string;
   userId: string;
-  type: 'credit' | 'debit';
+  type: "credit" | "debit";
   amount: number;
   description: string;
   orderId?: string;
@@ -274,7 +282,7 @@ export interface KitchenStaff {
   name: string;
   phone: string;
   email: string;
-  role: 'chef' | 'assistant' | 'manager';
+  role: "chef" | "assistant" | "manager";
   isActive: boolean;
 }
 
@@ -296,7 +304,7 @@ export interface Notification {
   userId: string;
   title: string;
   message: string;
-  type: 'order' | 'delivery' | 'promotion' | 'system';
+  type: "order" | "delivery" | "promotion" | "system";
   isRead: boolean;
   data?: any;
   createdAt: Date;
@@ -316,8 +324,8 @@ export interface SupportTicket {
   userId: string;
   subject: string;
   message: string;
-  status: 'open' | 'in_progress' | 'resolved' | 'closed';
-  priority: 'low' | 'medium' | 'high';
+  status: "open" | "in_progress" | "resolved" | "closed";
+  priority: "low" | "medium" | "high";
   assignedTo?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -327,12 +335,12 @@ export interface SupportMessage {
   id: string;
   ticketId: string;
   senderId: string;
-  senderType: 'user' | 'admin';
+  senderType: "user" | "admin";
   message: string;
   attachments?: string[];
   isRead: boolean;
   createdAt: Date;
-  deliveryStatus: 'sent' | 'delivered' | 'read';
+  deliveryStatus: "sent" | "delivered" | "read";
 }
 
 export interface CorporateCateringRequest {
@@ -345,7 +353,7 @@ export interface CorporateCateringRequest {
   guestCount: number;
   requirements: string;
   budget?: number;
-  status: 'pending' | 'contacted' | 'quoted' | 'confirmed' | 'completed';
+  status: "pending" | "contacted" | "quoted" | "confirmed" | "completed";
   createdAt: Date;
 }
 
@@ -359,7 +367,7 @@ export interface ServiceAreaNotificationRequest {
     longitude: number;
     address: string;
   };
-  status: 'pending' | 'contacted' | 'resolved';
+  status: "pending" | "contacted" | "resolved";
   createdAt: Date;
   notifiedAt?: Date;
 }
@@ -375,19 +383,19 @@ export interface NutritionistContact {
   dietaryRestrictions: string[];
   healthGoals: string;
   medicalConditions?: string;
-  status: 'pending' | 'contacted' | 'consultation_scheduled' | 'completed';
+  status: "pending" | "contacted" | "consultation_scheduled" | "completed";
   createdAt: Date;
 }
 
 export interface CartItem {
   id: string;
-  type: 'meal' | 'subscription';
+  type: "meal" | "subscription";
   mealId: string;
   planId?: string;
   quantity: number;
   addOns: string[];
   selectedDate?: string;
-  mealType: 'veg' | 'nonveg' | 'egg';
+  mealType: "veg" | "nonveg" | "egg";
   price: number;
 }
 
@@ -425,7 +433,7 @@ export interface ReferralReward {
   referredUserId: string;
   referralCode: string;
   amount: number;
-  status: 'pending' | 'credited';
+  status: "pending" | "credited";
   createdAt: Date;
   creditedAt?: Date;
 }
@@ -435,7 +443,7 @@ export interface StreakReward {
   userId: string;
   streakCount: number;
   rewardAmount: number;
-  status: 'pending' | 'credited';
+  status: "pending" | "credited";
   createdAt: Date;
   creditedAt?: Date;
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   View,
   ScrollView,
@@ -9,34 +9,49 @@ import {
   Alert,
   Modal,
   Animated,
-} from 'react-native';
-import AddressBookModal from '@/components/AddressBookModal';
-import { Address, Offer } from '@/types';
-import { Stack, router, useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, CreditCard, Wallet, MapPin, Tag, Check, CheckCircle, XCircle } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
-import db from '@/db';
-import RazorpayCheckout from 'react-native-razorpay';
-import { Colors } from '@/constants/colors';
-import { SafeAreaView } from 'react-native-safe-area-context';
+  Switch,
+} from "react-native";
+import AddressBookModal from "@/components/AddressBookModal";
+import { Address, Offer } from "@/types";
+import { Stack, router, useLocalSearchParams, useRouter } from "expo-router";
+import {
+  ArrowLeft,
+  CreditCard,
+  Wallet,
+  MapPin,
+  Tag,
+  Check,
+  CheckCircle,
+  XCircle,
+} from "lucide-react-native";
+import { useAuth } from "@/contexts/AuthContext";
+import db from "@/db";
+import RazorpayCheckout from "react-native-razorpay";
+import { Colors } from "@/constants/colors";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { addOns } from "@/constants/data";
 export default function CheckoutScreen() {
   const { user, isGuest, updateUser } = useAuth();
   const { subscriptionData } = useLocalSearchParams();
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'upi' | 'wallet' | 'razorpay'>('razorpay');
-  const [promoCode, setPromoCode] = useState<string>('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
+    "card" | "upi" | "wallet" | "razorpay"
+  >("razorpay");
+  const [promoCode, setPromoCode] = useState<string>("");
   const [promoApplied, setPromoApplied] = useState<boolean>(false);
   const [appliedOffer, setAppliedOffer] = useState<Offer | null>(null);
   const [applyWallet, setApplyWallet] = useState<boolean>(false);
-  const [toastMessage, setToastMessage] = useState<string>('');
+  const [toastMessage, setToastMessage] = useState<string>("");
   const [toastVisible, setToastVisible] = useState<boolean>(false);
   const toastAnim = useRef(new Animated.Value(0)).current;
-  const [deliveryInstructions, setDeliveryInstructions] = useState<string>('');
-  const [referralCode, setReferralCode] = useState<string>('');
+  const [deliveryInstructions, setDeliveryInstructions] = useState<string>("");
+  const [referralCode, setReferralCode] = useState<string>("");
   const [referralApplying, setReferralApplying] = useState<boolean>(false);
   const [referralApplied, setReferralApplied] = useState<boolean>(false);
   const [subscriptionDetails, setSubscriptionDetails] = useState<any>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<'processing' | 'success' | 'failed' | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<
+    "processing" | "success" | "failed" | null
+  >(null);
   const routerInstance = useRouter();
   const [canGoBack, setCanGoBack] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
@@ -47,12 +62,18 @@ export default function CheckoutScreen() {
   const [startDate, setStartDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  // Order for someone else
+  const [orderForSomeoneElse, setOrderForSomeoneElse] =
+    useState<boolean>(false);
+  const [recipientName, setRecipientName] = useState<string>("");
+  const [recipientPhone, setRecipientPhone] = useState<string>("");
+
   React.useEffect(() => {
     setCanGoBack(routerInstance.canGoBack());
   }, []);
 
   useEffect(() => {
-    if (subscriptionData && typeof subscriptionData === 'string') {
+    if (subscriptionData && typeof subscriptionData === "string") {
       try {
         const parsedData = JSON.parse(subscriptionData);
         setSubscriptionDetails(parsedData);
@@ -60,12 +81,12 @@ export default function CheckoutScreen() {
         if (parsedData?.startDate) setStartDate(new Date(parsedData.startDate));
         if (parsedData?.timeSlot) setSelectedTimeSlot(parsedData.timeSlot);
       } catch (error) {
-        console.error('Error parsing subscription data:', error);
-        Alert.alert('Error', 'Invalid subscription data');
+        console.error("Error parsing subscription data:", error);
+        Alert.alert("Error", "Invalid subscription data");
         if (canGoBack) {
           router.back();
         } else {
-          router.replace('/(tabs)');
+          router.replace("/(tabs)");
         }
       }
     }
@@ -81,7 +102,7 @@ export default function CheckoutScreen() {
           setSelectedTimeSlot(slots[0]);
         }
       } catch (e) {
-        console.log('Error loading slots', e);
+        console.log("Error loading slots", e);
       }
     }
     loadSlots();
@@ -91,14 +112,18 @@ export default function CheckoutScreen() {
     if (user?.addresses && user.addresses.length > 0) {
       // If no address is currently selected, or if new addresses were added
       if (!selectedAddress) {
-        const defaultAddress = user.addresses.find(addr => addr.isDefault) || user.addresses[0];
+        const defaultAddress =
+          user.addresses.find((addr) => addr.isDefault) || user.addresses[0];
         setSelectedAddress(defaultAddress);
       } else {
         // Check if the current selected address still exists
-        const currentAddressExists = user.addresses.find(addr => addr.id === selectedAddress.id);
+        const currentAddressExists = user.addresses.find(
+          (addr) => addr.id === selectedAddress.id
+        );
         if (!currentAddressExists) {
           // If current address was deleted, select default or first
-          const defaultAddress = user.addresses.find(addr => addr.isDefault) || user.addresses[0];
+          const defaultAddress =
+            user.addresses.find((addr) => addr.isDefault) || user.addresses[0];
           setSelectedAddress(defaultAddress);
         }
       }
@@ -110,11 +135,10 @@ export default function CheckoutScreen() {
 
   const walletBalance = user?.walletBalance ?? 0;
 
-
   const orderSummary = useMemo(() => {
     if (!subscriptionDetails) {
       return {
-        planName: '',
+        planName: "",
         duration: 0,
         originalPrice: 0,
         discountedPrice: 0,
@@ -129,36 +153,63 @@ export default function CheckoutScreen() {
         subtotalAfterPromo: 0,
       };
     }
-    const planName: string = String(subscriptionDetails.plan?.name ?? '');
+    const planName: string = String(subscriptionDetails.plan?.name ?? "");
     const duration: number = Number(subscriptionDetails.plan?.duration ?? 0);
-    const originalPrice: number = Number(subscriptionDetails.plan?.originalPrice ?? 0);
-    const discountedPrice: number = Number(subscriptionDetails.plan?.discountedPrice ?? 0);
+    const originalPrice: number = Number(
+      subscriptionDetails.plan?.originalPrice ?? 0
+    );
+    const discountedPrice: number = Number(
+      subscriptionDetails.plan?.discountedPrice ?? 0
+    );
     const baseDiscount: number = Math.max(0, originalPrice - discountedPrice);
     const deliveryFee: number = 0;
-    const trialDiscount: number = subscriptionDetails.isTrialMode ? discountedPrice * 0.5 : 0;
-    const addOnTotal: number = (subscriptionDetails.addOns?.length ?? 0) * 50 * duration;
-    const baseSubtotal: number = discountedPrice + addOnTotal - trialDiscount + deliveryFee;
+    const trialDiscount: number = subscriptionDetails.isTrialMode
+      ? discountedPrice * 0.5
+      : 0;
+
+    // Calculate addon total based on actual addon prices from data
+    const addOnTotal: number = (subscriptionDetails.addOns ?? []).reduce(
+      (total: number, addOnId: string) => {
+        const addOn = addOns.find((a) => a.id === addOnId);
+        return total + (addOn?.price ?? 0) * duration;
+      },
+      0
+    );
+
+    const baseSubtotal: number =
+      discountedPrice + addOnTotal - trialDiscount + deliveryFee;
     let promoDiscount: number = 0;
     if (appliedOffer && promoApplied) {
-      const benefitType = appliedOffer.benefitType ?? 'amount';
-      if (benefitType === 'meal') {
+      const benefitType = appliedOffer.benefitType ?? "amount";
+      if (benefitType === "meal") {
         const days = duration > 0 ? duration : 1;
         const perMeal = days > 0 ? Math.round(discountedPrice / days) : 0;
         promoDiscount = Math.max(0, perMeal);
       } else {
-        if (appliedOffer.discountType === 'fixed') {
+        if (appliedOffer.discountType === "fixed") {
           promoDiscount = Math.min(appliedOffer.discountValue, baseSubtotal);
-        } else if (appliedOffer.discountType === 'percentage') {
+        } else if (appliedOffer.discountType === "percentage") {
           const pct = Math.max(0, Math.min(100, appliedOffer.discountValue));
           const raw = (baseSubtotal * pct) / 100;
-          const capped = typeof appliedOffer.maxDiscount === 'number' ? Math.min(raw, appliedOffer.maxDiscount) : raw;
+          const capped =
+            typeof appliedOffer.maxDiscount === "number"
+              ? Math.min(raw, appliedOffer.maxDiscount)
+              : raw;
           promoDiscount = Math.min(capped, baseSubtotal);
         }
       }
     }
-    const subtotalAfterPromo: number = Math.max(0, baseSubtotal - promoDiscount);
-    const walletAppliedAmount: number = applyWallet ? Math.min(walletBalance, subtotalAfterPromo) : 0;
-    const payableAmount: number = Math.max(0, subtotalAfterPromo - walletAppliedAmount);
+    const subtotalAfterPromo: number = Math.max(
+      0,
+      baseSubtotal - promoDiscount
+    );
+    const walletAppliedAmount: number = applyWallet
+      ? Math.min(walletBalance, subtotalAfterPromo)
+      : 0;
+    const payableAmount: number = Math.max(
+      0,
+      subtotalAfterPromo - walletAppliedAmount
+    );
     return {
       planName,
       duration,
@@ -174,14 +225,28 @@ export default function CheckoutScreen() {
       payableAmount,
       subtotalAfterPromo,
     };
-  }, [subscriptionDetails, promoApplied, appliedOffer, applyWallet, walletBalance]);
+  }, [
+    subscriptionDetails,
+    promoApplied,
+    appliedOffer,
+    applyWallet,
+    walletBalance,
+  ]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setToastVisible(true);
-    Animated.timing(toastAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start(() => {
+    Animated.timing(toastAnim, {
+      toValue: 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
       setTimeout(() => {
-        Animated.timing(toastAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+        Animated.timing(toastAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => {
           setToastVisible(false);
         });
       }, 2200);
@@ -191,43 +256,51 @@ export default function CheckoutScreen() {
   const handleApplyPromo = async () => {
     const code = promoCode.trim().toUpperCase();
     if (!code) {
-      Alert.alert('Enter Code', 'Please enter a promo code.');
+      Alert.alert("Enter Code", "Please enter a promo code.");
       return;
     }
     try {
       const active = await db.getActiveOffers();
       let merged: Offer[] = Array.isArray(active) ? active : [];
       try {
-        const constants = await import('@/constants/data');
+        const constants = await import("@/constants/data");
         const constOffers: Offer[] = (constants as any).offers ?? [];
-        const seen = new Set(merged.map(o => o.id));
-        constOffers.forEach(o => { if (o && !seen.has(o.id)) { merged.push(o); seen.add(o.id); } });
+        const seen = new Set(merged.map((o) => o.id));
+        constOffers.forEach((o) => {
+          if (o && !seen.has(o.id)) {
+            merged.push(o);
+            seen.add(o.id);
+          }
+        });
       } catch (e) {
-        console.log('Offer constants import failed', e);
+        console.log("Offer constants import failed", e);
       }
-      const match = merged.find(o => (o.promoCode ?? o.code ?? '').toUpperCase() === code && o.isActive);
+      const match = merged.find(
+        (o) =>
+          (o.promoCode ?? o.code ?? "").toUpperCase() === code && o.isActive
+      );
       if (!match) {
-        Alert.alert('Invalid Code', 'Please enter a valid promo code.');
+        Alert.alert("Invalid Code", "Please enter a valid promo code.");
         return;
       }
       const now = new Date();
       if (new Date(match.validFrom) > now || new Date(match.validTo) < now) {
-        Alert.alert('Expired', 'This promo code is not currently valid.');
+        Alert.alert("Expired", "This promo code is not currently valid.");
         return;
       }
       setAppliedOffer(match);
       setPromoApplied(true);
-      showToast('Promo applied successfully.');
+      showToast("Promo applied successfully.");
     } catch (e) {
-      console.log('Apply promo failed', e);
-      Alert.alert('Error', 'Could not validate promo code. Try again.');
+      console.log("Apply promo failed", e);
+      Alert.alert("Error", "Could not validate promo code. Try again.");
     }
   };
 
   const computeEndDate = (
     start: Date,
     durationDays: number,
-    weekType: 'mon-fri' | 'mon-sat'
+    weekType: "mon-fri" | "mon-sat"
   ): Date => {
     const end = new Date(start);
     let served = 0;
@@ -236,9 +309,9 @@ export default function CheckoutScreen() {
       const day = end.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
 
       let isWorkingDay = false;
-      if (weekType === 'mon-fri') {
+      if (weekType === "mon-fri") {
         isWorkingDay = day >= 1 && day <= 5; // Mon to Fri
-      } else if (weekType === 'mon-sat') {
+      } else if (weekType === "mon-sat") {
         isWorkingDay = day >= 1 && day <= 6; // Mon to Sat
       }
 
@@ -254,99 +327,166 @@ export default function CheckoutScreen() {
     return end;
   };
 
-
   const handleApplyReferral = async () => {
     if (!user?.id) {
-      Alert.alert('Login required', 'Please login to apply a referral code.');
+      Alert.alert("Login required", "Please login to apply a referral code.");
       return;
     }
     if (!referralCode.trim()) {
-      Alert.alert('Enter code', 'Please enter a referral code to apply.');
+      Alert.alert("Enter code", "Please enter a referral code to apply.");
       return;
     }
     try {
       setReferralApplying(true);
-      const res = await db.applyReferralCode(user.id, referralCode.trim().toUpperCase());
+      const res = await db.applyReferralCode(
+        user.id,
+        referralCode.trim().toUpperCase()
+      );
       if (res.success) {
         setReferralApplied(true);
-        Alert.alert('Success', res.message);
+        Alert.alert("Success", res.message);
       } else {
-        Alert.alert('Failed', res.message);
+        Alert.alert("Failed", res.message);
       }
     } catch (e) {
-      Alert.alert('Error', 'Could not apply referral code. Please try again.');
+      Alert.alert("Error", "Could not apply referral code. Please try again.");
     } finally {
       setReferralApplying(false);
     }
   };
 
-  const createRazorpayOrderAndOpenCheckout = async (amount: number, description: string) => {
+  const createRazorpayOrderAndOpenCheckout = async (
+    amount: number,
+    description: string
+  ) => {
     try {
-      const envBase = process.env.EXPO_PUBLIC_RORK_API_BASE_URL as string | undefined;
-      const base = envBase && envBase.length > 0
-        ? envBase
-        : (typeof window !== 'undefined' && (window as any).location?.origin ? (window as any).location.origin : undefined);
+      const envBase = process.env.EXPO_PUBLIC_RORK_API_BASE_URL as
+        | string
+        | undefined;
+      const base =
+        envBase && envBase.length > 0
+          ? envBase
+          : typeof window !== "undefined" && (window as any).location?.origin
+          ? (window as any).location.origin
+          : undefined;
 
       if (!base) {
-        console.log('[Razorpay] Missing base URL. EXPO_PUBLIC_RORK_API_BASE_URL not set and window.location.origin unavailable');
-        Alert.alert('Config error', 'API base URL not configured');
+        console.log(
+          "[Razorpay] Missing base URL. EXPO_PUBLIC_RORK_API_BASE_URL not set and window.location.origin unavailable"
+        );
+        Alert.alert("Config error", "API base URL not configured");
         return null;
       }
 
       const customer = {
-        name: user?.name ?? 'Customer',
+        name: user?.name ?? "Customer",
         email: user?.email ?? undefined,
         contact: user?.phone ?? undefined,
       } as { name: string; email?: string; contact?: string };
 
-      const orderResp = await fetch(`${base}/api/payments/razorpay/create-order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, currency: 'INR', receipt: `rcpt_${Date.now()}`, notes: { description } }),
-      });
+      const orderResp = await fetch(
+        `${base}/api/payments/razorpay/create-order`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount,
+            currency: "INR",
+            receipt: `rcpt_${Date.now()}`,
+            notes: { description },
+          }),
+        }
+      );
 
       if (!orderResp.ok) {
         const t = await orderResp.text();
-        console.log('[Razorpay] order create failed', orderResp.status, t);
+        console.log("[Razorpay] order create failed", orderResp.status, t);
         try {
           const json = JSON.parse(t);
-          Alert.alert('Payment error', json?.error ? String(json.error) : 'Unable to start Razorpay checkout');
+          Alert.alert(
+            "Payment error",
+            json?.error
+              ? String(json.error)
+              : "Unable to start Razorpay checkout"
+          );
         } catch {
-          Alert.alert('Payment error', 'Unable to start Razorpay checkout');
+          Alert.alert("Payment error", "Unable to start Razorpay checkout");
         }
         return null;
       }
 
-      const order = (await orderResp.json()) as { id?: string; amount?: number };
+      const order = (await orderResp.json()) as {
+        id?: string;
+        amount?: number;
+      };
       if (!order?.id) {
-        Alert.alert('Payment error', 'Invalid order response from server');
+        Alert.alert("Payment error", "Invalid order response from server");
         return null;
       }
 
-      const checkoutUrl = `${base}/api/payments/razorpay/checkout?orderId=${encodeURIComponent(order.id)}&amount=${encodeURIComponent(String(order.amount ?? Math.round(amount * 100)))}&name=${encodeURIComponent(customer.name)}&description=${encodeURIComponent(description)}&email=${encodeURIComponent(customer.email ?? '')}&contact=${encodeURIComponent(customer.contact ?? '')}&themeColor=${encodeURIComponent('#48479B')}`;
+      const checkoutUrl = `${base}/api/payments/razorpay/checkout?orderId=${encodeURIComponent(
+        order.id
+      )}&amount=${encodeURIComponent(
+        String(order.amount ?? Math.round(amount * 100))
+      )}&name=${encodeURIComponent(
+        customer.name
+      )}&description=${encodeURIComponent(
+        description
+      )}&email=${encodeURIComponent(
+        customer.email ?? ""
+      )}&contact=${encodeURIComponent(
+        customer.contact ?? ""
+      )}&themeColor=${encodeURIComponent("#48479B")}`;
 
       return checkoutUrl;
     } catch (e) {
-      console.log('[Razorpay] order create exception', e);
-      Alert.alert('Payment error', 'Something went wrong while initializing payment.');
+      console.log("[Razorpay] order create exception", e);
+      Alert.alert(
+        "Payment error",
+        "Something went wrong while initializing payment."
+      );
       return null;
     }
   };
 
   const handlePlaceOrder = async () => {
     if (isGuest) {
-      router.push('/auth/login');
+      router.push("/auth/login");
       return;
     }
 
     if (!selectedAddress) {
-      Alert.alert('Address Required', 'Please select a delivery address to continue.');
+      Alert.alert(
+        "Address Required",
+        "Please select a delivery address to continue."
+      );
       return;
     }
 
-    if (selectedPaymentMethod === 'wallet') {
+    // Validate recipient details if ordering for someone else
+    if (orderForSomeoneElse) {
+      if (!recipientName.trim()) {
+        Alert.alert(
+          "Recipient Name Required",
+          "Please enter the recipient's name."
+        );
+        return;
+      }
+      if (!recipientPhone.trim() || recipientPhone.length !== 10) {
+        Alert.alert(
+          "Valid Phone Required",
+          "Please enter a valid 10-digit phone number for the recipient."
+        );
+        return;
+      }
+    }
+
+    if (selectedPaymentMethod === "wallet") {
       if (orderSummary.payableAmount > 0) {
-        Alert.alert('Insufficient Wallet Balance', 'Remaining amount exists after wallet usage. Choose UPI/Card or apply more wallet.');
+        Alert.alert(
+          "Insufficient Wallet Balance",
+          "Remaining amount exists after wallet usage. Choose UPI/Card or apply more wallet."
+        );
         return;
       }
     }
@@ -360,32 +500,41 @@ export default function CheckoutScreen() {
     // If amount payable is zero, activate immediately
     if (orderSummary.payableAmount === 0) {
       setShowPaymentModal(true);
-      setPaymentStatus('processing');
+      setPaymentStatus("processing");
       setTimeout(async () => {
-        setPaymentStatus('success');
-        console.log('Deducting wallet --- IGNORE ---');
+        setPaymentStatus("success");
+        console.log("Deducting wallet --- IGNORE ---");
         if (user?.id && orderSummary.walletAppliedAmount > 0) {
           try {
             await db.addWalletTransaction({
               userId: user.id,
-              type: 'debit',
+              type: "debit",
               amount: orderSummary.walletAppliedAmount,
-              description: 'Subscription payment (wallet applied)',
+              description: "Subscription payment (wallet applied)",
               referenceId: `sub-${Date.now()}`,
             });
-            await updateUser({ walletBalance: Math.max(0, walletBalance - orderSummary.walletAppliedAmount) });
+            await updateUser({
+              walletBalance: Math.max(
+                0,
+                walletBalance - orderSummary.walletAppliedAmount
+              ),
+            });
           } catch (e) {
-            console.log('Wallet debit failed', e);
+            console.log("Wallet debit failed", e);
           }
         }
 
-        console.log('PaymentStatus after wallet --- IGNORE ---');
+        console.log("PaymentStatus after wallet --- IGNORE ---");
         // Save subscription to database
         const startDateVal = new Date(updatedDetails.startDate);
-        const endDate = computeEndDate(startDateVal, updatedDetails.plan.duration, updatedDetails.weekType);
+        const endDate = computeEndDate(
+          startDateVal,
+          updatedDetails.plan.duration,
+          updatedDetails.weekType
+        );
 
         const subscription = {
-          userId: user?.id || 'guest',
+          userId: user?.id || "guest",
           mealId: updatedDetails.meal.id,
           planId: updatedDetails.plan.id,
           startDate: startDateVal,
@@ -393,24 +542,61 @@ export default function CheckoutScreen() {
           deliveryTime: updatedDetails.timeSlot?.time,
           deliveryTimeSlot: updatedDetails.timeSlot?.time,
           weekType: updatedDetails.weekType,
-          weekendExclusion: updatedDetails.weekType === 'mon-sat' ? 'sunday' : 'both',
-          excludeWeekends: updatedDetails.weekType === 'mon-sat' ? true : false,
-          status: 'active' as const,
+          weekendExclusion:
+            updatedDetails.weekType === "mon-sat" ? "sunday" : "both",
+          excludeWeekends: updatedDetails.weekType === "mon-sat" ? true : false,
+          status: "active" as const,
           totalAmount: orderSummary.finalAmount,
           paidAmount: orderSummary.finalAmount,
           remainingDeliveries: updatedDetails.plan.duration,
           totalDeliveries: updatedDetails.plan.duration,
-          addressId: selectedAddress?.id || 'default',
-          addOns: (updatedDetails.addOns ?? []).map((addon: any) => addon.id),
+          addressId: selectedAddress?.id || "default",
+          addOns: updatedDetails.addOns ?? [],
           additionalAddOns: {},
           specialInstructions: deliveryInstructions,
+          mealType: updatedDetails.mealType,
+          // Recipient info if ordering for someone else
+          recipientName: orderForSomeoneElse ? recipientName : null,
+          recipientPhone: orderForSomeoneElse ? recipientPhone : null,
+          orderForSomeoneElse: orderForSomeoneElse,
         };
-        console.log('Creating subscription:', subscription);
+        console.log("Creating subscription:", subscription);
+        let createdSubscriptionId: string | undefined;
         try {
-          await db.createSubscription(subscription);
-          console.log('Subscription created successfully');
+          const createdSubscription = await db.createSubscription(subscription);
+          createdSubscriptionId = createdSubscription.id;
+          console.log(
+            "Subscription created successfully with ID:",
+            createdSubscriptionId
+          );
+
+          // Update wallet transaction with subscription ID if available
+          if (
+            createdSubscriptionId &&
+            user?.id &&
+            orderSummary.walletAppliedAmount > 0
+          ) {
+            try {
+              // Add a more detailed wallet transaction with subscription reference
+              await db.addWalletTransaction({
+                userId: user.id,
+                type: "debit",
+                amount: orderSummary.walletAppliedAmount,
+                description: `Subscription payment - ${
+                  updatedDetails.meal?.name || "Meal"
+                } (${updatedDetails.plan?.name || ""})`,
+                referenceId: createdSubscriptionId,
+                orderId: createdSubscriptionId,
+              });
+            } catch (e) {
+              console.log(
+                "Failed to update wallet transaction with subscription ID",
+                e
+              );
+            }
+          }
         } catch (error) {
-          console.error('Error creating subscription:', error);
+          console.error("Error creating subscription:", error);
         }
         setTimeout(() => {
           setShowPaymentModal(false);
@@ -419,7 +605,7 @@ export default function CheckoutScreen() {
             if (router.dismiss) {
               router.dismiss();
             }
-            router.replace('/(tabs)/orders');
+            router.replace("/(tabs)/orders");
           }, 100);
         }, 2000);
       }, 1500);
@@ -431,71 +617,64 @@ export default function CheckoutScreen() {
     // if (checkoutUrl) {
     //   router.push({ pathname: '/webview', params: { url: checkoutUrl, title: 'Complete Payment' } });
     // }
-    const description = 'Credits towards consultation';
+    const description = "Credits towards consultation";
     const payload = {
       amount: Math.round(orderSummary.payableAmount * 100),
-      currency: 'INR',
+      currency: "INR",
       receipt: `rcpt_${Date.now()}`,
       notes: { description },
     };
 
-    console.log('Creating Razorpay order with payload:', payload);
-    const orderResp = await fetch('https://sameoldbox.com/wp-json/razorpay/v1/create-order', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-    console.log('Created Razorpay order :', orderResp);
+    console.log("Creating Razorpay order with payload:", payload);
+    const orderResp = await fetch(
+      "https://sameoldbox.com/wp-json/razorpay/v1/create-order",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+    console.log("Created Razorpay order :", orderResp);
 
     if (!orderResp.ok) {
-      alert('Failed to create Razorpay order');
+      alert("Failed to create Razorpay order");
       return;
     }
     const orderData = await orderResp.json();
     const options = {
       description,
-      image: 'https://i.imgur.com/3g7nmJC.jpg',
-      currency: 'INR',
-      key: 'rzp_test_RFSonKoJy6tEEL', // Use your public Razorpay key here
+      image: "https://i.imgur.com/3g7nmJC.jpg",
+      currency: "INR",
+      key: "rzp_test_RFSonKoJy6tEEL", // Use your public Razorpay key here
       amount: `${orderSummary.payableAmount * 100}`,
-      name: 'SOB',
+      name: "SOB",
       order_id: orderData.id, // Use the order_id from backend
       prefill: {
-        email: 'gaurav.kumar@example.com',
-        contact: '+919876543210',
-        name: 'Gaurav Kumar'
+        email: "gaurav.kumar@example.com",
+        contact: "+919876543210",
+        name: "Gaurav Kumar",
       },
-      theme: { color: '#53a20e' }
+      theme: { color: "#53a20e" },
     };
 
-    console.log('Razorpay options:', options);
+    console.log("Razorpay options:", options);
     RazorpayCheckout.open(options)
       .then(async (data: { razorpay_payment_id: string }) => {
         setShowPaymentModal(true);
-        setPaymentStatus('success');
-        if (user?.id && orderSummary.walletAppliedAmount > 0) {
-          try {
-            await db.addWalletTransaction({
-              userId: user.id,
-              type: 'debit',
-              amount: orderSummary.walletAppliedAmount,
-              description: 'Subscription payment (wallet applied)',
-              referenceId: `sub-${Date.now()}`,
-            });
-            await updateUser({ walletBalance: Math.max(0, walletBalance - orderSummary.walletAppliedAmount) });
-          } catch (e) {
-            console.log('Wallet debit failed', e);
-          }
-        }
+        setPaymentStatus("success");
 
         // Save subscription to database
         const startDateVal = new Date(updatedDetails.startDate);
-        const endDate = computeEndDate(startDateVal, updatedDetails.plan.duration, updatedDetails.weekType);
+        const endDate = computeEndDate(
+          startDateVal,
+          updatedDetails.plan.duration,
+          updatedDetails.weekType
+        );
 
         const subscription = {
-          userId: user?.id || 'guest',
+          userId: user?.id || "guest",
           mealId: updatedDetails.meal.id,
           planId: updatedDetails.plan.id,
           startDate: startDateVal,
@@ -503,66 +682,107 @@ export default function CheckoutScreen() {
           deliveryTime: updatedDetails.timeSlot?.time,
           deliveryTimeSlot: updatedDetails.timeSlot?.time,
           weekType: updatedDetails.weekType,
-          weekendExclusion: updatedDetails.weekType === 'mon-sat' ? 'sunday' : 'both',
-          excludeWeekends: updatedDetails.weekType === 'mon-sat' ? true : false,
-          status: 'active' as const,
+          weekendExclusion:
+            updatedDetails.weekType === "mon-sat" ? "sunday" : "both",
+          excludeWeekends: updatedDetails.weekType === "mon-sat" ? true : false,
+          status: "active" as const,
           totalAmount: orderSummary.finalAmount,
           paidAmount: orderSummary.finalAmount,
           remainingDeliveries: updatedDetails.plan.duration,
           totalDeliveries: updatedDetails.plan.duration,
-          addressId: selectedAddress?.id || 'default',
-          addOns: (updatedDetails.addOns ?? []).map((addon: any) => addon.id),
+          addressId: selectedAddress?.id || "default",
+          addOns: updatedDetails.addOns ?? [],
           additionalAddOns: {},
           specialInstructions: deliveryInstructions,
+          mealType: updatedDetails.mealType,
+          // Recipient info if ordering for someone else
+          recipientName: orderForSomeoneElse ? recipientName : null,
+          recipientPhone: orderForSomeoneElse ? recipientPhone : null,
+          orderForSomeoneElse: orderForSomeoneElse,
         };
-        console.log('Creating subscription:', subscription);
+        console.log("Creating subscription:", subscription);
 
+        let createdSubscriptionId: string | undefined;
         try {
-          await db.createSubscription(subscription);
-          console.log('Subscription created successfully');
+          const createdSubscription = await db.createSubscription(subscription);
+          createdSubscriptionId = createdSubscription.id;
+          console.log("Subscription created with ID:", createdSubscriptionId);
         } catch (error) {
-          console.error('Error creating subscription:', error);
+          console.error("Error creating subscription:", error);
         }
 
+        // Deduct wallet amount if applied and record transaction
+        if (user?.id && orderSummary.walletAppliedAmount > 0) {
+          try {
+            await db.addWalletTransaction({
+              userId: user.id,
+              type: "debit",
+              amount: orderSummary.walletAppliedAmount,
+              description: `Subscription payment - ${
+                updatedDetails.meal?.name || "Meal"
+              } (${updatedDetails.plan?.name || ""})`,
+              referenceId: createdSubscriptionId || `sub-${Date.now()}`,
+              orderId: createdSubscriptionId,
+            });
+            await updateUser({
+              walletBalance: Math.max(
+                0,
+                walletBalance - orderSummary.walletAppliedAmount
+              ),
+            });
+          } catch (e) {
+            console.log("Wallet debit failed", e);
+          }
+        }
+
+        // Close modal and navigate
         setShowPaymentModal(false);
         setTimeout(() => {
-          router.replace('/(tabs)');
+          router.replace("/(tabs)");
           setTimeout(() => {
-            router.replace('/(tabs)/orders');
+            router.replace("/(tabs)/orders");
           }, 100);
         }, 100);
       })
       .catch((error: any) => {
-        console.log('Razorpay error:', error);
+        console.log("Razorpay error:", error);
         alert(`Error: ${error.code} | ${error.description}`);
       });
-
   };
 
   const retryPayment = async () => {
-    setPaymentStatus('processing');
+    setPaymentStatus("processing");
     setTimeout(async () => {
-      if (selectedPaymentMethod === 'wallet' && user?.id) {
+      if (selectedPaymentMethod === "wallet" && user?.id) {
         try {
           await db.addWalletTransaction({
             userId: user.id,
-            type: 'debit',
+            type: "debit",
             amount: orderSummary.finalAmount,
-            description: 'Subscription payment (retry)',
+            description: "Subscription payment (retry)",
             referenceId: `sub-${Date.now()}`,
           });
-          await updateUser({ walletBalance: Math.max(0, walletBalance - orderSummary.finalAmount) });
+          await updateUser({
+            walletBalance: Math.max(
+              0,
+              walletBalance - orderSummary.finalAmount
+            ),
+          });
         } catch (e) {
-          console.log('Wallet debit failed (retry)', e);
+          console.log("Wallet debit failed (retry)", e);
         }
       }
 
       // Save subscription on retry as well
       const startDate = new Date(subscriptionDetails.startDate);
-      const endDate = computeEndDate(startDate, subscriptionDetails.plan.duration, subscriptionDetails.weekType);
+      const endDate = computeEndDate(
+        startDate,
+        subscriptionDetails.plan.duration,
+        subscriptionDetails.weekType
+      );
 
       const subscription = {
-        userId: user?.id || 'guest',
+        userId: user?.id || "guest",
         mealId: subscriptionDetails.meal.id,
         planId: subscriptionDetails.plan.id,
         startDate: startDate,
@@ -570,53 +790,70 @@ export default function CheckoutScreen() {
         deliveryTime: subscriptionDetails.timeSlot.time,
         deliveryTimeSlot: subscriptionDetails.timeSlot.time,
         weekType: subscriptionDetails.weekType,
-        excludeWeekends: subscriptionDetails.weekType === 'mon-sat' ? true : false,
-        weekendExclusion: subscriptionDetails.weekType === 'mon-sat' ? 'sunday' : 'both' ,
-        status: 'active' as const,
+        excludeWeekends:
+          subscriptionDetails.weekType === "mon-sat" ? true : false,
+        weekendExclusion:
+          subscriptionDetails.weekType === "mon-sat" ? "sunday" : "both",
+        status: "active" as const,
         totalAmount: orderSummary.finalAmount,
         paidAmount: orderSummary.finalAmount,
         remainingDeliveries: subscriptionDetails.plan.duration,
         totalDeliveries: subscriptionDetails.plan.duration,
-        addressId: selectedAddress?.id || 'default',
-        addOns: (subscriptionDetails.addOns ?? []).map((addon: any) => addon.id),
+        addressId: selectedAddress?.id || "default",
+        addOns: subscriptionDetails.addOns ?? [],
         additionalAddOns: {},
         specialInstructions: deliveryInstructions,
+        mealType: subscriptionDetails.mealType,
+        // Recipient info if ordering for someone else
+        recipientName: orderForSomeoneElse ? recipientName : null,
+        recipientPhone: orderForSomeoneElse ? recipientPhone : null,
+        orderForSomeoneElse: orderForSomeoneElse,
       };
 
       try {
         await db.createSubscription(subscription);
-        console.log('Subscription created successfully on retry');
+        console.log("Subscription created successfully on retry");
       } catch (error) {
-        console.error('Error creating subscription on retry:', error);
+        console.error("Error creating subscription on retry:", error);
       }
 
-      setPaymentStatus('success');
+      setPaymentStatus("success");
       setTimeout(() => {
         setShowPaymentModal(false);
-        router.push('/(tabs)');
+        router.push("/(tabs)");
       }, 2000);
     }, 2000);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-     <Stack.Screen
-             options={{
-               title: 'Checkout',
-               headerShown: true,
-               headerStyle: { backgroundColor: Colors.primary },
-               headerTitleStyle: { color: Colors.background, fontSize: 18, fontWeight: '700' },
-               headerLeft: () => (
-                <View style={{ marginLeft: 18,marginRight:9 }}>
-                   <TouchableOpacity  onPress={() => router.push('/')} testID="open-filter">
-                     <ArrowLeft size={24} color={Colors.background} />
-                   </TouchableOpacity>
-                </View>
-               ),
-             }}
-           />
+      <Stack.Screen
+        options={{
+          title: "Checkout",
+          headerShown: true,
+          headerStyle: { backgroundColor: Colors.primary },
+          headerTitleStyle: {
+            color: Colors.background,
+            fontSize: 18,
+            fontWeight: "700",
+          },
+          headerLeft: () => (
+            <View style={{ marginLeft: 18, marginRight: 9 }}>
+              <TouchableOpacity
+                onPress={() => router.push("/")}
+                testID="open-filter"
+              >
+                <ArrowLeft size={24} color={Colors.background} />
+              </TouchableOpacity>
+            </View>
+          ),
+        }}
+      />
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         {!subscriptionDetails ? (
           <View style={styles.loadingContainer}>
             <Text>Loading...</Text>
@@ -635,19 +872,24 @@ export default function CheckoutScreen() {
                   </View>
                   <View style={styles.addressContent}>
                     <View style={styles.addressHeader}>
-                      <Text style={styles.addressLabel}>{selectedAddress.label}</Text>
+                      <Text style={styles.addressLabel}>
+                        {selectedAddress.label}
+                      </Text>
                       {selectedAddress.isDefault && (
                         <View style={styles.defaultBadge}>
                           <Text style={styles.defaultBadgeText}>Default</Text>
                         </View>
                       )}
                     </View>
-                    <Text style={styles.addressName}>{selectedAddress.name}</Text>
+                    <Text style={styles.addressName}>
+                      {selectedAddress.name}
+                    </Text>
                     <Text style={styles.addressText}>
                       {selectedAddress.addressLine}
                     </Text>
                     <Text style={styles.addressSubtext}>
-                      {selectedAddress.city}, {selectedAddress.state} - {selectedAddress.pincode}
+                      {selectedAddress.city}, {selectedAddress.state} -{" "}
+                      {selectedAddress.pincode}
                     </Text>
                   </View>
                   <View style={styles.addressActions}>
@@ -664,7 +906,9 @@ export default function CheckoutScreen() {
                     <MapPin size={24} color="#48479B" />
                   </View>
                   <View style={styles.addressContent}>
-                    <Text style={styles.addAddressText}>Add Delivery Address</Text>
+                    <Text style={styles.addAddressText}>
+                      Add Delivery Address
+                    </Text>
                     <Text style={styles.addAddressSubtext}>
                       Please add an address to continue with your order
                     </Text>
@@ -681,39 +925,104 @@ export default function CheckoutScreen() {
               <Text style={styles.sectionTitle}>Order Summary</Text>
               <View style={styles.summaryCard}>
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>{subscriptionDetails.meal?.name}</Text>
-                  <Text style={styles.summaryValue}>₹{subscriptionDetails.meal?.price}</Text>
+                  <Text style={styles.summaryLabel}>
+                    {subscriptionDetails.meal?.name}
+                  </Text>
+                  <Text style={styles.summaryValue}>
+                    ₹{subscriptionDetails.meal?.price}
+                  </Text>
                 </View>
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>{orderSummary.planName} ({orderSummary.duration} days)</Text>
-                  <Text style={styles.summaryValue}>₹{orderSummary.originalPrice}</Text>
+                  <Text style={styles.summaryLabel}>
+                    {orderSummary.planName} ({orderSummary.duration} days)
+                  </Text>
+                  <Text style={styles.summaryValue}>
+                    ₹{orderSummary.originalPrice}
+                  </Text>
                 </View>
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Plan Discount</Text>
-                  <Text style={styles.discountValue}>-₹{orderSummary.discount}</Text>
+                  <Text style={styles.discountValue}>
+                    -₹{orderSummary.discount}
+                  </Text>
                 </View>
                 {subscriptionDetails.isTrialMode && (
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Trial Discount (50%)</Text>
-                    <Text style={styles.discountValue}>-₹{orderSummary.trialDiscount}</Text>
+                    <Text style={styles.summaryLabel}>
+                      Trial Discount (50%)
+                    </Text>
+                    <Text style={styles.discountValue}>
+                      -₹{orderSummary.trialDiscount}
+                    </Text>
                   </View>
                 )}
                 {(subscriptionDetails.addOns?.length ?? 0) > 0 && (
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Add-ons ({subscriptionDetails.addOns?.length ?? 0} items)</Text>
-                    <Text style={styles.summaryValue}>₹{orderSummary.addOnTotal}</Text>
-                  </View>
+                  <>
+                    <View style={styles.summaryRow}>
+                      <Text
+                        style={[
+                          styles.summaryLabel,
+                          { fontWeight: "600", marginTop: 8 },
+                        ]}
+                      >
+                        Add-ons
+                      </Text>
+                    </View>
+                    {(subscriptionDetails.addOns ?? []).map(
+                      (addOnId: string) => {
+                        const addOn = addOns.find((a) => a.id === addOnId);
+                        if (!addOn) return null;
+                        const addOnPrice = addOn.price * orderSummary.duration;
+                        return (
+                          <View
+                            key={addOnId}
+                            style={[styles.summaryRow, { paddingLeft: 16 }]}
+                          >
+                            <Text
+                              style={[
+                                styles.summaryLabel,
+                                { fontSize: 14, color: "#666" },
+                              ]}
+                            >
+                              • {addOn.name} x {orderSummary.duration} days
+                            </Text>
+                            <Text
+                              style={[styles.summaryValue, { fontSize: 14 }]}
+                            >
+                              ₹{addOnPrice}
+                            </Text>
+                          </View>
+                        );
+                      }
+                    )}
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Add-ons Total</Text>
+                      <Text style={styles.summaryValue}>
+                        ₹{orderSummary.addOnTotal}
+                      </Text>
+                    </View>
+                  </>
                 )}
                 {promoApplied && (
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Promo Discount ({appliedOffer?.promoCode ?? appliedOffer?.code ?? promoCode})</Text>
-                    <Text style={styles.discountValue}>-₹{orderSummary.promoDiscount}</Text>
+                    <Text style={styles.summaryLabel}>
+                      Promo Discount (
+                      {appliedOffer?.promoCode ??
+                        appliedOffer?.code ??
+                        promoCode}
+                      )
+                    </Text>
+                    <Text style={styles.discountValue}>
+                      -₹{orderSummary.promoDiscount}
+                    </Text>
                   </View>
                 )}
                 {applyWallet && orderSummary.walletAppliedAmount > 0 && (
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>Wallet Used</Text>
-                    <Text style={styles.discountValue}>-₹{orderSummary.walletAppliedAmount}</Text>
+                    <Text style={styles.discountValue}>
+                      -₹{orderSummary.walletAppliedAmount}
+                    </Text>
                   </View>
                 )}
                 <View style={styles.summaryRow}>
@@ -723,7 +1032,9 @@ export default function CheckoutScreen() {
                 <View style={styles.divider} />
                 <View style={styles.summaryRow}>
                   <Text style={styles.totalLabel}>Total Amount</Text>
-                  <Text style={styles.totalValue}>₹{orderSummary.finalAmount}</Text>
+                  <Text style={styles.totalValue}>
+                    ₹{orderSummary.finalAmount}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -732,50 +1043,111 @@ export default function CheckoutScreen() {
               <Text style={styles.sectionTitle}>Delivery Time</Text>
               <View style={styles.timeSlotContainer}>
                 {allTimeSlots
-                  .filter(s => !subscriptionDetails?.meal?.availableTimeSlotIds || subscriptionDetails.meal.availableTimeSlotIds.length === 0 || subscriptionDetails.meal.availableTimeSlotIds.includes(s.id))
+                  .filter(
+                    (s) =>
+                      !subscriptionDetails?.meal?.availableTimeSlotIds ||
+                      subscriptionDetails.meal.availableTimeSlotIds.length ===
+                        0 ||
+                      subscriptionDetails.meal.availableTimeSlotIds.includes(
+                        s.id
+                      )
+                  )
                   .map((slot) => {
                     const isSelected = selectedTimeSlot?.id === slot.id;
                     return (
                       <TouchableOpacity
                         key={slot.id}
-                        style={[styles.timeSlotButton, isSelected && styles.selectedTimeSlot]}
+                        style={[
+                          styles.timeSlotButton,
+                          isSelected && styles.selectedTimeSlot,
+                        ]}
                         onPress={() => {
                           setSelectedTimeSlot(slot);
-                          console.log('[CHECKOUT] Selected delivery slot:', slot);
+                          console.log(
+                            "[CHECKOUT] Selected delivery slot:",
+                            slot
+                          );
                         }}
                       >
                         {/* Use same icon as meal id */}
-                        <Text style={[styles.timeSlotText, isSelected && styles.selectedTimeSlotText]}>
+                        <Text
+                          style={[
+                            styles.timeSlotText,
+                            isSelected && styles.selectedTimeSlotText,
+                          ]}
+                        >
                           {slot.time}
                         </Text>
                       </TouchableOpacity>
                     );
                   })}
               </View>
-              <Text style={{fontSize:12,color:'#666'}}>DEBUG: selectedTimeSlot = {JSON.stringify(selectedTimeSlot)}</Text>
+              <Text style={{ fontSize: 12, color: "#666" }}>
+                DEBUG: selectedTimeSlot = {JSON.stringify(selectedTimeSlot)}
+              </Text>
             </View>
             {/* Start Date Selection (EXACT MATCH + DEBUG) */}
             <View style={styles.section}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.dateSelector}
                 onPress={() => {
                   setShowDatePicker(true);
-                  console.log('[CHECKOUT] Opened date picker, current startDate:', startDate);
+                  console.log(
+                    "[CHECKOUT] Opened date picker, current startDate:",
+                    startDate
+                  );
                 }}
               >
                 <Text style={styles.dateLabel}>Start Date</Text>
                 <Text style={styles.dateValue}>
-                  {startDate.toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
+                  {startDate.toLocaleDateString("en-US", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
                   })}
                 </Text>
               </TouchableOpacity>
-              <Text style={{fontSize:12,color:'#666'}}>DEBUG: startDate = {startDate.toISOString()}</Text>
+              <Text style={{ fontSize: 12, color: "#666" }}>
+                DEBUG: startDate = {startDate.toISOString()}
+              </Text>
             </View>
 
+            {/* Order for Someone Else Section */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Order for Someone Else?</Text>
+                <Switch
+                  value={orderForSomeoneElse}
+                  onValueChange={setOrderForSomeoneElse}
+                  trackColor={{ false: "#D1D5DB", true: "#A3D397" }}
+                  thumbColor={orderForSomeoneElse ? "#48479B" : "#f4f3f4"}
+                />
+              </View>
+              {orderForSomeoneElse && (
+                <View style={styles.recipientForm}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Recipient Name *"
+                    value={recipientName}
+                    onChangeText={setRecipientName}
+                    placeholderTextColor="#999"
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Recipient Phone *"
+                    value={recipientPhone}
+                    onChangeText={setRecipientPhone}
+                    keyboardType="phone-pad"
+                    placeholderTextColor="#999"
+                    maxLength={10}
+                  />
+                  <Text style={styles.recipientNote}>
+                    📱 The recipient will receive order updates on this number
+                  </Text>
+                </View>
+              )}
+            </View>
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Promo Code</Text>
@@ -791,7 +1163,10 @@ export default function CheckoutScreen() {
                   />
                 </View>
                 <TouchableOpacity
-                  style={[styles.applyButton, promoApplied && styles.appliedButton]}
+                  style={[
+                    styles.applyButton,
+                    promoApplied && styles.appliedButton,
+                  ]}
                   onPress={handleApplyPromo}
                   disabled={promoApplied}
                 >
@@ -819,7 +1194,11 @@ export default function CheckoutScreen() {
                   />
                 </View>
                 <TouchableOpacity
-                  style={[styles.applyButton, (referralApplied || referralApplying) && styles.appliedButton]}
+                  style={[
+                    styles.applyButton,
+                    (referralApplied || referralApplying) &&
+                      styles.appliedButton,
+                  ]}
                   onPress={handleApplyReferral}
                   disabled={referralApplied || referralApplying}
                   testID="referral-apply"
@@ -833,18 +1212,27 @@ export default function CheckoutScreen() {
                   )}
                 </TouchableOpacity>
               </View>
-              <Text style={{ color: '#666', fontSize: 12, marginTop: 8 }}>Both you and your friend get ₹200 in wallet on successful referral.</Text>
+              <Text style={{ color: "#666", fontSize: 12, marginTop: 8 }}>
+                Both you and your friend get ₹200 in wallet on successful
+                referral.
+              </Text>
             </View>
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Use Wallet</Text>
               <TouchableOpacity
-                style={[styles.walletRow, applyWallet && styles.walletRowActive]}
+                style={[
+                  styles.walletRow,
+                  applyWallet && styles.walletRowActive,
+                ]}
                 onPress={() => {
                   const next = !applyWallet;
                   setApplyWallet(next);
                   if (next) {
-                    const saveAmt = Math.min(walletBalance, orderSummary.subtotalAfterPromo);
+                    const saveAmt = Math.min(
+                      walletBalance,
+                      orderSummary.subtotalAfterPromo
+                    );
                     showToast(`Wallet applied. You saved ₹${saveAmt}.`);
                   }
                 }}
@@ -852,15 +1240,24 @@ export default function CheckoutScreen() {
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: applyWallet }}
               >
-                <View style={[styles.checkbox, applyWallet && styles.checkboxChecked]}>
+                <View
+                  style={[
+                    styles.checkbox,
+                    applyWallet && styles.checkboxChecked,
+                  ]}
+                >
                   {applyWallet && <Check size={16} color="#fff" />}
                 </View>
                 <View style={styles.walletContent}>
                   <Text style={styles.walletTitle}>Use wallet balance</Text>
-                  <Text style={styles.walletSub}>Available: ₹{walletBalance}</Text>
+                  <Text style={styles.walletSub}>
+                    Available: ₹{walletBalance}
+                  </Text>
                 </View>
                 {applyWallet && orderSummary.walletAppliedAmount > 0 && (
-                  <Text style={styles.walletAppliedText}>-₹{orderSummary.walletAppliedAmount}</Text>
+                  <Text style={styles.walletAppliedText}>
+                    -₹{orderSummary.walletAppliedAmount}
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -868,7 +1265,9 @@ export default function CheckoutScreen() {
             {/* Payment methods removed: redirecting directly to Razorpay on pay */}
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Delivery Instructions (Optional)</Text>
+              <Text style={styles.sectionTitle}>
+                Delivery Instructions (Optional)
+              </Text>
               <TextInput
                 style={styles.instructionsInput}
                 placeholder="e.g., Leave at the door, Ring the bell twice"
@@ -887,14 +1286,26 @@ export default function CheckoutScreen() {
       {/* Bottom CTA */}
       <View style={styles.bottomContainer}>
         <View style={styles.totalContainer}>
-          <Text style={styles.totalText}>Payable: ₹{orderSummary.payableAmount}</Text>
+          <Text style={styles.totalText}>
+            Payable: ₹{orderSummary.payableAmount}
+          </Text>
           <Text style={styles.savingsText}>
-            You save ₹{orderSummary.discount + orderSummary.promoDiscount + orderSummary.trialDiscount}
+            You save ₹
+            {orderSummary.discount +
+              orderSummary.promoDiscount +
+              orderSummary.trialDiscount}
           </Text>
         </View>
-        <TouchableOpacity style={styles.placeOrderButton} onPress={handlePlaceOrder}>
+        <TouchableOpacity
+          style={styles.placeOrderButton}
+          onPress={handlePlaceOrder}
+        >
           <Text style={styles.placeOrderButtonText}>
-            {isGuest ? 'Login & Place Order' : orderSummary.payableAmount === 0 ? 'Activate Now' : 'Pay Now'}
+            {isGuest
+              ? "Login & Place Order"
+              : orderSummary.payableAmount === 0
+              ? "Activate Now"
+              : "Pay Now"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -909,37 +1320,45 @@ export default function CheckoutScreen() {
         <SafeAreaView style={styles.datePickerContainer}>
           <View style={styles.datePickerHeader}>
             <Text style={styles.datePickerTitle}>Select Start Date</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.closeButton}
               onPress={() => {
                 setShowDatePicker(false);
-                console.log('[CHECKOUT] Closed date picker, startDate:', startDate);
+                console.log(
+                  "[CHECKOUT] Closed date picker, startDate:",
+                  startDate
+                );
               }}
             >
-              <Text style={{fontSize: 24}}>×</Text>
+              <Text style={{ fontSize: 24 }}>×</Text>
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.datePickerContent}>
             <Text style={styles.datePickerDescription}>
-              Choose when you want your subscription to start. You can select today or any future date.
+              Choose when you want your subscription to start. You can select
+              today or any future date.
             </Text>
             <View style={styles.dateOptionsContainer}>
               {/* Today Option */}
               <TouchableOpacity
-                style={[styles.dateOption, startDate.toDateString() === new Date().toDateString() && styles.selectedDateOption]}
+                style={[
+                  styles.dateOption,
+                  startDate.toDateString() === new Date().toDateString() &&
+                    styles.selectedDateOption,
+                ]}
                 onPress={() => {
                   setStartDate(new Date());
                   setShowDatePicker(false);
-                  console.log('[CHECKOUT] Picked startDate: Today', new Date());
+                  console.log("[CHECKOUT] Picked startDate: Today", new Date());
                 }}
               >
                 <View style={styles.dateOptionContent}>
                   <Text style={styles.dateOptionTitle}>Today</Text>
                   <Text style={styles.dateOptionSubtitle}>
-                    {new Date().toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long'
+                    {new Date().toLocaleDateString("en-US", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
                     })}
                   </Text>
                 </View>
@@ -955,20 +1374,27 @@ export default function CheckoutScreen() {
                 tomorrow.setDate(tomorrow.getDate() + 1);
                 return (
                   <TouchableOpacity
-                    style={[styles.dateOption, startDate.toDateString() === tomorrow.toDateString() && styles.selectedDateOption]}
+                    style={[
+                      styles.dateOption,
+                      startDate.toDateString() === tomorrow.toDateString() &&
+                        styles.selectedDateOption,
+                    ]}
                     onPress={() => {
                       setStartDate(tomorrow);
                       setShowDatePicker(false);
-                      console.log('[CHECKOUT] Picked startDate: Tomorrow', tomorrow);
+                      console.log(
+                        "[CHECKOUT] Picked startDate: Tomorrow",
+                        tomorrow
+                      );
                     }}
                   >
                     <View style={styles.dateOptionContent}>
                       <Text style={styles.dateOptionTitle}>Tomorrow</Text>
                       <Text style={styles.dateOptionSubtitle}>
-                        {tomorrow.toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          day: 'numeric',
-                          month: 'long'
+                        {tomorrow.toLocaleDateString("en-US", {
+                          weekday: "long",
+                          day: "numeric",
+                          month: "long",
                         })}
                       </Text>
                     </View>
@@ -987,24 +1413,31 @@ export default function CheckoutScreen() {
                 return (
                   <TouchableOpacity
                     key={i}
-                    style={[styles.dateOption, startDate.toDateString() === futureDate.toDateString() && styles.selectedDateOption]}
+                    style={[
+                      styles.dateOption,
+                      startDate.toDateString() === futureDate.toDateString() &&
+                        styles.selectedDateOption,
+                    ]}
                     onPress={() => {
                       setStartDate(futureDate);
                       setShowDatePicker(false);
-                      console.log('[CHECKOUT] Picked startDate: Future', futureDate);
+                      console.log(
+                        "[CHECKOUT] Picked startDate: Future",
+                        futureDate
+                      );
                     }}
                   >
                     <View style={styles.dateOptionContent}>
                       <Text style={styles.dateOptionTitle}>
-                        {futureDate.toLocaleDateString('en-US', {
-                          weekday: 'long'
+                        {futureDate.toLocaleDateString("en-US", {
+                          weekday: "long",
                         })}
                       </Text>
                       <Text style={styles.dateOptionSubtitle}>
-                        {futureDate.toLocaleDateString('en-US', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric'
+                        {futureDate.toLocaleDateString("en-US", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
                         })}
                       </Text>
                     </View>
@@ -1019,48 +1452,64 @@ export default function CheckoutScreen() {
             </View>
             <View style={styles.datePickerNote}>
               <Text style={styles.datePickerNoteText}>
-                💡 Your subscription will start on the selected date. You can modify or skip meals up to the cutoff time.
+                💡 Your subscription will start on the selected date. You can
+                modify or skip meals up to the cutoff time.
               </Text>
             </View>
-            <Text style={{fontSize:12,color:'#666',marginTop:12}}>DEBUG: startDate = {startDate.toISOString()}</Text>
+            <Text style={{ fontSize: 12, color: "#666", marginTop: 12 }}>
+              DEBUG: startDate = {startDate.toISOString()}
+            </Text>
           </ScrollView>
         </SafeAreaView>
       </Modal>
       {/* Payment Modal */}
-      <Modal
-        visible={showPaymentModal}
-        animationType="fade"
-        transparent={true}
-      >
+      <Modal visible={showPaymentModal} animationType="fade" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.paymentModal}>
-            {paymentStatus === 'processing' && (
+            {paymentStatus === "processing" && (
               <>
                 <View style={styles.processingIcon}>
                   <Text style={styles.processingText}>💳</Text>
                 </View>
                 <Text style={styles.modalTitle}>Processing Payment</Text>
-                <Text style={styles.modalSubtitle}>Please wait while we process your payment...</Text>
+                <Text style={styles.modalSubtitle}>
+                  Please wait while we process your payment...
+                </Text>
               </>
             )}
 
-            {paymentStatus === 'success' && (
+            {paymentStatus === "success" && (
               <>
                 <CheckCircle size={60} color="#10B981" />
                 <Text style={styles.modalTitle}>Payment Successful!</Text>
                 <Text style={styles.modalSubtitle}>
-                  Your subscription has been activated. You will receive a confirmation on WhatsApp.
+                  Your subscription has been activated. You will receive a
+                  confirmation on WhatsApp.
                 </Text>
                 {orderSummary.walletAppliedAmount > 0 && (
-                  <Text style={[styles.modalSubtitle, { color: '#10B981', marginTop: 8 }]}>Wallet used: ₹{orderSummary.walletAppliedAmount}</Text>
+                  <Text
+                    style={[
+                      styles.modalSubtitle,
+                      { color: "#10B981", marginTop: 8 },
+                    ]}
+                  >
+                    Wallet used: ₹{orderSummary.walletAppliedAmount}
+                  </Text>
                 )}
                 {promoApplied && (
-                  <Text style={[styles.modalSubtitle, { color: '#10B981', marginTop: 4 }]}>Promo saved: ₹{orderSummary.promoDiscount}</Text>
+                  <Text
+                    style={[
+                      styles.modalSubtitle,
+                      { color: "#10B981", marginTop: 4 },
+                    ]}
+                  >
+                    Promo saved: ₹{orderSummary.promoDiscount}
+                  </Text>
                 )}
               </>
             )}
 
-            {paymentStatus === 'failed' && (
+            {paymentStatus === "failed" && (
               <>
                 <XCircle size={60} color="#EF4444" />
                 <Text style={styles.modalTitle}>Payment Failed</Text>
@@ -1125,12 +1574,12 @@ export default function CheckoutScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: "#F8F9FA",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   backButton: {
     padding: 8,
@@ -1144,16 +1593,44 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
+    fontWeight: "700",
+    color: "#333",
     marginBottom: 12,
   },
-  addressCard: {
-    backgroundColor: 'white',
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  recipientForm: {
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+    gap: 12,
+  },
+  input: {
+    backgroundColor: "#F8F9FA",
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: "#333",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  recipientNote: {
+    fontSize: 12,
+    color: "#666",
+    fontStyle: "italic",
+    marginTop: 4,
+  },
+  addressCard: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
   },
   addressContent: {
     flex: 1,
@@ -1161,80 +1638,80 @@ const styles = StyleSheet.create({
   },
   addressText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 4,
   },
   addressSubtext: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   changeButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#48479B',
+    borderColor: "#48479B",
   },
   changeButtonText: {
-    color: '#48479B',
+    color: "#48479B",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   summaryCard: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
   },
   summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
   summaryLabel: {
     fontSize: 14,
-    color: '#333',
+    color: "#333",
   },
   summaryValue: {
     fontSize: 14,
-    color: '#333',
-    fontWeight: '600',
+    color: "#333",
+    fontWeight: "600",
   },
   discountValue: {
     fontSize: 14,
-    color: '#10B981',
-    fontWeight: '600',
+    color: "#10B981",
+    fontWeight: "600",
   },
   freeText: {
     fontSize: 14,
-    color: '#10B981',
-    fontWeight: '600',
+    color: "#10B981",
+    fontWeight: "600",
   },
   divider: {
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: "#E5E7EB",
     marginVertical: 8,
   },
   totalLabel: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
+    fontWeight: "700",
+    color: "#333",
   },
   totalValue: {
     fontSize: 18,
-    fontWeight: '800',
-    color: '#48479B',
+    fontWeight: "800",
+    color: "#48479B",
   },
   promoContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   promoInputContainer: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -1243,84 +1720,84 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
     fontSize: 16,
-    color: '#333',
+    color: "#333",
   },
   applyButton: {
-    backgroundColor: '#48479B',
+    backgroundColor: "#48479B",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   appliedButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: "#10B981",
   },
   applyButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   paymentMethods: {
     gap: 12,
   },
   paymentMethod: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: "transparent",
   },
   selectedPaymentMethod: {
-    borderColor: '#48479B',
-    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    borderColor: "#48479B",
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
   },
   walletRow: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: "transparent",
   },
   walletRowActive: {
-    borderColor: '#48479B',
-    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    borderColor: "#48479B",
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
   },
   checkbox: {
     width: 22,
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#48479B',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
+    borderColor: "#48479B",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
     marginRight: 12,
   },
   checkboxChecked: {
-    backgroundColor: '#48479B',
+    backgroundColor: "#48479B",
   },
   walletContent: {
     flex: 1,
   },
   walletTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
   },
   walletSub: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
     marginTop: 2,
   },
   walletAppliedText: {
     fontSize: 14,
-    color: '#10B981',
-    fontWeight: '700',
+    color: "#10B981",
+    fontWeight: "700",
   },
   paymentMethodContent: {
     flex: 1,
@@ -1328,71 +1805,71 @@ const styles = StyleSheet.create({
   },
   paymentMethodText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 2,
   },
   paymentMethodSubtext: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   instructionsInput: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: '#333',
-    textAlignVertical: 'top',
+    color: "#333",
+    textAlignVertical: "top",
     minHeight: 80,
   },
   bottomSpacing: {
     height: 100,
   },
   bottomContainer: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: "#E5E7EB",
   },
   totalContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
   },
   totalText: {
     fontSize: 18,
-    fontWeight: '800',
-    color: '#333',
+    fontWeight: "800",
+    color: "#333",
   },
   savingsText: {
     fontSize: 14,
-    color: '#10B981',
-    fontWeight: '600',
+    color: "#10B981",
+    fontWeight: "600",
   },
   placeOrderButton: {
-    backgroundColor: '#48479B',
+    backgroundColor: "#48479B",
     paddingVertical: 16,
     borderRadius: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   placeOrderButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   paymentModal: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 20,
     padding: 32,
-    alignItems: 'center',
+    alignItems: "center",
     marginHorizontal: 40,
     minWidth: 280,
   },
@@ -1404,189 +1881,189 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginTop: 16,
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
   modalSubtitle: {
     fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
     lineHeight: 22,
   },
   modalButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginTop: 24,
     gap: 12,
   },
   retryButton: {
-    backgroundColor: '#48479B',
+    backgroundColor: "#48479B",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
   },
   retryButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   cancelButton: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
   },
   cancelButtonText: {
-    color: '#666',
+    color: "#666",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   toast: {
-    position: 'absolute',
+    position: "absolute",
     left: 20,
     right: 20,
     bottom: 24,
-    backgroundColor: '#111827',
+    backgroundColor: "#111827",
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   toastText: {
-    color: 'white',
+    color: "white",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   addressName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 2,
   },
   addressPhone: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginBottom: 4,
   },
   addAddressCard: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: '#48479B',
-    borderStyle: 'dashed',
+    borderColor: "#48479B",
+    borderStyle: "dashed",
   },
   addAddressText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#48479B',
+    fontWeight: "600",
+    color: "#48479B",
     marginBottom: 4,
   },
   addAddressSubtext: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   weekendRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   weekendChip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6",
   },
   weekendChipActive: {
-    backgroundColor: '#48479B',
+    backgroundColor: "#48479B",
   },
   weekendChipText: {
-    color: '#333',
+    color: "#333",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   weekendChipTextActive: {
-    color: 'white',
+    color: "white",
   },
   weekendHelp: {
     marginTop: 8,
-    color: '#666',
+    color: "#666",
     fontSize: 12,
   },
   timeSlotContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   timeSlotButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#DDD',
-    backgroundColor: 'white',
+    borderColor: "#DDD",
+    backgroundColor: "white",
     marginRight: 8,
     marginBottom: 8,
   },
   selectedTimeSlot: {
-    borderColor: '#48479B',
-    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    borderColor: "#48479B",
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
   },
   timeSlotText: {
     fontSize: 14,
-    color: '#48479B',
-    fontWeight: '500',
+    color: "#48479B",
+    fontWeight: "500",
   },
   selectedTimeSlotText: {
-    color: '#48479B',
-    fontWeight: '700',
+    color: "#48479B",
+    fontWeight: "700",
   },
   dateSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
     marginTop: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#DDD',
+    borderColor: "#DDD",
   },
   dateLabel: {
     fontSize: 16,
-    color: '#48479B',
-    fontWeight: '600',
+    color: "#48479B",
+    fontWeight: "600",
     marginRight: 12,
   },
   dateValue: {
     fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
+    color: "#333",
+    fontWeight: "500",
     marginLeft: 8,
   },
   datePickerContainer: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: "#F8F9FA",
   },
   datePickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: "#E5E7EB",
   },
   datePickerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
   },
   closeButton: {
     padding: 8,
@@ -1596,115 +2073,115 @@ const styles = StyleSheet.create({
   },
   datePickerDescription: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
     marginBottom: 16,
   },
   dateOptionsContainer: {
     gap: 12,
   },
   dateOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#DDD',
+    borderColor: "#DDD",
   },
   selectedDateOption: {
-    borderColor: '#48479B',
-    backgroundColor: 'rgba(163, 211, 151, 0.27)',
+    borderColor: "#48479B",
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
   },
   dateOptionContent: {
     flex: 1,
   },
   dateOptionTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#48479B',
+    fontWeight: "600",
+    color: "#48479B",
   },
   dateOptionSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   selectedIndicator: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#48479B',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#48479B",
+    alignItems: "center",
+    justifyContent: "center",
   },
   checkMark: {
-    color: 'white',
+    color: "white",
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   datePickerNote: {
     marginTop: 16,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6",
     borderRadius: 8,
     padding: 12,
   },
   datePickerNoteText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   // Enhanced address styles for Zomato/Blinkit-like experience
   addressIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(163, 211, 151, 0.27)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   addAddressIconContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(163, 211, 151, 0.27)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(163, 211, 151, 0.27)",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 16,
   },
   addressHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 4,
   },
   addressLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#48479B',
+    fontWeight: "600",
+    color: "#48479B",
     marginRight: 8,
   },
   defaultBadge: {
-    backgroundColor: '#34C759',
+    backgroundColor: "#34C759",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
   },
   defaultBadgeText: {
     fontSize: 12,
-    color: 'white',
-    fontWeight: '500',
+    color: "white",
+    fontWeight: "500",
   },
   addressActions: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   chevron: {
     fontSize: 24,
-    color: '#C7C7CC',
-    fontWeight: '300',
+    color: "#C7C7CC",
+    fontWeight: "300",
   },
   addButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#48479B',
+    fontWeight: "600",
+    color: "#48479B",
     marginBottom: 2,
   },
 });

@@ -444,10 +444,17 @@ function CustomerHomeScreen({
             disableAutoDetection={isScrolling || hasLocationBeenDetected} // Disable if scrolling OR already detected
           />
           <View style={styles.headerActions}>
-            <View style={styles.walletPillSticky} testID="wallet-pill-sticky">
+            
+            <TouchableOpacity
+              style={styles.profileCircleSticky}
+              onPress={() => router.push("/wallet")}
+              testID="profile-button-sticky"
+            >
+              <View style={styles.walletPillSticky} testID="wallet-pill-sticky">
               <View style={styles.walletIconSticky} />
               <Text style={styles.walletTextSticky}>Rs 0</Text>
             </View>
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.profileCircleSticky}
               onPress={() => router.push("/profile")}

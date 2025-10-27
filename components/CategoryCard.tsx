@@ -55,7 +55,7 @@ export default function CategoryCard({ category, onPress, isActive = false }: Ca
 
 const styles = StyleSheet.create({
   container: {
-    width: 110,
+    width: 117,
     marginRight: 12,
     alignItems: 'center',
   },

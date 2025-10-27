@@ -136,6 +136,23 @@ async function updateDocument(
   }
 }
 
+async function deleteDocument(
+  collectionPath: string,
+  id: string
+): Promise<void> {
+  const url = `${BASE_URL}/${collectionPath}/${encodeURIComponent(
+    id
+  )}?key=${encodeURIComponent(FIREBASE_API_KEY)}`;
+  console.log("[firebase] DELETE", url, { id });
+  const res = await fetch(url, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Delete ${collectionPath}/${id} failed: ${text}`);
+  }
+}
+
 async function fetchCollection<T>(collectionPath: string): Promise<T[]> {
   const url = `${BASE_URL}/${collectionPath}?key=${encodeURIComponent(
     FIREBASE_API_KEY
@@ -294,17 +311,13 @@ export async function fetchMeals(): Promise<Meal[]> {
 
     // If no items in Firebase, use constants/data.ts as source of truth
     const { Meals } = await import("@/constants/data");
-    return (Meals ?? []).filter(
-      (m) => (m?.isActive ?? true) && !m?.isDraft
-    );
+    return (Meals ?? []).filter((m) => (m?.isActive ?? true) && !m?.isDraft);
   } catch (error) {
     console.error("[Firebase] Error fetching meals:", error);
     // Final fallback to constants/data.ts
     try {
       const { Meals } = await import("@/constants/data");
-      return (Meals ?? []).filter(
-        (m) => (m?.isActive ?? true) && !m?.isDraft
-      );
+      return (Meals ?? []).filter((m) => (m?.isActive ?? true) && !m?.isDraft);
     } catch (e) {
       console.error("[Firebase] Failed to load fallback meals:", e);
       return [];
@@ -342,6 +355,58 @@ export async function fetchAddOns(): Promise<AddOn[]> {
   }
 }
 
+// Category CRUD
+export async function createCategory(category: Category): Promise<void> {
+  await createDocument(
+    "categories",
+    category.id,
+    category as Record<string, any>
+  );
+}
+
+export async function updateCategory(
+  id: string,
+  updates: Partial<Category>
+): Promise<void> {
+  await updateDocument("categories", id, updates as Record<string, any>);
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  await deleteDocument("categories", id);
+}
+
+// Meal CRUD
+export async function createMeal(meal: Meal): Promise<void> {
+  await createDocument("meals", meal.id, meal as Record<string, any>);
+}
+
+export async function updateMeal(
+  id: string,
+  updates: Partial<Meal>
+): Promise<void> {
+  await updateDocument("meals", id, updates as Record<string, any>);
+}
+
+export async function deleteMeal(id: string): Promise<void> {
+  await deleteDocument("meals", id);
+}
+
+// AddOn CRUD
+export async function createAddOn(addon: AddOn): Promise<void> {
+  await createDocument("addons", addon.id, addon as Record<string, any>);
+}
+
+export async function updateAddOn(
+  id: string,
+  updates: Partial<AddOn>
+): Promise<void> {
+  await updateDocument("addons", id, updates as Record<string, any>);
+}
+
+export async function deleteAddOn(id: string): Promise<void> {
+  await deleteDocument("addons", id);
+}
+
 export async function fetchTestimonials(): Promise<Testimonial[]> {
   const items = await fetchCollection<Testimonial>("testimonials");
   return items.filter((t) => t?.isActive ?? true);
@@ -373,6 +438,197 @@ export async function updateUser(
   updates: Partial<User>
 ): Promise<void> {
   await updateDocument("users", id, updates as Record<string, any>);
+}
+
+/**
+ * Add a new address to a user's address list in Firebase
+ * Production-ready with proper validation and error handling
+ */
+export async function addUserAddress(
+  userId: string,
+  address: Omit<import("@/types").Address, "id" | "userId">
+): Promise<import("@/types").Address> {
+  try {
+    // Fetch current user to get existing addresses
+    const currentUser = await getUserDoc(userId);
+    if (!currentUser) {
+      throw new Error(`User not found: ${userId}`);
+    }
+
+    // Generate unique address ID with timestamp and random suffix
+    const addressId = `addr_${Date.now()}_${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+
+    // Create the complete address object with timestamps
+    const newAddress: import("@/types").Address = {
+      ...address,
+      id: addressId,
+      userId,
+      createdAt: address.createdAt || new Date(),
+      updatedAt: new Date(),
+    };
+
+    // Update user with new address array
+    const updatedAddresses = [...(currentUser.addresses || []), newAddress];
+
+    await updateDocument("users", userId, {
+      addresses: updatedAddresses,
+    } as Record<string, any>);
+
+    console.log(
+      `[firebase] ✅ Address added successfully: ${addressId} for user: ${userId}`
+    );
+    return newAddress;
+  } catch (error) {
+    console.error("[firebase] ❌ Error adding address:", error);
+    throw new Error(
+      `Failed to add address: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+  }
+}
+
+/**
+ * Update a specific address in a user's address list
+ * Only updates the specified address, leaves others unchanged
+ */
+export async function updateUserAddress(
+  userId: string,
+  addressId: string,
+  updates: Partial<import("@/types").Address>
+): Promise<import("@/types").Address> {
+  try {
+    const currentUser = await getUserDoc(userId);
+    if (!currentUser) {
+      throw new Error(`User not found: ${userId}`);
+    }
+
+    const addressIndex = currentUser.addresses.findIndex(
+      (addr) => addr.id === addressId
+    );
+    if (addressIndex === -1) {
+      throw new Error(`Address not found: ${addressId}`);
+    }
+
+    // Update the specific address with timestamp
+    const updatedAddress: import("@/types").Address = {
+      ...currentUser.addresses[addressIndex],
+      ...updates,
+      id: addressId, // Ensure ID doesn't change
+      userId, // Ensure userId doesn't change
+      updatedAt: new Date(),
+    };
+
+    // Create new addresses array with updated address
+    const updatedAddresses = [...currentUser.addresses];
+    updatedAddresses[addressIndex] = updatedAddress;
+
+    await updateDocument("users", userId, {
+      addresses: updatedAddresses,
+    } as Record<string, any>);
+
+    console.log(`[firebase] ✅ Address updated successfully: ${addressId}`);
+    return updatedAddress;
+  } catch (error) {
+    console.error("[firebase] ❌ Error updating address:", error);
+    throw new Error(
+      `Failed to update address: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+  }
+}
+
+/**
+ * Delete a specific address from a user's address list
+ * Handles default address reassignment automatically
+ */
+export async function deleteUserAddress(
+  userId: string,
+  addressId: string
+): Promise<void> {
+  try {
+    const currentUser = await getUserDoc(userId);
+    if (!currentUser) {
+      throw new Error(`User not found: ${userId}`);
+    }
+
+    const addressIndex = currentUser.addresses.findIndex(
+      (addr) => addr.id === addressId
+    );
+    if (addressIndex === -1) {
+      throw new Error(`Address not found: ${addressId}`);
+    }
+
+    const wasDefault = currentUser.addresses[addressIndex].isDefault;
+
+    // Remove the address from the array
+    const updatedAddresses = currentUser.addresses.filter(
+      (addr) => addr.id !== addressId
+    );
+
+    // If the deleted address was default and there are other addresses, set the first one as default
+    if (wasDefault && updatedAddresses.length > 0) {
+      updatedAddresses[0] = { ...updatedAddresses[0], isDefault: true };
+    }
+
+    await updateDocument("users", userId, {
+      addresses: updatedAddresses,
+    } as Record<string, any>);
+
+    console.log(`[firebase] ✅ Address deleted successfully: ${addressId}`);
+  } catch (error) {
+    console.error("[firebase] ❌ Error deleting address:", error);
+    throw new Error(
+      `Failed to delete address: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+  }
+}
+
+/**
+ * Set a specific address as the default address
+ * Ensures only one default address exists
+ */
+export async function setDefaultUserAddress(
+  userId: string,
+  addressId: string
+): Promise<void> {
+  try {
+    const currentUser = await getUserDoc(userId);
+    if (!currentUser) {
+      throw new Error(`User not found: ${userId}`);
+    }
+
+    const addressExists = currentUser.addresses.some(
+      (addr) => addr.id === addressId
+    );
+    if (!addressExists) {
+      throw new Error(`Address not found: ${addressId}`);
+    }
+
+    // Update all addresses: set target as default, others as non-default
+    const updatedAddresses = currentUser.addresses.map((addr) => ({
+      ...addr,
+      isDefault: addr.id === addressId,
+    }));
+
+    await updateDocument("users", userId, {
+      addresses: updatedAddresses,
+    } as Record<string, any>);
+
+    console.log(`[firebase] ✅ Default address set successfully: ${addressId}`);
+  } catch (error) {
+    console.error("[firebase] ❌ Error setting default address:", error);
+    throw new Error(
+      `Failed to set default address: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+  }
 }
 
 export async function createServiceAreaNotificationRequest(
@@ -455,13 +711,13 @@ export async function notifyServiceAreaAvailable(
 }
 
 export async function seedIfEmpty(): Promise<{ seeded: boolean }[]> {
-  console.log('[firebase] seedIfEmpty started');
+  console.log("[firebase] seedIfEmpty started");
   const tasks: Array<Promise<{ seeded: boolean }>> = [];
   const { banners, categories, Meals, testimonials, addOns } = await import(
     "@/constants/data"
   );
 
-  console.log('[firebase] Data loaded from constants:', {
+  console.log("[firebase] Data loaded from constants:", {
     banners: banners.length,
     categories: categories.length,
     meals: Meals.length,
@@ -478,13 +734,15 @@ export async function seedIfEmpty(): Promise<{ seeded: boolean }[]> {
       console.log(`[firebase] Checking ${name} in Firebase...`);
       // Check Firebase directly without fallback
       const existing = await fetchCollection<T>(name);
-      console.log(`[firebase] ${name} existing count: ${existing?.length ?? 0}`);
-      
+      console.log(
+        `[firebase] ${name} existing count: ${existing?.length ?? 0}`
+      );
+
       if ((existing?.length ?? 0) > 0) {
         console.log(`[firebase] ${name} already present: ${existing.length}`);
         return { seeded: false };
       }
-      
+
       console.log(`[firebase] Seeding ${name} with ${records.length} docs...`);
       for (const rec of records) {
         const id = (
@@ -492,7 +750,9 @@ export async function seedIfEmpty(): Promise<{ seeded: boolean }[]> {
         ).toString();
         await createDocument(name, id, rec);
       }
-      console.log(`[firebase] ✓ Successfully seeded ${records.length} documents to ${name}`);
+      console.log(
+        `[firebase] ✓ Successfully seeded ${records.length} documents to ${name}`
+      );
       return { seeded: true };
     } catch (e) {
       console.error(`[firebase] ensureCollection error for ${name}:`, e);
@@ -500,14 +760,9 @@ export async function seedIfEmpty(): Promise<{ seeded: boolean }[]> {
     }
   }
 
+  tasks.push(ensureCollection<Banner>("banners", banners as Banner[]));
   tasks.push(
-    ensureCollection<Banner>("banners", banners as Banner[])
-  );
-  tasks.push(
-    ensureCollection<Category>(
-      "categories",
-      categories as Category[]
-    )
+    ensureCollection<Category>("categories", categories as Category[])
   );
   tasks.push(
     ensureCollection<Meal>(
@@ -519,10 +774,7 @@ export async function seedIfEmpty(): Promise<{ seeded: boolean }[]> {
     )
   );
   tasks.push(
-    ensureCollection<Testimonial>(
-      "testimonials",
-      testimonials as Testimonial[]
-    )
+    ensureCollection<Testimonial>("testimonials", testimonials as Testimonial[])
   );
   tasks.push(
     ensureCollection<AddOn>(
@@ -610,9 +862,7 @@ export async function seedIfEmpty(): Promise<{ seeded: boolean }[]> {
     },
   ];
 
-  tasks.push(
-    ensureCollection<User>("users", initialUsers as User[])
-  );
+  tasks.push(ensureCollection<User>("users", initialUsers as User[]));
 
   return Promise.all(tasks);
 }
