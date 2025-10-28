@@ -24,7 +24,7 @@ import OfferCard from "@/components/OfferCard";
 import OfferDetailModal from "@/components/OfferDetailModal";
 import FilterChips from "@/components/FilterChips";
 import FilterModal from "@/components/FilterModal";
-import { LayoutGrid, Rows } from "lucide-react-native";
+import { FilterIcon, LayoutGrid, Rows } from "lucide-react-native";
 
 import { offers as offersSeed } from "@/constants/data";
 import { Colors } from "@/constants/colors";
@@ -51,6 +51,7 @@ export default function CategoryBrowserScreen() {
   >([
     { id: "veg", label: "Veg", selected: false },
     { id: "non-veg", label: "Non-Veg", selected: false },
+    { id: "featured", label: "Featured", selected: false },
     { id: "under-300", label: "Under ₹300", selected: false },
   ]);
   const [filterSections, setFilterSections] = useState<
@@ -62,20 +63,47 @@ export default function CategoryBrowserScreen() {
   >([
     {
       id: "diet",
-      title: "Diet",
+      title: "Diet Type",
       options: [
         { id: "veg", label: "Vegetarian", selected: false },
         { id: "non-veg", label: "Non-Vegetarian", selected: false },
-        { id: "vegan", label: "Vegan", selected: false },
+        { id: "has-egg", label: "Contains Egg", selected: false },
+        { id: "no-egg", label: "Egg Free", selected: false },
       ],
     },
     {
       id: "price",
-      title: "Price",
+      title: "Price Range",
       options: [
-        { id: "under-200", label: "Under ₹200", selected: false },
-        { id: "200-400", label: "₹200–₹400", selected: false },
+        { id: "under-150", label: "Under ₹150", selected: false },
+        { id: "150-250", label: "₹150–₹250", selected: false },
+        { id: "250-400", label: "₹250–₹400", selected: false },
         { id: "above-400", label: "Above ₹400", selected: false },
+      ],
+    },
+    {
+      id: "rating",
+      title: "Rating",
+      options: [
+        { id: "4plus", label: "4★ & above", selected: false },
+        { id: "3plus", label: "3★ & above", selected: false },
+      ],
+    },
+    {
+      id: "special",
+      title: "Special Features",
+      options: [
+        { id: "featured", label: "Featured Items", selected: false },
+        { id: "quick-prep", label: "Quick Prep (< 30 min)", selected: false },
+      ],
+    },
+    {
+      id: "nutrition",
+      title: "Nutrition",
+      options: [
+        { id: "high-protein", label: "High Protein (>20g)", selected: false },
+        { id: "low-calorie", label: "Low Calorie (<400)", selected: false },
+        { id: "high-fiber", label: "High Fiber (>5g)", selected: false },
       ],
     },
   ]);
@@ -207,7 +235,18 @@ export default function CategoryBrowserScreen() {
         })
       : validMeals; // If no category selected, show all meals
 
-    // Apply chip filters
+    // Collect all selected filters from sections
+    const selectedFilters: Record<string, string[]> = {};
+    filterSections.forEach((section) => {
+      const selected = section.options
+        .filter((opt) => opt.selected)
+        .map((opt) => opt.id);
+      if (selected.length > 0) {
+        selectedFilters[section.id] = selected;
+      }
+    });
+
+    // Apply chip filters (priority filters)
     const chipFilters = new Set(
       filterChips.filter((c) => c.selected).map((c) => c.id)
     );
@@ -215,8 +254,92 @@ export default function CategoryBrowserScreen() {
     if (chipFilters.has("veg")) list = list.filter((m) => m.isVeg === true);
     if (chipFilters.has("non-veg"))
       list = list.filter((m) => m.isVeg === false);
+    if (chipFilters.has("featured"))
+      list = list.filter((m) => m.isFeatured === true);
     if (chipFilters.has("under-300"))
       list = list.filter((m) => (m.price ?? 0) < 300);
+
+    // Apply diet filters from modal
+    if (selectedFilters.diet) {
+      list = list.filter((m) => {
+        const filters = selectedFilters.diet;
+        let match = false;
+
+        if (filters.includes("veg") && m.isVeg === true) match = true;
+        if (filters.includes("non-veg") && m.isVeg === false) match = true;
+        if (filters.includes("has-egg") && m.hasEgg === true) match = true;
+        if (filters.includes("no-egg") && m.hasEgg === false) match = true;
+
+        return match;
+      });
+    }
+
+    // Apply price filters
+    if (selectedFilters.price) {
+      list = list.filter((m) => {
+        const price = m.price ?? 0;
+        const filters = selectedFilters.price;
+
+        if (filters.includes("under-150") && price < 150) return true;
+        if (filters.includes("150-250") && price >= 150 && price < 250)
+          return true;
+        if (filters.includes("250-400") && price >= 250 && price < 400)
+          return true;
+        if (filters.includes("above-400") && price >= 400) return true;
+
+        return false;
+      });
+    }
+
+    // Apply rating filters
+    if (selectedFilters.rating) {
+      list = list.filter((m) => {
+        const rating = m.rating ?? 0;
+        const filters = selectedFilters.rating;
+
+        if (filters.includes("4plus") && rating >= 4) return true;
+        if (filters.includes("3plus") && rating >= 3) return true;
+
+        return false;
+      });
+    }
+
+    // Apply special feature filters
+    if (selectedFilters.special) {
+      list = list.filter((m) => {
+        const filters = selectedFilters.special;
+        let match = false;
+
+        if (filters.includes("featured") && m.isFeatured === true) match = true;
+        if (filters.includes("quick-prep") && (m.preparationTime ?? 999) < 30)
+          match = true;
+
+        return match || filters.length === 0;
+      });
+    }
+
+    // Apply nutrition filters
+    if (selectedFilters.nutrition) {
+      list = list.filter((m) => {
+        const filters = selectedFilters.nutrition;
+        let match = false;
+
+        if (
+          filters.includes("high-protein") &&
+          (m.nutritionInfo?.protein ?? 0) > 20
+        )
+          match = true;
+        if (
+          filters.includes("low-calorie") &&
+          (m.nutritionInfo?.calories ?? 999) < 400
+        )
+          match = true;
+        if (filters.includes("high-fiber") && (m.nutritionInfo?.fiber ?? 0) > 5)
+          match = true;
+
+        return match || filters.length === 0;
+      });
+    }
 
     console.log(
       `[menu] Filtered meals for category ${activeCategoryId}:`,
@@ -230,7 +353,7 @@ export default function CategoryBrowserScreen() {
       if (!a.isFeatured && b.isFeatured) return 1;
       return a.name.localeCompare(b.name);
     });
-  }, [mealsQuery.data, activeCategoryId, filterChips]);
+  }, [mealsQuery.data, activeCategoryId, filterChips, filterSections]);
 
   const handleMealPress = useCallback((mealId: string) => {
     router.push(`/meal/${mealId}`);
@@ -265,8 +388,37 @@ export default function CategoryBrowserScreen() {
   );
 
   const handleApplyFilters = useCallback(() => {
+    // Sync chip filters with modal selections
+    setFilterChips((prev) =>
+      prev.map((chip) => {
+        let selected = false;
+
+        // Check if corresponding filter is selected in modal
+        filterSections.forEach((section) => {
+          section.options.forEach((option) => {
+            if (
+              (chip.id === "veg" && option.id === "veg" && option.selected) ||
+              (chip.id === "non-veg" &&
+                option.id === "non-veg" &&
+                option.selected) ||
+              (chip.id === "featured" &&
+                option.id === "featured" &&
+                option.selected) ||
+              (chip.id === "under-300" &&
+                option.id === "under-150" &&
+                option.selected)
+            ) {
+              selected = true;
+            }
+          });
+        });
+
+        return { ...chip, selected };
+      })
+    );
+
     setShowFilterModal(false);
-  }, []);
+  }, [filterSections]);
 
   const handleClearFilters = useCallback(() => {
     setFilterChips((prev) => prev.map((c) => ({ ...c, selected: false })));
@@ -403,23 +555,38 @@ export default function CategoryBrowserScreen() {
         options={{
           title: "Menu",
           headerShown: true,
-          headerStyle: { backgroundColor: Colors.accent },
+          headerStyle: { backgroundColor: Colors.surface },
           headerTitleStyle: {
-            color: Colors.background,
+            color: Colors.primary,
             fontSize: 22,
             fontWeight: "700",
           },
-          headerRight: () => (
-            <View style={styles.filtersBar}>
-              <Text style={styles.filtersLabel}>Filters</Text>
-              <TouchableOpacity
-                onPress={() => setShowFilterModal(true)}
-                testID="open-filter"
-              >
-                <Text style={styles.filterAction}>Open</Text>
-              </TouchableOpacity>
-            </View>
-          ),
+          headerRight: () => {
+            const activeFilterCount = filterSections.reduce(
+              (count, section) =>
+                count + section.options.filter((opt) => opt.selected).length,
+              0
+            );
+
+            return (
+              <View style={styles.filtersBar}>
+                 <Text style={styles.filtersLabel}>
+                  {activeFilterCount > 0 ? `${activeFilterCount}` : ""}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowFilterModal(true)}
+                  testID="open-filter"
+                >
+                  
+                 
+                <Text style={styles.filterAction}>
+                    <FilterIcon />
+                  </Text>
+                </TouchableOpacity>
+                
+              </View>
+            );
+          },
         }}
       />
 
@@ -665,7 +832,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 8,
   },
-  filtersLabel: { fontSize: 14, fontWeight: "700", color: "#333" },
+  filtersLabel: { fontSize: 12, fontWeight: "700", marginTop:-18, marginRight:-6, backgroundColor:Colors.primary, paddingHorizontal:7, borderRadius:12, color:Colors.surface },
   filterAction: { color: "#111", fontWeight: "600" },
   headerIconBtn: { padding: 8 },
   loadingWrap: {

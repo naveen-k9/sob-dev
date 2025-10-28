@@ -11,6 +11,7 @@ import {
   Modal,
   Switch,
   Platform,
+  Animated,
 } from "react-native";
 import { Stack, router, useLocalSearchParams, useRouter } from "expo-router";
 import {
@@ -69,6 +70,9 @@ export default function MealDetailScreen() {
   const [allTimeSlots, setAllTimeSlots] = useState<TimeSlot[]>([]);
 
   const [barStyle, setBarStyle] = useState<"light" | "dark">("light");
+  const [showHeader, setShowHeader] = useState(false);
+  const headerOpacity = useState(new Animated.Value(0))[0];
+
   const onScrollStatusChange = (style: "light" | "dark") => {
     setBarStyle(style);
   };
@@ -258,14 +262,13 @@ export default function MealDetailScreen() {
     const daysPerWeek = weekType === "mon-fri" ? 5 : 6;
     const weeks = Math.ceil(selectedPlan.duration / daysPerWeek);
 
-    let productDayTotal = 0;
-    if (meal.allowDaySelection) {
-      const daysSel =
-        productDays.length === 0 ? availableDays.length : productDays.length;
-      const weeksCount = Math.ceil(
-        selectedPlan.duration / (weekType === "mon-fri" ? 5 : 6)
-      );
-      productDayTotal = meal.price * daysSel * weeksCount;
+    // Base price is always plan duration × meal price
+    // Day selection only affects WHICH days to deliver, not the total count
+    let basePrice = selectedPlan.discountedPrice;
+
+    // If trial, use dynamic trial price (meal.price * 2)
+    if (isTrialMode && meal) {
+      basePrice = meal.price * 2;
     }
 
     const addOnTotal = selectedAddOns.reduce((total, addOnId) => {
@@ -279,13 +282,7 @@ export default function MealDetailScreen() {
       return total + addOn.price * totalDaysForAddon;
     }, 0);
 
-    // For dynamic plans, base price is meal.price * duration
-    let basePrice = selectedPlan.discountedPrice;
-    // If trial, use dynamic trial price (meal.price * 2)
-    if (isTrialMode && meal) {
-      basePrice = meal.price * 2;
-    }
-    return basePrice + addOnTotal + productDayTotal;
+    return basePrice + addOnTotal;
   };
 
   const handleProceed = () => {
@@ -332,13 +329,64 @@ export default function MealDetailScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Custom Animated Header */}
+      <Animated.View
+        style={[
+          styles.customHeader,
+          {
+            opacity: headerOpacity,
+            transform: [
+              {
+                translateY: headerOpacity.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-60, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+        pointerEvents={showHeader ? "auto" : "none"}
+      >
+        <View style={styles.customHeaderContent}>
+          <TouchableOpacity
+            style={styles.customHeaderButton}
+            onPress={() => {
+              if (canGoBack) {
+                router.back();
+              } else {
+                router.replace("/(tabs)");
+              }
+            }}
+          >
+            <ArrowLeft size={24} color="#333" />
+          </TouchableOpacity>
+
+          <Text style={styles.customHeaderTitle} numberOfLines={1}>
+            {meal.name}
+          </Text>
+
+          <TouchableOpacity style={styles.customHeaderButton}>
+            <Share size={24} color="#333" />
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+
       <ScrollView
         style={styles.scrollView}
         onScroll={(e) => {
           const y = e.nativeEvent.contentOffset?.y ?? 0;
-          const threshold = TOP_BG_HEIGHT * 0.6;
-          const next: "light" | "dark" = y < threshold ? "light" : "dark";
-          if (next !== barStyle) onScrollStatusChange(next);
+          const threshold = TOP_BG_HEIGHT * 0.7;
+          const shouldShow = y > threshold;
+
+          if (shouldShow !== showHeader) {
+            setShowHeader(shouldShow);
+            Animated.spring(headerOpacity, {
+              toValue: shouldShow ? 1 : 0,
+              useNativeDriver: true,
+              tension: 100,
+              friction: 10,
+            }).start();
+          }
         }}
         scrollEventThrottle={16}
       >
@@ -370,9 +418,6 @@ export default function MealDetailScreen() {
               <ArrowLeft size={24} color="white" />
             </TouchableOpacity>
             <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.headerButton}>
-                <Heart size={24} color="white" />
-              </TouchableOpacity>
               <TouchableOpacity style={styles.headerButton}>
                 <Share size={24} color="white" />
               </TouchableOpacity>
@@ -1884,6 +1929,44 @@ const styles = StyleSheet.create({
   },
   mealImageText: {
     fontSize: 24,
+  },
+  customHeader: {
+    position: "absolute",
+    top: 40,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+    // shadowColor: "#000",
+    // shadowOffset: { width: 0, height: 2 },
+    // shadowOpacity: 0.1,
+    // shadowRadius: 3,
+    elevation: 4,
+  },
+  customHeaderContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  customHeaderButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "transparent",
+  },
+  customHeaderTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    textAlign: "center",
   },
   mealInfo: {
     flex: 1,

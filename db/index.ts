@@ -620,6 +620,70 @@ class Database {
     }
   }
 
+  // Admin-specific method to get ALL meals including drafts and inactive
+  async getAllMealsAdmin(): Promise<Meal[]> {
+    try {
+      // First try Firebase admin function
+      const { fetchAllMealsAdmin } = await import("@/services/firebase");
+      const meals = await fetchAllMealsAdmin();
+      if (meals && meals.length > 0) {
+        return meals.filter(
+          (meal) =>
+            meal &&
+            typeof meal.id === "string" &&
+            typeof meal.name === "string" &&
+            typeof meal.price === "number"
+        );
+      }
+
+      // Fallback to AsyncStorage - get ALL meals without filtering
+      const stored: Meal[] = (await this.getItem("meals")) || [];
+      if (stored && stored.length > 0) {
+        return stored.filter(
+          (meal) =>
+            meal &&
+            typeof meal.id === "string" &&
+            typeof meal.name === "string" &&
+            typeof meal.price === "number"
+        );
+      }
+
+      // Final fallback to initial meals
+      return this.getInitialMeals().filter(
+        (meal) =>
+          meal &&
+          typeof meal.id === "string" &&
+          typeof meal.name === "string" &&
+          typeof meal.price === "number"
+      );
+    } catch (e) {
+      console.error("[db] Error loading all meals for admin:", e);
+      // Try AsyncStorage fallback
+      try {
+        const stored: Meal[] = (await this.getItem("meals")) || [];
+        if (stored && stored.length > 0) {
+          return stored.filter(
+            (meal) =>
+              meal &&
+              typeof meal.id === "string" &&
+              typeof meal.name === "string" &&
+              typeof meal.price === "number"
+          );
+        }
+      } catch (err) {
+        console.error("[db] AsyncStorage fallback failed:", err);
+      }
+      // Final fallback to initial meals
+      return this.getInitialMeals().filter(
+        (meal) =>
+          meal &&
+          typeof meal.id === "string" &&
+          typeof meal.name === "string" &&
+          typeof meal.price === "number"
+      );
+    }
+  }
+
   async getMealById(id: string): Promise<Meal | null> {
     const meals = await this.getMeals();
     const found = meals.find((meal) => meal.id === id) || null;
@@ -1831,7 +1895,8 @@ class Database {
     ingredients?: string[];
     allergens?: string[];
   }): Promise<Meal> {
-    const meals = await this.getMeals();
+    // Use getAllMealsAdmin to include drafts when adding new meals
+    const meals = await this.getAllMealsAdmin();
     const defaultImage =
       "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600";
     const newMeal: Meal = {
@@ -2305,9 +2370,13 @@ class Database {
     mealId: string,
     updates: Partial<Meal>
   ): Promise<Meal | null> {
-    const meals = await this.getMeals();
+    // Use getAllMealsAdmin to get ALL meals including drafts
+    const meals = await this.getAllMealsAdmin();
     const index = meals.findIndex((meal) => meal.id === mealId);
-    if (index === -1) return null;
+    if (index === -1) {
+      console.error(`[db] Meal with id ${mealId} not found for update`);
+      return null;
+    }
 
     meals[index] = { ...meals[index], ...updates };
 

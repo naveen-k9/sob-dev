@@ -266,7 +266,7 @@ export default function WalletScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top"]}> 
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}

@@ -25,6 +25,7 @@ import {
   X,
   Check,
   Package,
+  Eye,
 } from "lucide-react-native";
 import db from "@/db";
 import { Meal, Category, AddOn } from "@/types";
@@ -42,6 +43,7 @@ export default function AdminMealsScreen() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
 
   // Form fields
@@ -79,7 +81,7 @@ export default function AdminMealsScreen() {
     try {
       setLoading(true);
       const [mealsData, categoriesData, addonsData] = await Promise.all([
-        db.getMeals(),
+        db.getAllMealsAdmin(), // Use admin method to get ALL meals including drafts
         db.getCategories(),
         db.getAddOns(),
       ]);
@@ -121,10 +123,20 @@ export default function AdminMealsScreen() {
     if (statusFilter === "active") {
       result = result.filter((m) => m.isActive && !m.isDraft);
     } else if (statusFilter === "inactive") {
-      result = result.filter((m) => !m.isActive);
+      result = result.filter((m) => !m.isActive && !m.isDraft);
     } else if (statusFilter === "draft") {
       result = result.filter((m) => m.isDraft);
     }
+    // When "all" is selected, show everything including drafts
+
+    console.log(`[Meals Admin] Status filter: ${statusFilter}`);
+    console.log(`[Meals Admin] Total meals: ${meals.length}`);
+    console.log(`[Meals Admin] Filtered meals: ${result.length}`);
+    console.log(
+      `[Meals Admin] Draft meals in all: ${
+        meals.filter((m) => m.isDraft).length
+      }`
+    );
 
     return result;
   }, [meals, searchQuery, categoryFilter, statusFilter]);
@@ -355,6 +367,176 @@ export default function AdminMealsScreen() {
     }
   };
 
+  const handleSaveAsDraft = async () => {
+    if (
+      !name.trim() ||
+      !description.trim() ||
+      !price.trim() ||
+      selectedCategories.length === 0
+    ) {
+      Alert.alert("Error", "Please fill all required fields");
+      return;
+    }
+
+    try {
+      const priceNum = parseFloat(price);
+      const originalPriceNum = originalPrice
+        ? parseFloat(originalPrice)
+        : undefined;
+      const prepTime = preparationTime ? parseInt(preparationTime) : undefined;
+
+      const nutritionInfo =
+        calories || protein || carbs || fat || fiber
+          ? {
+              calories: calories ? parseInt(calories) : 0,
+              protein: protein ? parseFloat(protein) : 0,
+              carbs: carbs ? parseFloat(carbs) : 0,
+              fat: fat ? parseFloat(fat) : 0,
+              fiber: fiber ? parseFloat(fiber) : 0,
+            }
+          : undefined;
+
+      const variantPricing =
+        vegVariantPrice || nonVegVariantPrice
+          ? {
+              veg: vegVariantPrice ? parseFloat(vegVariantPrice) : priceNum,
+              nonveg: nonVegVariantPrice
+                ? parseFloat(nonVegVariantPrice)
+                : priceNum,
+            }
+          : undefined;
+
+      await db.addMeal({
+        name: name.trim(),
+        description: description.trim(),
+        price: priceNum,
+        originalPrice: originalPriceNum,
+        categoryId: selectedCategories[0],
+        categoryIds: selectedCategories,
+        isVeg,
+        hasEgg,
+        image: imageUrl.trim() || undefined,
+        isActive: false,
+        isFeatured: false,
+        isDraft: true,
+        preparationTime: prepTime,
+        tags: tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
+        ingredients: ingredients
+          .split(",")
+          .map((i) => i.trim())
+          .filter(Boolean),
+        allergens: allergens
+          .split(",")
+          .map((a) => a.trim())
+          .filter(Boolean),
+        nutritionInfo,
+        isBasicThali,
+        variantPricing,
+        allowDaySelection,
+        addonIds: selectedAddons.length > 0 ? selectedAddons : undefined,
+      });
+
+      Alert.alert("Success", "Meal saved as draft successfully");
+      setShowAddModal(false);
+      loadData();
+    } catch (error) {
+      console.error("Error saving draft:", error);
+      Alert.alert("Error", "Failed to save draft");
+    }
+  };
+
+  const handlePreview = () => {
+    if (!name.trim() || !description.trim() || !price.trim()) {
+      Alert.alert(
+        "Error",
+        "Please fill name, description, and price to preview"
+      );
+      return;
+    }
+
+    const priceNum = parseFloat(price);
+    const originalPriceNum = originalPrice
+      ? parseFloat(originalPrice)
+      : undefined;
+    const prepTime = preparationTime ? parseInt(preparationTime) : undefined;
+
+    const nutritionInfo =
+      calories || protein || carbs || fat || fiber
+        ? {
+            calories: calories ? parseInt(calories) : 0,
+            protein: protein ? parseFloat(protein) : 0,
+            carbs: carbs ? parseFloat(carbs) : 0,
+            fat: fat ? parseFloat(fat) : 0,
+            fiber: fiber ? parseFloat(fiber) : 0,
+          }
+        : {
+            calories: 0,
+            protein: 0,
+            carbs: 0,
+            fat: 0,
+            fiber: 0,
+          };
+
+    const variantPricing =
+      vegVariantPrice || nonVegVariantPrice
+        ? {
+            veg: vegVariantPrice ? parseFloat(vegVariantPrice) : priceNum,
+            nonveg: nonVegVariantPrice
+              ? parseFloat(nonVegVariantPrice)
+              : priceNum,
+          }
+        : undefined;
+
+    const previewMeal: Meal = {
+      id: "preview",
+      name: name.trim(),
+      description: description.trim(),
+      images: imageUrl.trim()
+        ? [imageUrl.trim()]
+        : ["https://via.placeholder.com/400x300?text=No+Image"],
+      categoryId: selectedCategories[0] || "",
+      categoryIds: selectedCategories,
+      price: priceNum,
+      originalPrice: originalPriceNum,
+      isVeg,
+      hasEgg,
+      nutritionInfo,
+      ingredients: ingredients
+        .split(",")
+        .map((i) => i.trim())
+        .filter(Boolean),
+      allergens: allergens
+        .split(",")
+        .map((a) => a.trim())
+        .filter(Boolean),
+      isActive,
+      isFeatured,
+      isDraft: true,
+      rating: 0,
+      reviewCount: 0,
+      preparationTime: prepTime || 0,
+      tags: tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+      isBasicThali,
+      variantPricing,
+      allowDaySelection,
+      addonIds: selectedAddons.length > 0 ? selectedAddons : undefined,
+    };
+
+    setSelectedMeal(previewMeal);
+    setShowPreviewModal(true);
+  };
+
+  const handlePreviewMeal = (meal: Meal) => {
+    // Navigate to the meal detail page for full preview
+    router.push(`/meal/${meal.id}`);
+  };
+
   const handleDelete = async (mealId: string) => {
     Alert.alert(
       "Confirm Delete",
@@ -412,6 +594,12 @@ export default function AdminMealsScreen() {
             <Text style={styles.mealPrice}>₹{meal.price}</Text>
           </View>
           <View style={styles.mealActions}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => handlePreviewMeal(meal)}
+            >
+              <Eye size={20} color={meal.isDraft ? "#D97706" : "#6B7280"} />
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => openEditModal(meal)}
@@ -919,10 +1107,17 @@ export default function AdminMealsScreen() {
           {renderForm()}
           <View style={styles.modalFooter}>
             <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowAddModal(false)}
+              style={styles.previewButton}
+              onPress={handlePreview}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Eye size={18} color="#6B7280" />
+              <Text style={styles.previewButtonText}>Preview</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.draftButton}
+              onPress={handleSaveAsDraft}
+            >
+              <Text style={styles.draftButtonText}>Save as Draft</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.saveButton} onPress={handleAdd}>
               <Text style={styles.saveButtonText}>Add Meal</Text>
@@ -954,6 +1149,318 @@ export default function AdminMealsScreen() {
             </TouchableOpacity>
             <TouchableOpacity style={styles.saveButton} onPress={handleEdit}>
               <Text style={styles.saveButtonText}>Save Changes</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Preview Modal */}
+      <Modal
+        visible={showPreviewModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Preview Meal</Text>
+            <TouchableOpacity onPress={() => setShowPreviewModal(false)}>
+              <X size={24} color="#374151" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.previewContent}>
+            {selectedMeal && (
+              <View style={styles.previewCard}>
+                {/* Meal Image */}
+                <View style={styles.previewImageContainer}>
+                  {selectedMeal.images[0] &&
+                  selectedMeal.images[0] !==
+                    "https://via.placeholder.com/400x300?text=No+Image" ? (
+                    <View style={styles.previewImageWrapper}>
+                      <Text style={styles.previewImageText}>
+                        🖼️ Image Preview
+                      </Text>
+                      <Text style={styles.previewImageUrl} numberOfLines={1}>
+                        {selectedMeal.images[0]}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.previewImagePlaceholder}>
+                      <ChefHat size={48} color="#9CA3AF" />
+                      <Text style={styles.previewImagePlaceholderText}>
+                        No Image
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Badges */}
+                <View style={styles.previewBadges}>
+                  <View
+                    style={[
+                      styles.previewBadge,
+                      {
+                        backgroundColor: selectedMeal.isVeg
+                          ? "#DCFCE7"
+                          : "#FEE2E2",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.previewBadgeText,
+                        { color: selectedMeal.isVeg ? "#16A34A" : "#DC2626" },
+                      ]}
+                    >
+                      {selectedMeal.isVeg ? "🟢 Veg" : "🔴 Non-Veg"}
+                    </Text>
+                  </View>
+                  {selectedMeal.hasEgg && (
+                    <View
+                      style={[
+                        styles.previewBadge,
+                        { backgroundColor: "#FEF3C7" },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.previewBadgeText, { color: "#D97706" }]}
+                      >
+                        🥚 Contains Egg
+                      </Text>
+                    </View>
+                  )}
+                  {selectedMeal.isFeatured && (
+                    <View
+                      style={[
+                        styles.previewBadge,
+                        { backgroundColor: "#DBEAFE" },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.previewBadgeText, { color: "#2563EB" }]}
+                      >
+                        ⭐ Featured
+                      </Text>
+                    </View>
+                  )}
+                  {selectedMeal.isBasicThali && (
+                    <View
+                      style={[
+                        styles.previewBadge,
+                        { backgroundColor: "#E9D5FF" },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.previewBadgeText, { color: "#9333EA" }]}
+                      >
+                        🍱 Basic Thali
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Meal Name */}
+                <Text style={styles.previewMealName}>{selectedMeal.name}</Text>
+
+                {/* Description */}
+                <Text style={styles.previewDescription}>
+                  {selectedMeal.description}
+                </Text>
+
+                {/* Price Section */}
+                <View style={styles.previewPriceSection}>
+                  <View style={styles.previewPriceRow}>
+                    <Text style={styles.previewPrice}>
+                      ₹{selectedMeal.price}
+                    </Text>
+                    {selectedMeal.originalPrice && (
+                      <Text style={styles.previewOriginalPrice}>
+                        ₹{selectedMeal.originalPrice}
+                      </Text>
+                    )}
+                    {selectedMeal.originalPrice && (
+                      <View style={styles.previewDiscountBadge}>
+                        <Text style={styles.previewDiscountText}>
+                          {Math.round(
+                            ((selectedMeal.originalPrice - selectedMeal.price) /
+                              selectedMeal.originalPrice) *
+                              100
+                          )}
+                          % OFF
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  {selectedMeal.variantPricing && (
+                    <View style={styles.previewVariantPricing}>
+                      <Text style={styles.previewVariantText}>
+                        Veg: ₹{selectedMeal.variantPricing.veg}
+                      </Text>
+                      <Text style={styles.previewVariantText}>
+                        Non-Veg: ₹{selectedMeal.variantPricing.nonveg}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Categories */}
+                {selectedMeal.categoryIds &&
+                  selectedMeal.categoryIds.length > 0 && (
+                    <View style={styles.previewSection}>
+                      <Text style={styles.previewSectionTitle}>Categories</Text>
+                      <View style={styles.previewChips}>
+                        {selectedMeal.categoryIds.map((catId) => {
+                          const cat = categories.find((c) => c.id === catId);
+                          return cat ? (
+                            <View key={catId} style={styles.previewChip}>
+                              <Text style={styles.previewChipText}>
+                                {cat.name}
+                              </Text>
+                            </View>
+                          ) : null;
+                        })}
+                      </View>
+                    </View>
+                  )}
+
+                {/* Tags */}
+                {selectedMeal.tags && selectedMeal.tags.length > 0 && (
+                  <View style={styles.previewSection}>
+                    <Text style={styles.previewSectionTitle}>Tags</Text>
+                    <View style={styles.previewChips}>
+                      {selectedMeal.tags.map((tag, index) => (
+                        <View key={index} style={styles.previewChip}>
+                          <Text style={styles.previewChipText}>{tag}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Preparation Time */}
+                {selectedMeal.preparationTime > 0 && (
+                  <View style={styles.previewSection}>
+                    <Text style={styles.previewSectionTitle}>
+                      Preparation Time
+                    </Text>
+                    <Text style={styles.previewText}>
+                      {selectedMeal.preparationTime} minutes
+                    </Text>
+                  </View>
+                )}
+
+                {/* Nutrition Info */}
+                {selectedMeal.nutritionInfo && (
+                  <View style={styles.previewSection}>
+                    <Text style={styles.previewSectionTitle}>
+                      Nutrition Information
+                    </Text>
+                    <View style={styles.previewNutritionGrid}>
+                      <View style={styles.previewNutritionItem}>
+                        <Text style={styles.previewNutritionLabel}>
+                          Calories
+                        </Text>
+                        <Text style={styles.previewNutritionValue}>
+                          {selectedMeal.nutritionInfo.calories}
+                        </Text>
+                      </View>
+                      <View style={styles.previewNutritionItem}>
+                        <Text style={styles.previewNutritionLabel}>
+                          Protein
+                        </Text>
+                        <Text style={styles.previewNutritionValue}>
+                          {selectedMeal.nutritionInfo.protein}g
+                        </Text>
+                      </View>
+                      <View style={styles.previewNutritionItem}>
+                        <Text style={styles.previewNutritionLabel}>Carbs</Text>
+                        <Text style={styles.previewNutritionValue}>
+                          {selectedMeal.nutritionInfo.carbs}g
+                        </Text>
+                      </View>
+                      <View style={styles.previewNutritionItem}>
+                        <Text style={styles.previewNutritionLabel}>Fat</Text>
+                        <Text style={styles.previewNutritionValue}>
+                          {selectedMeal.nutritionInfo.fat}g
+                        </Text>
+                      </View>
+                      <View style={styles.previewNutritionItem}>
+                        <Text style={styles.previewNutritionLabel}>Fiber</Text>
+                        <Text style={styles.previewNutritionValue}>
+                          {selectedMeal.nutritionInfo.fiber}g
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {/* Ingredients */}
+                {selectedMeal.ingredients &&
+                  selectedMeal.ingredients.length > 0 && (
+                    <View style={styles.previewSection}>
+                      <Text style={styles.previewSectionTitle}>
+                        Ingredients
+                      </Text>
+                      <Text style={styles.previewText}>
+                        {selectedMeal.ingredients.join(", ")}
+                      </Text>
+                    </View>
+                  )}
+
+                {/* Allergens */}
+                {selectedMeal.allergens &&
+                  selectedMeal.allergens.length > 0 && (
+                    <View style={styles.previewSection}>
+                      <Text style={styles.previewSectionTitle}>Allergens</Text>
+                      <Text style={styles.previewText}>
+                        {selectedMeal.allergens.join(", ")}
+                      </Text>
+                    </View>
+                  )}
+
+                {/* Add-ons */}
+                {selectedMeal.addonIds && selectedMeal.addonIds.length > 0 && (
+                  <View style={styles.previewSection}>
+                    <Text style={styles.previewSectionTitle}>
+                      Available Add-ons
+                    </Text>
+                    <View style={styles.previewChips}>
+                      {selectedMeal.addonIds.map((addonId) => {
+                        const addon = addons.find((a) => a.id === addonId);
+                        return addon ? (
+                          <View key={addonId} style={styles.previewChip}>
+                            <Text style={styles.previewChipText}>
+                              {addon.name} - ₹{addon.price}
+                            </Text>
+                          </View>
+                        ) : null;
+                      })}
+                    </View>
+                  </View>
+                )}
+
+                {/* Settings */}
+                <View style={styles.previewSection}>
+                  <Text style={styles.previewSectionTitle}>Settings</Text>
+                  <View style={styles.previewSettingsList}>
+                    <View style={styles.previewSettingItem}>
+                      <Text style={styles.previewSettingLabel}>
+                        Allow Day Selection
+                      </Text>
+                      <Text style={styles.previewSettingValue}>
+                        {selectedMeal.allowDaySelection ? "Yes" : "No"}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+          <View style={styles.previewFooter}>
+            <TouchableOpacity
+              style={styles.closePreviewButton}
+              onPress={() => setShowPreviewModal(false)}
+            >
+              <Text style={styles.closePreviewButtonText}>Close Preview</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -1248,6 +1755,242 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "white",
+  },
+  previewButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+  },
+  previewButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  draftButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    backgroundColor: "#FEF3C7",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#FCD34D",
+  },
+  draftButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#D97706",
+  },
+  previewContent: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
+  },
+  previewCard: {
+    backgroundColor: "white",
+    margin: 16,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  previewImageContainer: {
+    marginBottom: 16,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  previewImageWrapper: {
+    backgroundColor: "#F3F4F6",
+    padding: 16,
+    alignItems: "center",
+  },
+  previewImageText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginBottom: 8,
+  },
+  previewImageUrl: {
+    fontSize: 12,
+    color: "#9CA3AF",
+  },
+  previewImagePlaceholder: {
+    backgroundColor: "#F3F4F6",
+    height: 200,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previewImagePlaceholderText: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    marginTop: 8,
+  },
+  previewBadges: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+  previewBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  previewBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  previewMealName: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#111827",
+    marginBottom: 8,
+  },
+  previewDescription: {
+    fontSize: 16,
+    color: "#6B7280",
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  previewPriceSection: {
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  previewPriceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  previewPrice: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#10B981",
+  },
+  previewOriginalPrice: {
+    fontSize: 18,
+    color: "#9CA3AF",
+    textDecorationLine: "line-through",
+  },
+  previewDiscountBadge: {
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  previewDiscountText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#16A34A",
+  },
+  previewVariantPricing: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  previewVariantText: {
+    fontSize: 14,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  previewSection: {
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  previewSectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#111827",
+    marginBottom: 12,
+  },
+  previewText: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 20,
+  },
+  previewChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  previewChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  previewChipText: {
+    fontSize: 13,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  previewNutritionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  previewNutritionItem: {
+    flex: 1,
+    minWidth: "30%",
+    backgroundColor: "#F9FAFB",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  previewNutritionLabel: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    marginBottom: 4,
+  },
+  previewNutritionValue: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#111827",
+  },
+  previewSettingsList: {
+    gap: 8,
+  },
+  previewSettingItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+  },
+  previewSettingLabel: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  previewSettingValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  previewFooter: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+  closePreviewButton: {
+    paddingVertical: 14,
+    borderRadius: 8,
+    backgroundColor: "#10B981",
+    alignItems: "center",
+  },
+  closePreviewButtonText: {
     fontSize: 16,
     fontWeight: "600",
     color: "white",

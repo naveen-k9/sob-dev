@@ -23,13 +23,16 @@ import {
   Check,
   CheckCircle,
   XCircle,
+  FilterIcon,
 } from "lucide-react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import db from "@/db";
 import RazorpayCheckout from "react-native-razorpay";
 import { Colors } from "@/constants/colors";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { addOns } from "@/constants/data";
+import { StatusBar } from "expo-status-bar";
+import { Filter } from "react-native-svg";
 export default function CheckoutScreen() {
   const { user, isGuest, updateUser } = useAuth();
   const { subscriptionData } = useLocalSearchParams();
@@ -825,17 +828,21 @@ export default function CheckoutScreen() {
     }, 2000);
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView style={styles.container}>
-      <Stack.Screen
+     
+      <SafeAreaView style={[styles.container]} edges={["top"]}>
+        <Stack.Screen
         options={{
           title: "Checkout",
           headerShown: true,
-          headerStyle: { backgroundColor: Colors.primary },
+          headerStyle: { backgroundColor: Colors.primary  },
           headerTitleStyle: {
             color: Colors.background,
             fontSize: 18,
             fontWeight: "700",
+            
           },
           headerLeft: () => (
             <View style={{ marginLeft: 18, marginRight: 9 }}>
@@ -850,724 +857,757 @@ export default function CheckoutScreen() {
         }}
       />
 
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
-        {!subscriptionDetails ? (
-          <View style={styles.loadingContainer}>
-            <Text>Loading...</Text>
-          </View>
-        ) : (
-          <>
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Delivery Address</Text>
-              {selectedAddress ? (
-                <TouchableOpacity
-                  style={styles.addressCard}
-                  onPress={() => setShowAddressBook(true)}
-                >
-                  <View style={styles.addressIconContainer}>
-                    <MapPin size={20} color="#48479B" />
-                  </View>
-                  <View style={styles.addressContent}>
-                    <View style={styles.addressHeader}>
-                      <Text style={styles.addressLabel}>
-                        {selectedAddress.label}
-                      </Text>
-                      {selectedAddress.isDefault && (
-                        <View style={styles.defaultBadge}>
-                          <Text style={styles.defaultBadgeText}>Default</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={styles.addressName}>
-                      {selectedAddress.name}
-                    </Text>
-                    <Text style={styles.addressText}>
-                      {selectedAddress.addressLine}
-                    </Text>
-                    <Text style={styles.addressSubtext}>
-                      {selectedAddress.city}, {selectedAddress.state} -{" "}
-                      {selectedAddress.pincode}
-                    </Text>
-                  </View>
-                  <View style={styles.addressActions}>
-                    <Text style={styles.changeButtonText}>Change</Text>
-                    <Text style={styles.chevron}>›</Text>
-                  </View>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={styles.addAddressCard}
-                  onPress={() => setShowAddressBook(true)}
-                >
-                  <View style={styles.addAddressIconContainer}>
-                    <MapPin size={24} color="#48479B" />
-                  </View>
-                  <View style={styles.addressContent}>
-                    <Text style={styles.addAddressText}>
-                      Add Delivery Address
-                    </Text>
-                    <Text style={styles.addAddressSubtext}>
-                      Please add an address to continue with your order
-                    </Text>
-                  </View>
-                  <View style={styles.addressActions}>
-                    <Text style={styles.addButtonText}>Add</Text>
-                    <Text style={styles.chevron}>›</Text>
-                  </View>
-                </TouchableOpacity>
-              )}
+      <Stack.Screen options={{ headerShown: false }} />
+      
+            {/* Header */}
+            <View style={styles.header}>
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.backButton}
+              >
+                <ArrowLeft size={24} color={Colors.text} />
+                 <Text style={styles.headerTitle}>Checkout</Text>
+              </TouchableOpacity>
+             
+              <TouchableOpacity
+                onPress={() => {}}
+              >
+                {/* <FilterIcon size={24} color={Colors.text} /> */}
+              </TouchableOpacity>
             </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Order Summary</Text>
-              <View style={styles.summaryCard}>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>
-                    {subscriptionDetails.meal?.name}
-                  </Text>
-                  <Text style={styles.summaryValue}>
-                    ₹{subscriptionDetails.meal?.price}
-                  </Text>
-                </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>
-                    {orderSummary.planName} ({orderSummary.duration} days)
-                  </Text>
-                  <Text style={styles.summaryValue}>
-                    ₹{orderSummary.originalPrice}
-                  </Text>
-                </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Plan Discount</Text>
-                  <Text style={styles.discountValue}>
-                    -₹{orderSummary.discount}
-                  </Text>
-                </View>
-                {subscriptionDetails.isTrialMode && (
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>
-                      Trial Discount (50%)
-                    </Text>
-                    <Text style={styles.discountValue}>
-                      -₹{orderSummary.trialDiscount}
-                    </Text>
-                  </View>
-                )}
-                {(subscriptionDetails.addOns?.length ?? 0) > 0 && (
-                  <>
-                    <View style={styles.summaryRow}>
-                      <Text
-                        style={[
-                          styles.summaryLabel,
-                          { fontWeight: "600", marginTop: 8 },
-                        ]}
-                      >
-                        Add-ons
-                      </Text>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+        >
+          
+          {!subscriptionDetails ? (
+            <View style={styles.loadingContainer}>
+              <Text>Loading...</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Delivery Address</Text>
+                {selectedAddress ? (
+                  <TouchableOpacity
+                    style={styles.addressCard}
+                    onPress={() => setShowAddressBook(true)}
+                  >
+                    <View style={styles.addressIconContainer}>
+                      <MapPin size={20} color="#48479B" />
                     </View>
-                    {(subscriptionDetails.addOns ?? []).map(
-                      (addOnId: string) => {
-                        const addOn = addOns.find((a) => a.id === addOnId);
-                        if (!addOn) return null;
-                        const addOnPrice = addOn.price * orderSummary.duration;
-                        return (
-                          <View
-                            key={addOnId}
-                            style={[styles.summaryRow, { paddingLeft: 16 }]}
-                          >
-                            <Text
-                              style={[
-                                styles.summaryLabel,
-                                { fontSize: 14, color: "#666" },
-                              ]}
-                            >
-                              • {addOn.name} x {orderSummary.duration} days
-                            </Text>
-                            <Text
-                              style={[styles.summaryValue, { fontSize: 14 }]}
-                            >
-                              ₹{addOnPrice}
-                            </Text>
+                    <View style={styles.addressContent}>
+                      <View style={styles.addressHeader}>
+                        <Text style={styles.addressLabel}>
+                          {selectedAddress.label}
+                        </Text>
+                        {selectedAddress.isDefault && (
+                          <View style={styles.defaultBadge}>
+                            <Text style={styles.defaultBadgeText}>Default</Text>
                           </View>
-                        );
-                      }
-                    )}
-                    <View style={styles.summaryRow}>
-                      <Text style={styles.summaryLabel}>Add-ons Total</Text>
-                      <Text style={styles.summaryValue}>
-                        ₹{orderSummary.addOnTotal}
+                        )}
+                      </View>
+                      <Text style={styles.addressName}>
+                        {selectedAddress.name}
+                      </Text>
+                      <Text style={styles.addressText}>
+                        {selectedAddress.addressLine}
+                      </Text>
+                      <Text style={styles.addressSubtext}>
+                        {selectedAddress.city}, {selectedAddress.state} -{" "}
+                        {selectedAddress.pincode}
                       </Text>
                     </View>
-                  </>
+                    <View style={styles.addressActions}>
+                      <Text style={styles.changeButtonText}>Change</Text>
+                      <Text style={styles.chevron}>›</Text>
+                    </View>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.addAddressCard}
+                    onPress={() => setShowAddressBook(true)}
+                  >
+                    <View style={styles.addAddressIconContainer}>
+                      <MapPin size={24} color="#48479B" />
+                    </View>
+                    <View style={styles.addressContent}>
+                      <Text style={styles.addAddressText}>
+                        Add Delivery Address
+                      </Text>
+                      <Text style={styles.addAddressSubtext}>
+                        Please add an address to continue with your order
+                      </Text>
+                    </View>
+                    <View style={styles.addressActions}>
+                      <Text style={styles.addButtonText}>Add</Text>
+                      <Text style={styles.chevron}>›</Text>
+                    </View>
+                  </TouchableOpacity>
                 )}
-                {promoApplied && (
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Order Summary</Text>
+                <View style={styles.summaryCard}>
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>
-                      Promo Discount (
-                      {appliedOffer?.promoCode ??
-                        appliedOffer?.code ??
-                        promoCode}
-                      )
+                      {subscriptionDetails.meal?.name}
                     </Text>
-                    <Text style={styles.discountValue}>
-                      -₹{orderSummary.promoDiscount}
+                    <Text style={styles.summaryValue}>
+                      ₹{subscriptionDetails.meal?.price}
                     </Text>
                   </View>
-                )}
-                {applyWallet && orderSummary.walletAppliedAmount > 0 && (
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Wallet Used</Text>
-                    <Text style={styles.discountValue}>
-                      -₹{orderSummary.walletAppliedAmount}
+                    <Text style={styles.summaryLabel}>
+                      {orderSummary.planName} ({orderSummary.duration} days)
+                    </Text>
+                    <Text style={styles.summaryValue}>
+                      ₹{orderSummary.originalPrice}
                     </Text>
                   </View>
-                )}
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Delivery Fee</Text>
-                  <Text style={styles.freeText}>FREE</Text>
-                </View>
-                <View style={styles.divider} />
-                <View style={styles.summaryRow}>
-                  <Text style={styles.totalLabel}>Total Amount</Text>
-                  <Text style={styles.totalValue}>
-                    ₹{orderSummary.finalAmount}
-                  </Text>
-                </View>
-              </View>
-            </View>
-            {/* Delivery Slot Selection (EXACT MATCH + DEBUG) */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Delivery Time</Text>
-              <View style={styles.timeSlotContainer}>
-                {allTimeSlots
-                  .filter(
-                    (s) =>
-                      !subscriptionDetails?.meal?.availableTimeSlotIds ||
-                      subscriptionDetails.meal.availableTimeSlotIds.length ===
-                        0 ||
-                      subscriptionDetails.meal.availableTimeSlotIds.includes(
-                        s.id
-                      )
-                  )
-                  .map((slot) => {
-                    const isSelected = selectedTimeSlot?.id === slot.id;
-                    return (
-                      <TouchableOpacity
-                        key={slot.id}
-                        style={[
-                          styles.timeSlotButton,
-                          isSelected && styles.selectedTimeSlot,
-                        ]}
-                        onPress={() => {
-                          setSelectedTimeSlot(slot);
-                          console.log(
-                            "[CHECKOUT] Selected delivery slot:",
-                            slot
-                          );
-                        }}
-                      >
-                        {/* Use same icon as meal id */}
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Plan Discount</Text>
+                    <Text style={styles.discountValue}>
+                      -₹{orderSummary.discount}
+                    </Text>
+                  </View>
+                  {subscriptionDetails.isTrialMode && (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>
+                        Trial Discount (50%)
+                      </Text>
+                      <Text style={styles.discountValue}>
+                        -₹{orderSummary.trialDiscount}
+                      </Text>
+                    </View>
+                  )}
+                  {(subscriptionDetails.addOns?.length ?? 0) > 0 && (
+                    <>
+                      <View style={styles.summaryRow}>
                         <Text
                           style={[
-                            styles.timeSlotText,
-                            isSelected && styles.selectedTimeSlotText,
+                            styles.summaryLabel,
+                            { fontWeight: "600", marginTop: 8 },
                           ]}
                         >
-                          {slot.time}
+                          Add-ons
                         </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                      </View>
+                      {(subscriptionDetails.addOns ?? []).map(
+                        (addOnId: string) => {
+                          const addOn = addOns.find((a) => a.id === addOnId);
+                          if (!addOn) return null;
+                          const addOnPrice =
+                            addOn.price * orderSummary.duration;
+                          return (
+                            <View
+                              key={addOnId}
+                              style={[styles.summaryRow, { paddingLeft: 16 }]}
+                            >
+                              <Text
+                                style={[
+                                  styles.summaryLabel,
+                                  { fontSize: 14, color: "#666" },
+                                ]}
+                              >
+                                • {addOn.name} x {orderSummary.duration} days
+                              </Text>
+                              <Text
+                                style={[styles.summaryValue, { fontSize: 14 }]}
+                              >
+                                ₹{addOnPrice}
+                              </Text>
+                            </View>
+                          );
+                        }
+                      )}
+                      <View style={styles.summaryRow}>
+                        <Text style={styles.summaryLabel}>Add-ons Total</Text>
+                        <Text style={styles.summaryValue}>
+                          ₹{orderSummary.addOnTotal}
+                        </Text>
+                      </View>
+                    </>
+                  )}
+                  {promoApplied && (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>
+                        Promo Discount (
+                        {appliedOffer?.promoCode ??
+                          appliedOffer?.code ??
+                          promoCode}
+                        )
+                      </Text>
+                      <Text style={styles.discountValue}>
+                        -₹{orderSummary.promoDiscount}
+                      </Text>
+                    </View>
+                  )}
+                  {applyWallet && orderSummary.walletAppliedAmount > 0 && (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Wallet Used</Text>
+                      <Text style={styles.discountValue}>
+                        -₹{orderSummary.walletAppliedAmount}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Delivery Fee</Text>
+                    <Text style={styles.freeText}>FREE</Text>
+                  </View>
+                  <View style={styles.divider} />
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.totalLabel}>Total Amount</Text>
+                    <Text style={styles.totalValue}>
+                      ₹{orderSummary.finalAmount}
+                    </Text>
+                  </View>
+                </View>
               </View>
-              <Text style={{ fontSize: 12, color: "#666" }}>
-                DEBUG: selectedTimeSlot = {JSON.stringify(selectedTimeSlot)}
-              </Text>
-            </View>
-            {/* Start Date Selection (EXACT MATCH + DEBUG) */}
-            <View style={styles.section}>
+              {/* Delivery Slot Selection (EXACT MATCH + DEBUG) */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Delivery Time</Text>
+                <View style={styles.timeSlotContainer}>
+                  {allTimeSlots
+                    .filter(
+                      (s) =>
+                        !subscriptionDetails?.meal?.availableTimeSlotIds ||
+                        subscriptionDetails.meal.availableTimeSlotIds.length ===
+                          0 ||
+                        subscriptionDetails.meal.availableTimeSlotIds.includes(
+                          s.id
+                        )
+                    )
+                    .map((slot) => {
+                      const isSelected = selectedTimeSlot?.id === slot.id;
+                      return (
+                        <TouchableOpacity
+                          key={slot.id}
+                          style={[
+                            styles.timeSlotButton,
+                            isSelected && styles.selectedTimeSlot,
+                          ]}
+                          onPress={() => {
+                            setSelectedTimeSlot(slot);
+                            console.log(
+                              "[CHECKOUT] Selected delivery slot:",
+                              slot
+                            );
+                          }}
+                        >
+                          {/* Use same icon as meal id */}
+                          <Text
+                            style={[
+                              styles.timeSlotText,
+                              isSelected && styles.selectedTimeSlotText,
+                            ]}
+                          >
+                            {slot.time}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                </View>
+                <Text style={{ fontSize: 12, color: "#666" }}>
+                  DEBUG: selectedTimeSlot = {JSON.stringify(selectedTimeSlot)}
+                </Text>
+              </View>
+              {/* Start Date Selection (EXACT MATCH + DEBUG) */}
+              <View style={styles.section}>
+                <TouchableOpacity
+                  style={styles.dateSelector}
+                  onPress={() => {
+                    setShowDatePicker(true);
+                    console.log(
+                      "[CHECKOUT] Opened date picker, current startDate:",
+                      startDate
+                    );
+                  }}
+                >
+                  <Text style={styles.dateLabel}>Start Date</Text>
+                  <Text style={styles.dateValue}>
+                    {startDate.toLocaleDateString("en-US", {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </Text>
+                </TouchableOpacity>
+                <Text style={{ fontSize: 12, color: "#666" }}>
+                  DEBUG: startDate = {startDate.toISOString()}
+                </Text>
+              </View>
+
+              {/* Order for Someone Else Section */}
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>
+                    Order for Someone Else?
+                  </Text>
+                  <Switch
+                    value={orderForSomeoneElse}
+                    onValueChange={setOrderForSomeoneElse}
+                    trackColor={{ false: "#D1D5DB", true: "#A3D397" }}
+                    thumbColor={orderForSomeoneElse ? "#48479B" : "#f4f3f4"}
+                  />
+                </View>
+                {orderForSomeoneElse && (
+                  <View style={styles.recipientForm}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Recipient Name *"
+                      value={recipientName}
+                      onChangeText={setRecipientName}
+                      placeholderTextColor="#999"
+                    />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Recipient Phone *"
+                      value={recipientPhone}
+                      onChangeText={setRecipientPhone}
+                      keyboardType="phone-pad"
+                      placeholderTextColor="#999"
+                      maxLength={10}
+                    />
+                    <Text style={styles.recipientNote}>
+                      📱 The recipient will receive order updates on this number
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Promo Code</Text>
+                <View style={styles.promoContainer}>
+                  <View style={styles.promoInputContainer}>
+                    <Tag size={20} color="#666" />
+                    <TextInput
+                      style={styles.promoInput}
+                      placeholder="Enter promo code"
+                      value={promoCode}
+                      onChangeText={setPromoCode}
+                      autoCapitalize="none"
+                    />
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.applyButton,
+                      promoApplied && styles.appliedButton,
+                    ]}
+                    onPress={handleApplyPromo}
+                    disabled={promoApplied}
+                  >
+                    {promoApplied ? (
+                      <Check size={16} color="white" />
+                    ) : (
+                      <Text style={styles.applyButtonText}>Apply</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Referral Code</Text>
+                <View style={styles.promoContainer}>
+                  <View style={styles.promoInputContainer}>
+                    <Tag size={20} color="#666" />
+                    <TextInput
+                      style={styles.promoInput}
+                      placeholder="Enter referral code"
+                      value={referralCode}
+                      onChangeText={setReferralCode}
+                      autoCapitalize="characters"
+                      testID="referral-input"
+                    />
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.applyButton,
+                      (referralApplied || referralApplying) &&
+                        styles.appliedButton,
+                    ]}
+                    onPress={handleApplyReferral}
+                    disabled={referralApplied || referralApplying}
+                    testID="referral-apply"
+                  >
+                    {referralApplied ? (
+                      <Check size={16} color="white" />
+                    ) : referralApplying ? (
+                      <Text style={styles.applyButtonText}>Applying...</Text>
+                    ) : (
+                      <Text style={styles.applyButtonText}>Apply</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+                <Text style={{ color: "#666", fontSize: 12, marginTop: 8 }}>
+                  Both you and your friend get ₹200 in wallet on successful
+                  referral.
+                </Text>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Use Wallet</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.walletRow,
+                    applyWallet && styles.walletRowActive,
+                  ]}
+                  onPress={() => {
+                    const next = !applyWallet;
+                    setApplyWallet(next);
+                    if (next) {
+                      const saveAmt = Math.min(
+                        walletBalance,
+                        orderSummary.subtotalAfterPromo
+                      );
+                      showToast(`Wallet applied. You saved ₹${saveAmt}.`);
+                    }
+                  }}
+                  testID="wallet-apply"
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: applyWallet }}
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      applyWallet && styles.checkboxChecked,
+                    ]}
+                  >
+                    {applyWallet && <Check size={16} color="#fff" />}
+                  </View>
+                  <View style={styles.walletContent}>
+                    <Text style={styles.walletTitle}>Use wallet balance</Text>
+                    <Text style={styles.walletSub}>
+                      Available: ₹{walletBalance}
+                    </Text>
+                  </View>
+                  {applyWallet && orderSummary.walletAppliedAmount > 0 && (
+                    <Text style={styles.walletAppliedText}>
+                      -₹{orderSummary.walletAppliedAmount}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Payment methods removed: redirecting directly to Razorpay on pay */}
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>
+                  Delivery Instructions (Optional)
+                </Text>
+                <TextInput
+                  style={styles.instructionsInput}
+                  placeholder="e.g., Leave at the door, Ring the bell twice"
+                  value={deliveryInstructions}
+                  onChangeText={setDeliveryInstructions}
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
+
+              <View style={styles.bottomSpacing} />
+            </>
+          )}
+        </ScrollView>
+
+        {/* Bottom CTA */}
+        <View style={styles.bottomContainer}>
+          <View style={styles.totalContainer}>
+            <Text style={styles.totalText}>
+              Payable: ₹{orderSummary.payableAmount}
+            </Text>
+            <Text style={styles.savingsText}>
+              You save ₹
+              {orderSummary.discount +
+                orderSummary.promoDiscount +
+                orderSummary.trialDiscount}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.placeOrderButton}
+            onPress={handlePlaceOrder}
+          >
+            <Text style={styles.placeOrderButtonText}>
+              {isGuest
+                ? "Login & Place Order"
+                : orderSummary.payableAmount === 0
+                ? "Activate Now"
+                : "Pay Now"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Date Picker Modal (EXACT MATCH + DEBUG) */}
+        <Modal
+          visible={showDatePicker}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <SafeAreaView style={styles.datePickerContainer}>
+            <View style={styles.datePickerHeader}>
+              <Text style={styles.datePickerTitle}>Select Start Date</Text>
               <TouchableOpacity
-                style={styles.dateSelector}
+                style={styles.closeButton}
                 onPress={() => {
-                  setShowDatePicker(true);
+                  setShowDatePicker(false);
                   console.log(
-                    "[CHECKOUT] Opened date picker, current startDate:",
+                    "[CHECKOUT] Closed date picker, startDate:",
                     startDate
                   );
                 }}
               >
-                <Text style={styles.dateLabel}>Start Date</Text>
-                <Text style={styles.dateValue}>
-                  {startDate.toLocaleDateString("en-US", {
-                    weekday: "short",
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </Text>
+                <Text style={{ fontSize: 24 }}>×</Text>
               </TouchableOpacity>
-              <Text style={{ fontSize: 12, color: "#666" }}>
+            </View>
+            <ScrollView style={styles.datePickerContent}>
+              <Text style={styles.datePickerDescription}>
+                Choose when you want your subscription to start. You can select
+                today or any future date.
+              </Text>
+              <View style={styles.dateOptionsContainer}>
+                {/* Today Option */}
+                <TouchableOpacity
+                  style={[
+                    styles.dateOption,
+                    startDate.toDateString() === new Date().toDateString() &&
+                      styles.selectedDateOption,
+                  ]}
+                  onPress={() => {
+                    setStartDate(new Date());
+                    setShowDatePicker(false);
+                    console.log(
+                      "[CHECKOUT] Picked startDate: Today",
+                      new Date()
+                    );
+                  }}
+                >
+                  <View style={styles.dateOptionContent}>
+                    <Text style={styles.dateOptionTitle}>Today</Text>
+                    <Text style={styles.dateOptionSubtitle}>
+                      {new Date().toLocaleDateString("en-US", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                      })}
+                    </Text>
+                  </View>
+                  {startDate.toDateString() === new Date().toDateString() && (
+                    <View style={styles.selectedIndicator}>
+                      <Text style={styles.checkMark}>✓</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                {/* Tomorrow Option */}
+                {(() => {
+                  const tomorrow = new Date();
+                  tomorrow.setDate(tomorrow.getDate() + 1);
+                  return (
+                    <TouchableOpacity
+                      style={[
+                        styles.dateOption,
+                        startDate.toDateString() === tomorrow.toDateString() &&
+                          styles.selectedDateOption,
+                      ]}
+                      onPress={() => {
+                        setStartDate(tomorrow);
+                        setShowDatePicker(false);
+                        console.log(
+                          "[CHECKOUT] Picked startDate: Tomorrow",
+                          tomorrow
+                        );
+                      }}
+                    >
+                      <View style={styles.dateOptionContent}>
+                        <Text style={styles.dateOptionTitle}>Tomorrow</Text>
+                        <Text style={styles.dateOptionSubtitle}>
+                          {tomorrow.toLocaleDateString("en-US", {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "long",
+                          })}
+                        </Text>
+                      </View>
+                      {startDate.toDateString() === tomorrow.toDateString() && (
+                        <View style={styles.selectedIndicator}>
+                          <Text style={styles.checkMark}>✓</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })()}
+                {/* Next Week Options */}
+                {Array.from({ length: 7 }, (_, i) => {
+                  const futureDate = new Date();
+                  futureDate.setDate(futureDate.getDate() + i + 2);
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      style={[
+                        styles.dateOption,
+                        startDate.toDateString() ===
+                          futureDate.toDateString() &&
+                          styles.selectedDateOption,
+                      ]}
+                      onPress={() => {
+                        setStartDate(futureDate);
+                        setShowDatePicker(false);
+                        console.log(
+                          "[CHECKOUT] Picked startDate: Future",
+                          futureDate
+                        );
+                      }}
+                    >
+                      <View style={styles.dateOptionContent}>
+                        <Text style={styles.dateOptionTitle}>
+                          {futureDate.toLocaleDateString("en-US", {
+                            weekday: "long",
+                          })}
+                        </Text>
+                        <Text style={styles.dateOptionSubtitle}>
+                          {futureDate.toLocaleDateString("en-US", {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          })}
+                        </Text>
+                      </View>
+                      {startDate.toDateString() ===
+                        futureDate.toDateString() && (
+                        <View style={styles.selectedIndicator}>
+                          <Text style={styles.checkMark}>✓</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <View style={styles.datePickerNote}>
+                <Text style={styles.datePickerNoteText}>
+                  💡 Your subscription will start on the selected date. You can
+                  modify or skip meals up to the cutoff time.
+                </Text>
+              </View>
+              <Text style={{ fontSize: 12, color: "#666", marginTop: 12 }}>
                 DEBUG: startDate = {startDate.toISOString()}
               </Text>
-            </View>
-
-            {/* Order for Someone Else Section */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Order for Someone Else?</Text>
-                <Switch
-                  value={orderForSomeoneElse}
-                  onValueChange={setOrderForSomeoneElse}
-                  trackColor={{ false: "#D1D5DB", true: "#A3D397" }}
-                  thumbColor={orderForSomeoneElse ? "#48479B" : "#f4f3f4"}
-                />
-              </View>
-              {orderForSomeoneElse && (
-                <View style={styles.recipientForm}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Recipient Name *"
-                    value={recipientName}
-                    onChangeText={setRecipientName}
-                    placeholderTextColor="#999"
-                  />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Recipient Phone *"
-                    value={recipientPhone}
-                    onChangeText={setRecipientPhone}
-                    keyboardType="phone-pad"
-                    placeholderTextColor="#999"
-                    maxLength={10}
-                  />
-                  <Text style={styles.recipientNote}>
-                    📱 The recipient will receive order updates on this number
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+        {/* Payment Modal */}
+        <Modal
+          visible={showPaymentModal}
+          animationType="fade"
+          transparent={true}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.paymentModal}>
+              {paymentStatus === "processing" && (
+                <>
+                  <View style={styles.processingIcon}>
+                    <Text style={styles.processingText}>💳</Text>
+                  </View>
+                  <Text style={styles.modalTitle}>Processing Payment</Text>
+                  <Text style={styles.modalSubtitle}>
+                    Please wait while we process your payment...
                   </Text>
-                </View>
+                </>
+              )}
+
+              {paymentStatus === "success" && (
+                <>
+                  <CheckCircle size={60} color="#10B981" />
+                  <Text style={styles.modalTitle}>Payment Successful!</Text>
+                  <Text style={styles.modalSubtitle}>
+                    Your subscription has been activated. You will receive a
+                    confirmation on WhatsApp.
+                  </Text>
+                  {orderSummary.walletAppliedAmount > 0 && (
+                    <Text
+                      style={[
+                        styles.modalSubtitle,
+                        { color: "#10B981", marginTop: 8 },
+                      ]}
+                    >
+                      Wallet used: ₹{orderSummary.walletAppliedAmount}
+                    </Text>
+                  )}
+                  {promoApplied && (
+                    <Text
+                      style={[
+                        styles.modalSubtitle,
+                        { color: "#10B981", marginTop: 4 },
+                      ]}
+                    >
+                      Promo saved: ₹{orderSummary.promoDiscount}
+                    </Text>
+                  )}
+                </>
+              )}
+
+              {paymentStatus === "failed" && (
+                <>
+                  <XCircle size={60} color="#EF4444" />
+                  <Text style={styles.modalTitle}>Payment Failed</Text>
+                  <Text style={styles.modalSubtitle}>
+                    There was an issue processing your payment. Please try
+                    again.
+                  </Text>
+                  <View style={styles.modalButtons}>
+                    <TouchableOpacity
+                      style={styles.retryButton}
+                      onPress={retryPayment}
+                    >
+                      <Text style={styles.retryButtonText}>Retry Payment</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.cancelButton}
+                      onPress={() => setShowPaymentModal(false)}
+                    >
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
               )}
             </View>
+          </View>
+        </Modal>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Promo Code</Text>
-              <View style={styles.promoContainer}>
-                <View style={styles.promoInputContainer}>
-                  <Tag size={20} color="#666" />
-                  <TextInput
-                    style={styles.promoInput}
-                    placeholder="Enter promo code"
-                    value={promoCode}
-                    onChangeText={setPromoCode}
-                    autoCapitalize="none"
-                  />
-                </View>
-                <TouchableOpacity
-                  style={[
-                    styles.applyButton,
-                    promoApplied && styles.appliedButton,
-                  ]}
-                  onPress={handleApplyPromo}
-                  disabled={promoApplied}
-                >
-                  {promoApplied ? (
-                    <Check size={16} color="white" />
-                  ) : (
-                    <Text style={styles.applyButtonText}>Apply</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Referral Code</Text>
-              <View style={styles.promoContainer}>
-                <View style={styles.promoInputContainer}>
-                  <Tag size={20} color="#666" />
-                  <TextInput
-                    style={styles.promoInput}
-                    placeholder="Enter referral code"
-                    value={referralCode}
-                    onChangeText={setReferralCode}
-                    autoCapitalize="characters"
-                    testID="referral-input"
-                  />
-                </View>
-                <TouchableOpacity
-                  style={[
-                    styles.applyButton,
-                    (referralApplied || referralApplying) &&
-                      styles.appliedButton,
-                  ]}
-                  onPress={handleApplyReferral}
-                  disabled={referralApplied || referralApplying}
-                  testID="referral-apply"
-                >
-                  {referralApplied ? (
-                    <Check size={16} color="white" />
-                  ) : referralApplying ? (
-                    <Text style={styles.applyButtonText}>Applying...</Text>
-                  ) : (
-                    <Text style={styles.applyButtonText}>Apply</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-              <Text style={{ color: "#666", fontSize: 12, marginTop: 8 }}>
-                Both you and your friend get ₹200 in wallet on successful
-                referral.
-              </Text>
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Use Wallet</Text>
-              <TouchableOpacity
-                style={[
-                  styles.walletRow,
-                  applyWallet && styles.walletRowActive,
-                ]}
-                onPress={() => {
-                  const next = !applyWallet;
-                  setApplyWallet(next);
-                  if (next) {
-                    const saveAmt = Math.min(
-                      walletBalance,
-                      orderSummary.subtotalAfterPromo
-                    );
-                    showToast(`Wallet applied. You saved ₹${saveAmt}.`);
-                  }
-                }}
-                testID="wallet-apply"
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: applyWallet }}
-              >
-                <View
-                  style={[
-                    styles.checkbox,
-                    applyWallet && styles.checkboxChecked,
-                  ]}
-                >
-                  {applyWallet && <Check size={16} color="#fff" />}
-                </View>
-                <View style={styles.walletContent}>
-                  <Text style={styles.walletTitle}>Use wallet balance</Text>
-                  <Text style={styles.walletSub}>
-                    Available: ₹{walletBalance}
-                  </Text>
-                </View>
-                {applyWallet && orderSummary.walletAppliedAmount > 0 && (
-                  <Text style={styles.walletAppliedText}>
-                    -₹{orderSummary.walletAppliedAmount}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Payment methods removed: redirecting directly to Razorpay on pay */}
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>
-                Delivery Instructions (Optional)
-              </Text>
-              <TextInput
-                style={styles.instructionsInput}
-                placeholder="e.g., Leave at the door, Ring the bell twice"
-                value={deliveryInstructions}
-                onChangeText={setDeliveryInstructions}
-                multiline
-                numberOfLines={3}
-              />
-            </View>
-
-            <View style={styles.bottomSpacing} />
-          </>
+        {toastVisible && (
+          <Animated.View
+            style={[
+              styles.toast,
+              {
+                transform: [
+                  {
+                    translateY: toastAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [80, 0],
+                    }),
+                  },
+                ],
+                opacity: toastAnim,
+              },
+            ]}
+            testID="toast"
+          >
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </Animated.View>
         )}
-      </ScrollView>
 
-      {/* Bottom CTA */}
-      <View style={styles.bottomContainer}>
-        <View style={styles.totalContainer}>
-          <Text style={styles.totalText}>
-            Payable: ₹{orderSummary.payableAmount}
-          </Text>
-          <Text style={styles.savingsText}>
-            You save ₹
-            {orderSummary.discount +
-              orderSummary.promoDiscount +
-              orderSummary.trialDiscount}
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={styles.placeOrderButton}
-          onPress={handlePlaceOrder}
-        >
-          <Text style={styles.placeOrderButtonText}>
-            {isGuest
-              ? "Login & Place Order"
-              : orderSummary.payableAmount === 0
-              ? "Activate Now"
-              : "Pay Now"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Date Picker Modal (EXACT MATCH + DEBUG) */}
-      <Modal
-        visible={showDatePicker}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowDatePicker(false)}
-      >
-        <SafeAreaView style={styles.datePickerContainer}>
-          <View style={styles.datePickerHeader}>
-            <Text style={styles.datePickerTitle}>Select Start Date</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => {
-                setShowDatePicker(false);
-                console.log(
-                  "[CHECKOUT] Closed date picker, startDate:",
-                  startDate
-                );
-              }}
-            >
-              <Text style={{ fontSize: 24 }}>×</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={styles.datePickerContent}>
-            <Text style={styles.datePickerDescription}>
-              Choose when you want your subscription to start. You can select
-              today or any future date.
-            </Text>
-            <View style={styles.dateOptionsContainer}>
-              {/* Today Option */}
-              <TouchableOpacity
-                style={[
-                  styles.dateOption,
-                  startDate.toDateString() === new Date().toDateString() &&
-                    styles.selectedDateOption,
-                ]}
-                onPress={() => {
-                  setStartDate(new Date());
-                  setShowDatePicker(false);
-                  console.log("[CHECKOUT] Picked startDate: Today", new Date());
-                }}
-              >
-                <View style={styles.dateOptionContent}>
-                  <Text style={styles.dateOptionTitle}>Today</Text>
-                  <Text style={styles.dateOptionSubtitle}>
-                    {new Date().toLocaleDateString("en-US", {
-                      weekday: "long",
-                      day: "numeric",
-                      month: "long",
-                    })}
-                  </Text>
-                </View>
-                {startDate.toDateString() === new Date().toDateString() && (
-                  <View style={styles.selectedIndicator}>
-                    <Text style={styles.checkMark}>✓</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              {/* Tomorrow Option */}
-              {(() => {
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                return (
-                  <TouchableOpacity
-                    style={[
-                      styles.dateOption,
-                      startDate.toDateString() === tomorrow.toDateString() &&
-                        styles.selectedDateOption,
-                    ]}
-                    onPress={() => {
-                      setStartDate(tomorrow);
-                      setShowDatePicker(false);
-                      console.log(
-                        "[CHECKOUT] Picked startDate: Tomorrow",
-                        tomorrow
-                      );
-                    }}
-                  >
-                    <View style={styles.dateOptionContent}>
-                      <Text style={styles.dateOptionTitle}>Tomorrow</Text>
-                      <Text style={styles.dateOptionSubtitle}>
-                        {tomorrow.toLocaleDateString("en-US", {
-                          weekday: "long",
-                          day: "numeric",
-                          month: "long",
-                        })}
-                      </Text>
-                    </View>
-                    {startDate.toDateString() === tomorrow.toDateString() && (
-                      <View style={styles.selectedIndicator}>
-                        <Text style={styles.checkMark}>✓</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })()}
-              {/* Next Week Options */}
-              {Array.from({ length: 7 }, (_, i) => {
-                const futureDate = new Date();
-                futureDate.setDate(futureDate.getDate() + i + 2);
-                return (
-                  <TouchableOpacity
-                    key={i}
-                    style={[
-                      styles.dateOption,
-                      startDate.toDateString() === futureDate.toDateString() &&
-                        styles.selectedDateOption,
-                    ]}
-                    onPress={() => {
-                      setStartDate(futureDate);
-                      setShowDatePicker(false);
-                      console.log(
-                        "[CHECKOUT] Picked startDate: Future",
-                        futureDate
-                      );
-                    }}
-                  >
-                    <View style={styles.dateOptionContent}>
-                      <Text style={styles.dateOptionTitle}>
-                        {futureDate.toLocaleDateString("en-US", {
-                          weekday: "long",
-                        })}
-                      </Text>
-                      <Text style={styles.dateOptionSubtitle}>
-                        {futureDate.toLocaleDateString("en-US", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                      </Text>
-                    </View>
-                    {startDate.toDateString() === futureDate.toDateString() && (
-                      <View style={styles.selectedIndicator}>
-                        <Text style={styles.checkMark}>✓</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            <View style={styles.datePickerNote}>
-              <Text style={styles.datePickerNoteText}>
-                💡 Your subscription will start on the selected date. You can
-                modify or skip meals up to the cutoff time.
-              </Text>
-            </View>
-            <Text style={{ fontSize: 12, color: "#666", marginTop: 12 }}>
-              DEBUG: startDate = {startDate.toISOString()}
-            </Text>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
-      {/* Payment Modal */}
-      <Modal visible={showPaymentModal} animationType="fade" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.paymentModal}>
-            {paymentStatus === "processing" && (
-              <>
-                <View style={styles.processingIcon}>
-                  <Text style={styles.processingText}>💳</Text>
-                </View>
-                <Text style={styles.modalTitle}>Processing Payment</Text>
-                <Text style={styles.modalSubtitle}>
-                  Please wait while we process your payment...
-                </Text>
-              </>
-            )}
-
-            {paymentStatus === "success" && (
-              <>
-                <CheckCircle size={60} color="#10B981" />
-                <Text style={styles.modalTitle}>Payment Successful!</Text>
-                <Text style={styles.modalSubtitle}>
-                  Your subscription has been activated. You will receive a
-                  confirmation on WhatsApp.
-                </Text>
-                {orderSummary.walletAppliedAmount > 0 && (
-                  <Text
-                    style={[
-                      styles.modalSubtitle,
-                      { color: "#10B981", marginTop: 8 },
-                    ]}
-                  >
-                    Wallet used: ₹{orderSummary.walletAppliedAmount}
-                  </Text>
-                )}
-                {promoApplied && (
-                  <Text
-                    style={[
-                      styles.modalSubtitle,
-                      { color: "#10B981", marginTop: 4 },
-                    ]}
-                  >
-                    Promo saved: ₹{orderSummary.promoDiscount}
-                  </Text>
-                )}
-              </>
-            )}
-
-            {paymentStatus === "failed" && (
-              <>
-                <XCircle size={60} color="#EF4444" />
-                <Text style={styles.modalTitle}>Payment Failed</Text>
-                <Text style={styles.modalSubtitle}>
-                  There was an issue processing your payment. Please try again.
-                </Text>
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity
-                    style={styles.retryButton}
-                    onPress={retryPayment}
-                  >
-                    <Text style={styles.retryButtonText}>Retry Payment</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.cancelButton}
-                    onPress={() => setShowPaymentModal(false)}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
-
-      {toastVisible && (
-        <Animated.View
-          style={[
-            styles.toast,
-            {
-              transform: [
-                {
-                  translateY: toastAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [80, 0],
-                  }),
-                },
-              ],
-              opacity: toastAnim,
-            },
-          ]}
-          testID="toast"
-        >
-          <Text style={styles.toastText}>{toastMessage}</Text>
-        </Animated.View>
-      )}
-
-      <AddressBookModal
-        visible={showAddressBook}
-        onClose={() => setShowAddressBook(false)}
-        onSelectAddress={(address) => {
-          setSelectedAddress(address);
-          setShowAddressBook(false);
-        }}
-        showSelectMode={true}
-      />
-    </SafeAreaView>
+        <AddressBookModal
+          visible={showAddressBook}
+          onClose={() => setShowAddressBook(false)}
+          onSelectAddress={(address) => {
+            setSelectedAddress(address);
+            setShowAddressBook(false);
+          }}
+          showSelectMode={true}
+        />
+      </SafeAreaView>
+   
   );
 }
 
@@ -1583,6 +1623,9 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   scrollView: {
     flex: 1,
@@ -2184,4 +2227,18 @@ const styles = StyleSheet.create({
     color: "#48479B",
     marginBottom: 2,
   },
+  header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderBottomWidth: 1,
+      borderBottomColor: Colors.border,
+    },
+  headerTitle: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: Colors.text,
+    },
 });

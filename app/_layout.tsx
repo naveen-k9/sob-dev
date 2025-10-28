@@ -149,6 +149,7 @@ export default function RootLayout() {
           - Focus isolation prevents index page StatusBar changes from affecting other pages
         */}
         <StatusBar style="dark" backgroundColor="transparent" translucent />
+        {/* <StatusBar style="auto"  /> */}
         <trpc.Provider client={trpcClient} queryClient={queryClient}>
           <QueryClientProvider client={queryClient}>
             <AuthProvider>

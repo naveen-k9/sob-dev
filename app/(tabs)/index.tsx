@@ -230,9 +230,9 @@ export default function HomeScreen() {
         - Translucent background allows hero image to extend behind status bar cameras
         - This creates an immersive experience for the main landing page
       */}
-      {isFocused && (
+      {/* {isFocused && (
         <StatusBar style={barStyle} backgroundColor="transparent" translucent />
-      )}
+      )} */}
 
       <CustomerHomeScreen
         user={user}
@@ -782,7 +782,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 18,
-    backgroundColor: "rgba(163, 211, 151, 0.9)",
+    backgroundColor: "rgba(255, 255, 255, 1)",
     borderBottomWidth: 1,
     borderBottomColor: "rgba(72, 72, 144, 0.09)",
     // Add subtle shadow for elevation

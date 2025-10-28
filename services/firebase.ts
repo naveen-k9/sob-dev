@@ -325,6 +325,38 @@ export async function fetchMeals(): Promise<Meal[]> {
   }
 }
 
+// Admin version that fetches ALL meals including drafts and inactive
+export async function fetchAllMealsAdmin(): Promise<Meal[]> {
+  try {
+    const items = await fetchCollection<Meal>("meals");
+    if (items && items.length > 0) {
+      const validItems = items.filter(
+        (m) =>
+          m &&
+          typeof m.id === "string" &&
+          typeof m.name === "string" &&
+          typeof m.price === "number"
+      );
+      // Return ALL meals for admin, including drafts and inactive
+      return validItems;
+    }
+
+    // If no items in Firebase, use constants/data.ts as source of truth
+    const { Meals } = await import("@/constants/data");
+    return Meals ?? [];
+  } catch (error) {
+    console.error("[Firebase] Error fetching all meals for admin:", error);
+    // Final fallback to constants/data.ts
+    try {
+      const { Meals } = await import("@/constants/data");
+      return Meals ?? [];
+    } catch (e) {
+      console.error("[Firebase] Failed to load fallback meals:", e);
+      return [];
+    }
+  }
+}
+
 export async function fetchAddOns(): Promise<AddOn[]> {
   try {
     const items = await fetchCollection<AddOn>("addons");
