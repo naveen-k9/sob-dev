@@ -253,6 +253,74 @@ export async function signInWithEmailPassword(
   return { uid: json.localId as string, idToken: json.idToken as string };
 }
 
+/**
+ * Sign in with custom token (for WhatsApp OTP authentication)
+ * Note: This requires server-side custom token generation
+ */
+export async function signInWithCustomToken(
+  customToken: string
+): Promise<{ uid: string; idToken: string }> {
+  const url = `${IDENTITY_BASE}/accounts:signInWithCustomToken?key=${encodeURIComponent(
+    FIREBASE_API_KEY
+  )}`;
+  console.log("[firebase] Auth signInWithCustomToken");
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: customToken, returnSecureToken: true }),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json?.error?.message || "CUSTOM_TOKEN_SIGN_IN_FAILED");
+  }
+  return { uid: json.localId as string, idToken: json.idToken as string };
+}
+
+/**
+ * Create custom token for Firebase authentication
+ * Note: This is a placeholder. In production, custom tokens MUST be generated server-side
+ * using Firebase Admin SDK for security reasons.
+ *
+ * IMPLEMENTATION REQUIRED:
+ * 1. Set up Firebase Admin SDK on your backend (Node.js/Express/tRPC)
+ * 2. Create an API endpoint that generates custom tokens
+ * 3. Call that endpoint from this function
+ *
+ * Example server-side implementation:
+ * const admin = require('firebase-admin');
+ * const customToken = await admin.auth().createCustomToken(uid, additionalClaims);
+ */
+export async function createCustomToken(
+  uid: string,
+  additionalClaims?: Record<string, any>
+): Promise<string> {
+  // TODO: Replace this with actual server call
+  // This is a placeholder that will need to be replaced with your backend endpoint
+
+  console.warn(
+    "[firebase] createCustomToken: Custom tokens must be generated server-side using Firebase Admin SDK. " +
+      "Please implement a backend endpoint for this functionality."
+  );
+
+  // Placeholder return - this will not work for actual authentication
+  // You need to call your backend API that uses Firebase Admin SDK
+  throw new Error(
+    "Custom token generation must be implemented on the backend. " +
+      "See backend/trpc/ for implementation examples."
+  );
+
+  /*
+   * Example of what your backend endpoint should do:
+   *
+   * import * as admin from 'firebase-admin';
+   *
+   * export async function generateCustomToken(uid: string, claims?: any) {
+   *   const customToken = await admin.auth().createCustomToken(uid, claims);
+   *   return customToken;
+   * }
+   */
+}
+
 export async function fetchBanners(): Promise<Banner[]> {
   const items = await fetchCollection<Banner>("banners");
   return items

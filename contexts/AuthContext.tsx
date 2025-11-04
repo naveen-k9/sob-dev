@@ -8,12 +8,20 @@ import {
   signUpWithEmailPassword,
   getUserDoc,
   createUser as fbCreateUser,
+  signInWithCustomToken,
+  createCustomToken,
 } from "@/services/firebase";
+import { sendWhatsAppOTP } from "@/services/whatsapp";
 
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
+  const [pendingWhatsAppOTP, setPendingWhatsAppOTP] = useState<{
+    phone: string;
+    otp: string;
+    timestamp: number;
+  } | null>(null);
 
   const persistUserId = useCallback(async (id: string) => {
     await AsyncStorage.setItem("currentUser", JSON.stringify({ id }));
@@ -94,6 +102,125 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       }
     },
     []
+  );
+
+  /**
+   * Send WhatsApp OTP for authentication
+   */
+  const sendWhatsAppOTPForAuth = useCallback(
+    async (phone: string): Promise<{ success: boolean; error?: string }> => {
+      try {
+        // Generate 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        // Send OTP via WhatsApp
+        const result = await sendWhatsAppOTP(phone, otp);
+
+        if (result.success) {
+          // Store OTP temporarily for verification (expires in 5 minutes)
+          setPendingWhatsAppOTP({
+            phone,
+            otp,
+            timestamp: Date.now(),
+          });
+
+          return { success: true };
+        }
+
+        return { success: false, error: result.error || "Failed to send OTP" };
+      } catch (error: any) {
+        console.error("Send WhatsApp OTP error:", error);
+        return { success: false, error: error.message || "Failed to send OTP" };
+      }
+    },
+    []
+  );
+
+  /**
+   * Verify WhatsApp OTP and sign in with custom token
+   */
+  const verifyWhatsAppOTP = useCallback(
+    async (
+      phone: string,
+      otp: string,
+      role: UserRole = "customer",
+      referralCode?: string
+    ): Promise<{ success: boolean; user?: User; error?: string }> => {
+      try {
+        // Check if OTP is valid and not expired (5 minutes)
+        if (!pendingWhatsAppOTP || pendingWhatsAppOTP.phone !== phone) {
+          return {
+            success: false,
+            error: "OTP not found. Please request a new OTP.",
+          };
+        }
+
+        const otpAge = Date.now() - pendingWhatsAppOTP.timestamp;
+        const OTP_VALIDITY = 5 * 60 * 1000; // 5 minutes
+
+        if (otpAge > OTP_VALIDITY) {
+          setPendingWhatsAppOTP(null);
+          return {
+            success: false,
+            error: "OTP expired. Please request a new OTP.",
+          };
+        }
+
+        if (pendingWhatsAppOTP.otp !== otp) {
+          return { success: false, error: "Invalid OTP. Please try again." };
+        }
+
+        // Clear pending OTP
+        setPendingWhatsAppOTP(null);
+
+        // Check if user exists in database
+        let user = await db.getUserByPhone(phone);
+
+        // If user doesn't exist, create new user
+        if (!user) {
+          user = await db.createUser({
+            name: "",
+            email: "",
+            phone,
+            role,
+            addresses: [],
+            walletBalance: 500,
+            isActive: true,
+            referredBy: referralCode,
+          });
+        }
+
+        // Create custom token for Firebase authentication
+        try {
+          const customToken = await createCustomToken(user.id, {
+            phone,
+            role: user.role,
+          });
+
+          // Sign in with custom token
+          const { uid } = await signInWithCustomToken(customToken);
+
+          console.log("Firebase auth successful with UID:", uid);
+        } catch (firebaseError) {
+          console.log("Firebase custom token auth skipped:", firebaseError);
+          // Continue even if Firebase auth fails, as we have local user
+        }
+
+        // Persist user session
+        await persistUserId(user.id);
+        setUser(user);
+        setIsGuest(false);
+
+        return { success: true, user };
+      } catch (error: any) {
+        console.error("Verify WhatsApp OTP error:", error);
+        return {
+          success: false,
+          error: error.message || "Verification failed",
+        };
+      }
+    },
+    [pendingWhatsAppOTP, persistUserId]
   );
 
   const emailSignIn = useCallback(
@@ -350,6 +477,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       isGuest,
       isAuthenticated: !!user,
       login,
+      sendWhatsAppOTPForAuth,
+      verifyWhatsAppOTP,
       emailSignIn,
       emailSignUp,
       validateReferralCode: db.getUserByReferralCode,
@@ -373,6 +502,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       isLoading,
       isGuest,
       login,
+      sendWhatsAppOTPForAuth,
+      verifyWhatsAppOTP,
       emailSignIn,
       emailSignUp,
       updateUser,

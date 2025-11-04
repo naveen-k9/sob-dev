@@ -10,8 +10,9 @@ import {
   ListRenderItemInfo,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import { Copy } from "lucide-react-native";
+import { Percent } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
+import Svg, { Circle } from "react-native-svg";
 
 const { width } = Dimensions.get("window");
 
@@ -21,24 +22,28 @@ const offers = [
     code: "FIRSTMEAL",
     title: "Get your first meal free",
     subText: "Try us — first meal is on the house. No strings attached.",
+    discount: "100%",
   },
   {
     id: "2",
     code: "SAVE100",
     title: "Save ₹100 instantly",
     subText: "Use this coupon for a quick ₹100 discount on checkout.",
+    discount: "₹100",
   },
   {
     id: "3",
     code: "SAVE500",
     title: "Big Savings: ₹500 OFF",
     subText: "Great for subscriptions — big discount on your next plan.",
+    discount: "₹500",
   },
 ];
 
 const SPACING = 12;
-const CARD_WIDTH = Math.min(320, width * 0.78);
-const CARD_HEIGHT = 88;
+const CARD_WIDTH = Math.min(340, width * 0.85);
+const CARD_HEIGHT = 100;
+const NOTCH_SIZE = 20;
 
 export default function MenuOffers() {
   const listRef = useRef<FlatList<any> | null>(null);
@@ -77,33 +82,39 @@ export default function MenuOffers() {
   const renderItem = ({ item }: ListRenderItemInfo<any>) => {
     return (
       <Pressable
-        onPress={() => {}}
+        onPress={() => handleCopy(item.code)}
         style={styles.cardWrapper}
         onTouchStart={() => setIsPaused(true)}
         onTouchEnd={() => setIsPaused(false)}
       >
         <View style={styles.card}>
-          <View style={styles.leftBadge}>
-            <Text style={styles.codeText}>{item.code}</Text>
+          {/* Left notch cutout */}
+          <View style={styles.leftNotch} />
+          
+          {/* Right notch cutout */}
+          <View style={styles.rightNotch} />
+
+          {/* Left section with icon */}
+          <View style={styles.leftSection}>
+            <View style={styles.iconCircle}>
+              <Percent color="#fff" size={32} strokeWidth={3} />
+            </View>
           </View>
 
-          <View style={styles.rightContent}>
-            <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
-              {item.title}
-            </Text>
-            <Text style={styles.subText} numberOfLines={2} ellipsizeMode="tail">
-              {item.subText}
-            </Text>
+          {/* Dashed divider */}
+          <View style={styles.dashedDivider}>
+            {[...Array(8)].map((_, i) => (
+              <View key={i} style={styles.dash} />
+            ))}
           </View>
 
-          <Pressable
-            style={styles.copyBtn}
-            onPress={() => handleCopy(item.code)}
-            android_ripple={{ color: Colors.accent }}
-            accessibilityLabel={`Copy ${item.code}`}
-          >
-            <Copy color="#fff" size={16} />
-          </Pressable>
+          {/* Right section with content */}
+          <View style={styles.rightSection}>
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>{item.discount} off</Text>
+            </View>
+            <Text style={styles.codeLabel}>Use Code : <Text style={styles.codeValue}>{item.code}</Text></Text>
+          </View>
         </View>
       </Pressable>
     );
@@ -145,57 +156,104 @@ const styles = StyleSheet.create({
     height: CARD_HEIGHT,
     backgroundColor: "#fff",
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.04)",
+    borderColor: "#e0e0e0",
+    overflow: "visible",
+    position: "relative",
   },
-  leftBadge: {
-    width: 68,
-    height: 68,
-    borderRadius: 10,
-    backgroundColor: Colors.accent,
+  leftNotch: {
+    position: "absolute",
+    left: -NOTCH_SIZE / 2,
+    top: "50%",
+    marginTop: -NOTCH_SIZE / 2,
+    width: NOTCH_SIZE,
+    height: NOTCH_SIZE,
+    borderRadius: NOTCH_SIZE / 2,
+    backgroundColor: "#f5f5f5",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    zIndex: 10,
+  },
+  rightNotch: {
+    position: "absolute",
+    right: -NOTCH_SIZE / 2,
+    top: "50%",
+    marginTop: -NOTCH_SIZE / 2,
+    width: NOTCH_SIZE,
+    height: NOTCH_SIZE,
+    borderRadius: NOTCH_SIZE / 2,
+    backgroundColor: "#f5f5f5",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    zIndex: 10,
+  },
+  leftSection: {
+    width: 90,
+    height: "100%",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
-    shadowColor: Colors.accent,
+    backgroundColor: "#f8f8f8",
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+  },
+  iconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#4CAF50",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#4CAF50",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  codeText: {
-    color: "#fff",
-    fontWeight: "800",
-    fontSize: 12,
-    letterSpacing: 1.5,
+  dashedDivider: {
+    width: 1,
+    height: "80%",
+    alignItems: "center",
+    justifyContent: "space-evenly",
+    marginHorizontal: 0,
   },
-  rightContent: {
+  dash: {
+    width: 2,
+    height: 6,
+    backgroundColor: "#d0d0d0",
+    borderRadius: 1,
+  },
+  rightSection: {
     flex: 1,
+    paddingLeft: 16,
+    paddingRight: 16,
+    justifyContent: "center",
   },
-  title: {
-    fontSize: 15,
+  discountBadge: {
+    alignSelf: "flex-start",
+    marginBottom: 6,
+  },
+  discountText: {
+    fontSize: 20,
     fontWeight: "700",
     color: "#111",
-    marginBottom: 4,
+    letterSpacing: 0.5,
   },
-  subText: {
-    fontSize: 12,
-    color: "#444",
+  codeLabel: {
+    fontSize: 13,
+    color: "#666",
+    fontWeight: "400",
   },
-  copyBtn: {
-    marginLeft: 12,
-    backgroundColor: Colors.primary,
-    padding: 10,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
+  codeValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#4CAF50",
+    letterSpacing: 1,
   },
 });
