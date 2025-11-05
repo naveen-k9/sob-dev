@@ -32,7 +32,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdge": true,
-      "package": "com.k9planmytour.mealsubscriptionservice",
+      "package": "com.sameoldbox.app",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",

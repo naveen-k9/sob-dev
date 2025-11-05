@@ -2,12 +2,10 @@
 
 # npx eas build -p android --profile preview --local
 
- {!isAdmin() && !isKitchen() && !isDelivery() && (
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: "Profile",
-            tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
-          }}
-        />
-      )}
+cd android
+./gradlew clean
+cd ..
+
+npx expo prebuild --clean
+
+npx expo run:android

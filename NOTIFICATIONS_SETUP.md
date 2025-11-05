@@ -81,35 +81,23 @@ Your `app.json` is already configured with:
 }
 ```
 
-### 3. Android Configuration (FCM)
+### 4. Android Configuration
 
-#### A. Get google-services.json
-
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Select your project
-3. Go to **Project Settings** → **General**
-4. Under **Your apps**, select your Android app (or add one)
-   - Package name: `com.k9planmytour.mealsubscriptionservice`
-5. Click **Download google-services.json**
-6. Place file in root directory: `./google-services.json`
+   - Package name: `com.sameoldbox.app`
+   - Download `google-services.json`
 
 #### B. Verify app.json Configuration
 
 Already configured:
 
 ```json
+```json
 {
-  "android": {
-    "package": "com.k9planmytour.mealsubscriptionservice",
-    "googleServicesFile": "./google-services.json",
-    "useNextNotificationsApi": true,
-    "permissions": [
-      "android.permission.POST_NOTIFICATIONS",
-      "android.permission.RECEIVE_BOOT_COMPLETED",
-      "android.permission.VIBRATE"
-    ]
-  }
-}
+  "expo": {
+    "android": {
+    "package": "com.sameoldbox.app",
+    "googleServicesFile": "./google-services.json"
+    },
 ```
 
 ### 4. Notification Icons & Sounds

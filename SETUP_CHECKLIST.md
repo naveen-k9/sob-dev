@@ -56,7 +56,10 @@ Create these 14 templates in Meta Business Suite → WhatsApp → Message Templa
 
 - [ ] Download `google-services.json` from Firebase
 - [ ] Place `google-services.json` in project root
-- [ ] Verify package name: `com.k9planmytour.mealsubscriptionservice`
+### Android Setup
+
+- [ ] Verify package name: `com.sameoldbox.app`
+- [ ] Add `google-services.json` to root directory
 - [ ] Create notification icon:
   - [ ] `assets/images/notification-icon.png` (96x96px, white on transparent)
 - [ ] Add to `.gitignore`: `google-services.json`
