@@ -31,7 +31,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdge": true,
+      "edgeToEdge": "auto",
       "package": "com.sameoldbox.app",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
