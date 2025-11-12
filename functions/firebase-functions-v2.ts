@@ -1,17 +1,25 @@
 /**
- * Firebase Cloud Functions for Notifications
+ * Firebase Cloud Functions for Notifications (V2 API)
  *
  * This file contains Firebase Cloud Functions that handle server-side notification triggers
  * for orders, subscriptions, payments, and other events.
  *
- * Deploy these functions to Firebase:
+ * DEPLOYMENT:
  * 1. Initialize Firebase Functions: firebase init functions
  * 2. Copy this code to functions/src/index.ts
- * 3. Deploy: firebase deploy --only functions
+ * 3. Update functions/package.json with dependencies
+ * 4. Set environment: firebase functions:config:set whatsapp.api_url="..." whatsapp.phone_number_id="..." whatsapp.access_token="..."
+ * 5. Deploy: firebase deploy --only functions
  */
 
 import * as admin from "firebase-admin";
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import {
+  onDocumentUpdated,
+  onDocumentCreated,
+} from "firebase-functions/v2/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { defineString } from "firebase-functions/params";
 import axios from "axios";
 
 // Initialize Firebase Admin SDK
@@ -21,20 +29,12 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-// WhatsApp Business API Configuration
-const WHATSAPP_API_URL =
-  functions.config().whatsapp?.api_url || "https://graph.facebook.com/v18.0";
-const WHATSAPP_PHONE_NUMBER_ID =
-  functions.config().whatsapp?.phone_number_id || "";
-const WHATSAPP_ACCESS_TOKEN = functions.config().whatsapp?.access_token || "";
-
-const whatsappClient = axios.create({
-  baseURL: WHATSAPP_API_URL,
-  headers: {
-    Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
-    "Content-Type": "application/json",
-  },
+// Define configuration parameters
+const WHATSAPP_API_URL = defineString("WHATSAPP_API_URL", {
+  default: "https://graph.facebook.com/v22.0",
 });
+const WHATSAPP_PHONE_NUMBER_ID = defineString("WHATSAPP_PHONE_NUMBER_ID");
+const WHATSAPP_ACCESS_TOKEN = defineString("WHATSAPP_ACCESS_TOKEN");
 
 // Template names (must match WhatsApp Business Manager templates)
 const TEMPLATES = {
@@ -56,6 +56,19 @@ const TEMPLATES = {
 };
 
 /**
+ * Helper: Get WhatsApp client
+ */
+function getWhatsAppClient() {
+  return axios.create({
+    baseURL: WHATSAPP_API_URL.value(),
+    headers: {
+      Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN.value()}`,
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+/**
  * Helper: Send WhatsApp message
  */
 async function sendWhatsAppMessage(
@@ -64,10 +77,11 @@ async function sendWhatsAppMessage(
   parameters: Array<{ type: string; text?: string; image?: { link: string } }>
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
+    const whatsappClient = getWhatsAppClient();
     const formattedPhone = phoneNumber.replace(/[^0-9]/g, "");
 
     const response = await whatsappClient.post(
-      `/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      `/${WHATSAPP_PHONE_NUMBER_ID.value()}/messages`,
       {
         messaging_product: "whatsapp",
         to: formattedPhone,
@@ -148,14 +162,11 @@ async function sendPushNotification(
 /**
  * Cloud Function: Send WhatsApp OTP
  */
-export const sendWhatsAppOTP = functions.https.onCall(async (data, context) => {
-  const { phone } = data;
+export const sendWhatsAppOTP = onCall(async (request) => {
+  const { phone } = request.data;
 
   if (!phone) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "Phone number is required"
-    );
+    throw new HttpsError("invalid-argument", "Phone number is required");
   }
 
   // Generate 6-digit OTP
@@ -190,101 +201,91 @@ export const sendWhatsAppOTP = functions.https.onCall(async (data, context) => {
     throw new Error(result.error || "Failed to send OTP");
   } catch (error: any) {
     console.error("Send OTP error:", error);
-    throw new functions.https.HttpsError("internal", error.message);
+    throw new HttpsError("internal", error.message);
   }
 });
 
 /**
  * Cloud Function: Verify WhatsApp OTP
  */
-export const verifyWhatsAppOTP = functions.https.onCall(
-  async (data, context) => {
-    const { phone, otp } = data;
+export const verifyWhatsAppOTP = onCall(async (request) => {
+  const { phone, otp } = request.data;
 
-    if (!phone || !otp) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Phone and OTP are required"
-      );
-    }
-
-    try {
-      const otpDoc = await db.collection("otps").doc(phone).get();
-
-      if (!otpDoc.exists) {
-        throw new Error("OTP not found");
-      }
-
-      const otpData = otpDoc.data();
-
-      if (Date.now() > otpData!.expiresAt) {
-        await db.collection("otps").doc(phone).delete();
-        throw new Error("OTP expired");
-      }
-
-      if (otpData!.otp !== otp) {
-        throw new Error("Invalid OTP");
-      }
-
-      // Delete used OTP
-      await db.collection("otps").doc(phone).delete();
-
-      return {
-        success: true,
-        verified: true,
-      };
-    } catch (error: any) {
-      console.error("Verify OTP error:", error);
-      throw new functions.https.HttpsError("internal", error.message);
-    }
+  if (!phone || !otp) {
+    throw new HttpsError("invalid-argument", "Phone and OTP are required");
   }
-);
+
+  try {
+    const otpDoc = await db.collection("otps").doc(phone).get();
+
+    if (!otpDoc.exists) {
+      throw new Error("OTP not found");
+    }
+
+    const otpData = otpDoc.data();
+
+    if (Date.now() > otpData!.expiresAt) {
+      await db.collection("otps").doc(phone).delete();
+      throw new Error("OTP expired");
+    }
+
+    if (otpData!.otp !== otp) {
+      throw new Error("Invalid OTP");
+    }
+
+    // Delete used OTP
+    await db.collection("otps").doc(phone).delete();
+
+    return {
+      success: true,
+      verified: true,
+    };
+  } catch (error: any) {
+    console.error("Verify OTP error:", error);
+    throw new HttpsError("internal", error.message);
+  }
+});
 
 /**
  * Cloud Function: Create custom token for Firebase Auth
  */
-export const createCustomToken = functions.https.onCall(
-  async (data, context) => {
-    const { uid, claims } = data;
+export const createCustomToken = onCall(async (request) => {
+  const { uid, claims } = request.data;
 
-    if (!uid) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "UID is required"
-      );
-    }
-
-    try {
-      const customToken = await admin
-        .auth()
-        .createCustomToken(uid, claims || {});
-
-      return {
-        success: true,
-        token: customToken,
-      };
-    } catch (error: any) {
-      console.error("Create custom token error:", error);
-      throw new functions.https.HttpsError("internal", error.message);
-    }
+  if (!uid) {
+    throw new HttpsError("invalid-argument", "UID is required");
   }
-);
+
+  try {
+    const customToken = await admin.auth().createCustomToken(uid, claims || {});
+
+    return {
+      success: true,
+      token: customToken,
+    };
+  } catch (error: any) {
+    console.error("Create custom token error:", error);
+    throw new HttpsError("internal", error.message);
+  }
+});
 
 /**
  * Firestore Trigger: Order status change
  */
-export const onOrderStatusChange = functions.firestore
-  .document("orders/{orderId}")
-  .onUpdate(async (change, context) => {
-    const before = change.before.data();
-    const after = change.after.data();
+export const onOrderStatusChange = onDocumentUpdated(
+  "orders/{orderId}",
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+
+    if (!before || !after) return;
 
     // Check if status changed
     if (before.status === after.status) {
       return;
     }
 
-    const orderId = context.params.orderId;
+    const orderId = event.params.orderId;
     const userId = after.userId;
     const status = after.status;
 
@@ -380,22 +381,25 @@ export const onOrderStatusChange = functions.firestore
     } catch (error) {
       console.error("Order notification error:", error);
     }
-  });
+  }
+);
 
 /**
  * Firestore Trigger: Subscription status change
  */
-export const onSubscriptionStatusChange = functions.firestore
-  .document("subscriptions/{subscriptionId}")
-  .onUpdate(async (change, context) => {
-    const before = change.before.data();
-    const after = change.after.data();
+export const onSubscriptionStatusChange = onDocumentUpdated(
+  "subscriptions/{subscriptionId}",
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+
+    if (!before || !after) return;
 
     if (before.status === after.status) {
       return;
     }
 
-    const subscriptionId = context.params.subscriptionId;
+    const subscriptionId = event.params.subscriptionId;
     const userId = after.userId;
     const status = after.status;
     const planName = after.planName || "Your subscription";
@@ -478,16 +482,20 @@ export const onSubscriptionStatusChange = functions.firestore
     } catch (error) {
       console.error("Subscription notification error:", error);
     }
-  });
+  }
+);
 
 /**
  * Firestore Trigger: Payment status change
  */
-export const onPaymentStatusChange = functions.firestore
-  .document("payments/{paymentId}")
-  .onCreate(async (snap, context) => {
-    const payment = snap.data();
-    const paymentId = context.params.paymentId;
+export const onPaymentStatusChange = onDocumentCreated(
+  "payments/{paymentId}",
+  async (event) => {
+    const payment = event.data?.data();
+
+    if (!payment) return;
+
+    const paymentId = event.params.paymentId;
     const userId = payment.userId;
     const status = payment.status;
     const amount = payment.amount;
@@ -542,158 +550,156 @@ export const onPaymentStatusChange = functions.firestore
     } catch (error) {
       console.error("Payment notification error:", error);
     }
-  });
-
-/**
- * Cloud Function: Send promotional notification to users
- */
-export const sendPromotionalNotification = functions.https.onCall(
-  async (data, context) => {
-    const { userIds, title, message, offerCode, imageUrl } = data;
-
-    if (!userIds || !Array.isArray(userIds) || !title || !message) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Invalid parameters"
-      );
-    }
-
-    try {
-      const results = [];
-
-      for (const userId of userIds) {
-        const userDoc = await db.collection("users").doc(userId).get();
-        if (!userDoc.exists) continue;
-
-        const user = userDoc.data();
-        const pushToken = user!.pushToken;
-        const phone = user!.phone;
-        const userName = user!.name || "Customer";
-
-        // Send push notification
-        if (pushToken) {
-          await sendPushNotification(pushToken, `🎁 ${title}`, message, {
-            type: "promotion",
-            offerCode,
-            screen: "menu",
-          });
-        }
-
-        // Send WhatsApp
-        if (phone) {
-          await sendWhatsAppMessage(phone, TEMPLATES.PROMOTIONAL_OFFER, [
-            { type: "text", text: userName },
-            { type: "text", text: title },
-            { type: "text", text: message },
-            { type: "text", text: offerCode || "SPECIAL" },
-            { type: "text", text: "7 days" },
-          ]);
-        }
-
-        results.push({ userId, success: true });
-      }
-
-      return {
-        success: true,
-        results,
-      };
-    } catch (error: any) {
-      console.error("Promotional notification error:", error);
-      throw new functions.https.HttpsError("internal", error.message);
-    }
   }
 );
 
 /**
- * Scheduled Function: Send daily menu updates (runs daily at 8 AM)
+ * Cloud Function: Send promotional notification to users
  */
-export const sendDailyMenuUpdates = functions.pubsub
-  .schedule("0 8 * * *")
-  .timeZone("Asia/Kolkata")
-  .onRun(async (context) => {
-    try {
-      // Get today's menu
-      const today = new Date().toISOString().split("T")[0];
-      const menuDoc = await db.collection("menus").doc(today).get();
+export const sendPromotionalNotification = onCall(async (request) => {
+  const { userIds, title, message, offerCode, imageUrl } = request.data;
 
-      if (!menuDoc.exists) {
-        console.log("No menu for today");
-        return;
+  if (!userIds || !Array.isArray(userIds) || !title || !message) {
+    throw new HttpsError("invalid-argument", "Invalid parameters");
+  }
+
+  try {
+    const results = [];
+
+    for (const userId of userIds) {
+      const userDoc = await db.collection("users").doc(userId).get();
+      if (!userDoc.exists) continue;
+
+      const user = userDoc.data();
+      const pushToken = user!.pushToken;
+      const phone = user!.phone;
+      const userName = user!.name || "Customer";
+
+      // Send push notification
+      if (pushToken) {
+        await sendPushNotification(pushToken, `🎁 ${title}`, message, {
+          type: "promotion",
+          offerCode,
+          screen: "menu",
+        });
       }
 
-      const menu = menuDoc.data();
-      const menuItems = menu!.items || "Check the app for today's menu";
-
-      // Get all active subscribers
-      const subscribersSnapshot = await db
-        .collection("subscriptions")
-        .where("status", "==", "active")
-        .get();
-
-      for (const subDoc of subscribersSnapshot.docs) {
-        const subscription = subDoc.data();
-        const userId = subscription.userId;
-
-        const userDoc = await db.collection("users").doc(userId).get();
-        if (!userDoc.exists) continue;
-
-        const user = userDoc.data();
-        const pushToken = user!.pushToken;
-        const phone = user!.phone;
-        const userName = user!.name || "Customer";
-
-        // Send push notification
-        if (pushToken) {
-          await sendPushNotification(
-            pushToken,
-            "🍽️ Today's Menu",
-            `Check out today's delicious meals: ${menuItems}`,
-            {
-              type: "menu_update",
-              date: today,
-              screen: "menu",
-            }
-          );
-        }
-
-        // Send WhatsApp
-        if (phone) {
-          await sendWhatsAppMessage(phone, TEMPLATES.DAILY_MENU_UPDATE, [
-            { type: "text", text: userName },
-            { type: "text", text: today },
-            { type: "text", text: menuItems },
-          ]);
-        }
+      // Send WhatsApp
+      if (phone) {
+        await sendWhatsAppMessage(phone, TEMPLATES.PROMOTIONAL_OFFER, [
+          { type: "text", text: userName },
+          { type: "text", text: title },
+          { type: "text", text: message },
+          { type: "text", text: offerCode || "SPECIAL" },
+          { type: "text", text: "7 days" },
+        ]);
       }
 
-      console.log("Daily menu updates sent successfully");
-    } catch (error) {
-      console.error("Daily menu update error:", error);
+      results.push({ userId, success: true });
     }
-  });
+
+    return {
+      success: true,
+      results,
+    };
+  } catch (error: any) {
+    console.error("Promotional notification error:", error);
+    throw new HttpsError("internal", error.message);
+  }
+});
 
 /**
- * Scheduled Function: Check expiring subscriptions (runs daily)
+ * Scheduled Function: Send daily menu updates (runs daily at 8 AM IST)
  */
-export const checkExpiringSubscriptions = functions.pubsub
-  .schedule("0 9 * * *")
-  .timeZone("Asia/Kolkata")
-  .onRun(async (context) => {
+export const sendDailyMenuUpdates = onSchedule("0 8 * * *", async (event) => {
+  try {
+    // Get today's menu
+    const today = new Date().toISOString().split("T")[0];
+    const menuDoc = await db.collection("menus").doc(today).get();
+
+    if (!menuDoc.exists) {
+      console.log("No menu for today");
+      return;
+    }
+
+    const menu = menuDoc.data();
+    const menuItems = menu!.items || "Check the app for today's menu";
+
+    // Get all active subscribers
+    const subscribersSnapshot = await db
+      .collection("subscriptions")
+      .where("status", "==", "active")
+      .get();
+
+    for (const subDoc of subscribersSnapshot.docs) {
+      const subscription = subDoc.data();
+      const userId = subscription.userId;
+
+      const userDoc = await db.collection("users").doc(userId).get();
+      if (!userDoc.exists) continue;
+
+      const user = userDoc.data();
+      const pushToken = user!.pushToken;
+      const phone = user!.phone;
+      const userName = user!.name || "Customer";
+
+      // Send push notification
+      if (pushToken) {
+        await sendPushNotification(
+          pushToken,
+          "🍽️ Today's Menu",
+          `Check out today's delicious meals: ${menuItems}`,
+          {
+            type: "menu_update",
+            date: today,
+            screen: "menu",
+          }
+        );
+      }
+
+      // Send WhatsApp
+      if (phone) {
+        await sendWhatsAppMessage(phone, TEMPLATES.DAILY_MENU_UPDATE, [
+          { type: "text", text: userName },
+          { type: "text", text: today },
+          { type: "text", text: menuItems },
+        ]);
+      }
+    }
+
+    console.log("Daily menu updates sent successfully");
+  } catch (error) {
+    console.error("Daily menu update error:", error);
+  }
+});
+
+/**
+ * Scheduled Function: Check expiring subscriptions (runs daily at 9 AM IST)
+ * This function checks for:
+ * 1. Subscriptions expiring in 3 days (send warning)
+ * 2. Subscriptions that have expired (mark as expired and send notification)
+ */
+export const checkExpiringSubscriptions = onSchedule(
+  "0 9 * * *",
+  async (event) => {
     try {
-      const threeDaysFromNow = new Date();
+      const now = new Date();
+      const threeDaysFromNow = new Date(now);
       threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
 
-      const subscriptionsSnapshot = await db
+      // Check for expiring subscriptions
+      const expiringSnapshot = await db
         .collection("subscriptions")
         .where("status", "==", "active")
         .where("endDate", "<=", threeDaysFromNow.toISOString())
+        .where("endDate", ">", now.toISOString())
         .get();
 
-      for (const subDoc of subscriptionsSnapshot.docs) {
+      for (const subDoc of expiringSnapshot.docs) {
         const subscription = subDoc.data();
         const endDate = new Date(subscription.endDate);
         const daysRemaining = Math.ceil(
-          (endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+          (endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
         );
 
         if (daysRemaining <= 3 && daysRemaining > 0) {
@@ -728,13 +734,66 @@ export const checkExpiringSubscriptions = functions.pubsub
             ]);
           }
 
-          // Update subscription status
+          // Update subscription status to expiring
           await subDoc.ref.update({ status: "expiring", daysRemaining });
         }
       }
 
-      console.log("Expiring subscriptions check completed");
+      // AUTO-TRIGGER: Check for expired subscriptions and mark them as expired
+      const expiredSnapshot = await db
+        .collection("subscriptions")
+        .where("status", "in", ["active", "expiring"])
+        .where("endDate", "<=", now.toISOString())
+        .get();
+
+      for (const subDoc of expiredSnapshot.docs) {
+        const subscription = subDoc.data();
+        const userId = subscription.userId;
+
+        // Update status to expired - THIS IS THE AUTO-TRIGGER
+        await subDoc.ref.update({
+          status: "expired",
+          expiredAt: now.toISOString(),
+        });
+
+        console.log(
+          `Auto-expired subscription ${subDoc.id} for user ${userId}`
+        );
+
+        // Send expiration notification
+        const userDoc = await db.collection("users").doc(userId).get();
+        if (!userDoc.exists) continue;
+
+        const user = userDoc.data();
+        const pushToken = user!.pushToken;
+        const phone = user!.phone;
+        const userName = user!.name || "Customer";
+        const planName = subscription.planName;
+
+        if (pushToken) {
+          await sendPushNotification(
+            pushToken,
+            "⚠️ Subscription Expired",
+            `Your ${planName} subscription has expired.`,
+            {
+              type: "subscription_update",
+              subscriptionId: subDoc.id,
+              screen: "subscription",
+            }
+          );
+        }
+
+        if (phone) {
+          await sendWhatsAppMessage(phone, TEMPLATES.SUBSCRIPTION_EXPIRED, [
+            { type: "text", text: userName },
+            { type: "text", text: planName },
+          ]);
+        }
+      }
+
+      console.log("Subscription expiry check completed");
     } catch (error) {
-      console.error("Expiring subscriptions check error:", error);
+      console.error("Subscription expiry check error:", error);
     }
-  });
+  }
+);
