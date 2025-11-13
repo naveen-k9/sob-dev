@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Meal Subscription Service",
-    "slug": "meal-subscription-service",
+    "name": "SameOldBox",
+    "slug": "sameoldbox",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "app",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,12 +15,15 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.rork.meal-subscription-service",
+      "bundleIdentifier": "com.sameoldbox.app",
       "infoPlist": {
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
         "NSLocationAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
         "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
-        "UIBackgroundModes": ["location", "remote-notification"]
+        "UIBackgroundModes": [
+          "location",
+          "remote-notification"
+        ]
       },
       "entitlements": {
         "aps-environment": "production"
@@ -58,7 +61,7 @@
       [
         "expo-router",
         {
-          "origin": "https://rork.com/"
+          "origin": "https://sameoldbox.com/"
         }
       ],
       [
@@ -75,10 +78,14 @@
         {
           "icon": "./assets/images/notification-icon.png",
           "color": "#ffffff",
-          "sounds": ["./assets/sounds/notification.wav"],
+          "sounds": [
+            "./assets/sounds/notification.wav"
+          ],
           "mode": "production"
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

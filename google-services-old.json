@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "1080650117601",
+    "project_id": "sameoldbox-214db",
+    "storage_bucket": "sameoldbox-214db.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1080650117601:android:25346fec215ac5043a62a0",
+        "android_client_info": {
+          "package_name": "com.k9planmytour.reactexpopushnotifications"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1080650117601-f5e6oeevjq4maeq96jh4o8hp6rer36vm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD9fg9Cqr5xD4UTfZFEMDeIh_1eCC1hhAs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1080650117601-f5e6oeevjq4maeq96jh4o8hp6rer36vm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1080650117601:android:19790f31ed3b39653a62a0",
+        "android_client_info": {
+          "package_name": "com.sameoldbox.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1080650117601-f5e6oeevjq4maeq96jh4o8hp6rer36vm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD9fg9Cqr5xD4UTfZFEMDeIh_1eCC1hhAs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1080650117601-f5e6oeevjq4maeq96jh4o8hp6rer36vm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
