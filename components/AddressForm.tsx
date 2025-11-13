@@ -116,7 +116,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ onSubmit, onCancel }) => {
     setAddressText('');
     setCoordinates(null);
   };
-
+ 
   return (
     <KeyboardAvoidingView 
       style={styles.container}
