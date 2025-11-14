@@ -93,26 +93,41 @@ export default function LoginScreen() {
       const result = await verifyWhatsAppOTP(formattedPhone, otp);
 
       if (result.success && result.verified) {
-        // OTP verified successfully, proceed with login
-        const loginResult = await login(phone, otp, role);
+        // OTP verified successfully, user is created/updated and token is returned
+        console.log("OTP Verified! User data:", result.user);
+        console.log("Auth token received:", result.token ? "Yes" : "No");
+        console.log("Is new user:", result.isNewUser);
 
-        if (loginResult.success && loginResult.user) {
-          // Check if user needs to complete basic info
-          const needsBasicInfo =
-            !loginResult.user.name ||
-            loginResult.user.name.trim() === "" ||
-            loginResult.user.addresses.length === 0;
+        // Sign in with the custom token
+        if (result.token) {
+          const loginResult = await login(
+            phone,
+            otp,
+            (result.user?.role as UserRole) || "customer",
+            result.token,
+            result.user
+          );
 
-          if (needsBasicInfo && loginResult.user.role === "customer") {
-            router.replace("/auth/basic-info");
+          console.log("Login result:", loginResult);
+
+          if (loginResult.success && loginResult.user) {
+            // Show basic-info screen only for new users
+            if (result.isNewUser) {
+              router.replace("/auth/basic-info");
+            } else {
+              // Navigate based on user role
+              router.replace("/(tabs)");
+            }
           } else {
-            // Navigate based on user role
-            router.replace("/(tabs)");
+            Alert.alert(
+              "Login Error",
+              loginResult.error || "Failed to complete login. Please try again."
+            );
           }
         } else {
           Alert.alert(
-            "Login Error",
-            loginResult.error || "Failed to complete login. Please try again."
+            "Authentication Error",
+            "Failed to receive authentication token."
           );
         }
       } else {

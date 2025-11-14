@@ -8,7 +8,6 @@ import axios from "axios";
 const FUNCTIONS_BASE_URL = {
   sendOTP: "https://sendwhatsappotp-nup6zrmsha-uc.a.run.app",
   verifyOTP: "https://verifywhatsappotp-nup6zrmsha-uc.a.run.app",
-  createCustomToken: "https://createcustomtoken-nup6zrmsha-uc.a.run.app",
 };
 
 interface SendOTPResponse {
@@ -20,12 +19,17 @@ interface SendOTPResponse {
 interface VerifyOTPResponse {
   success: boolean;
   verified: boolean;
-  error?: string;
-}
-
-interface CreateTokenResponse {
-  success: boolean;
-  token: string;
+  token?: string;
+  uid?: string;
+  isNewUser?: boolean;
+  user?: {
+    uid: string;
+    phone: string;
+    name: string;
+    email: string;
+    role: string;
+    addresses: any[];
+  };
   error?: string;
 }
 
@@ -79,35 +83,6 @@ export async function verifyWhatsAppOTP(
       error:
         error.response?.data?.error?.message ||
         "Invalid OTP. Please try again.",
-    };
-  }
-}
-
-/**
- * Create custom Firebase Auth token
- */
-export async function createCustomToken(
-  uid: string,
-  claims?: Record<string, any>
-): Promise<CreateTokenResponse> {
-  try {
-    const response = await axios.post(FUNCTIONS_BASE_URL.createCustomToken, {
-      data: { uid, claims },
-    });
-
-    if (response.data.result) {
-      return response.data.result;
-    }
-
-    return response.data;
-  } catch (error: any) {
-    console.error("Create token error:", error.response?.data || error.message);
-    return {
-      success: false,
-      token: "",
-      error:
-        error.response?.data?.error?.message ||
-        "Failed to create authentication token.",
     };
   }
 }

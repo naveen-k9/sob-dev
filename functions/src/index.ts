@@ -74,11 +74,34 @@ function getWhatsAppClient() {
 async function sendWhatsAppMessage(
   phoneNumber: string,
   templateName: string,
-  parameters: Array<{ type: string; text?: string; image?: { link: string } }>
+  parameters: Array<{ type: string; text?: string; image?: { link: string } }>,
+  includeButton?: boolean
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const whatsappClient = getWhatsAppClient();
     const formattedPhone = phoneNumber.replace(/[^0-9]/g, "");
+
+    const components: any[] = [
+      {
+        type: "body",
+        parameters,
+      },
+    ];
+
+    // Add button component if needed (e.g., for OTP templates)
+    if (includeButton && parameters.length > 0) {
+      components.push({
+        type: "button",
+        sub_type: "url",
+        index: "0",
+        parameters: [
+          {
+            type: "text",
+            text: parameters[0].text, // Use first parameter (OTP) for button
+          },
+        ],
+      });
+    }
 
     const response = await whatsappClient.post(
       `/${WHATSAPP_PHONE_NUMBER_ID.value()}/messages`,
@@ -88,13 +111,8 @@ async function sendWhatsAppMessage(
         type: "template",
         template: {
           name: templateName,
-          language: { code: "en" },
-          components: [
-            {
-              type: "body",
-              parameters,
-            },
-          ],
+          language: { code: "en_US" },
+          components,
         },
       }
     );
@@ -165,6 +183,8 @@ async function sendPushNotification(
 export const sendWhatsAppOTP = onCall(async (request) => {
   const { phone } = request.data;
 
+  console.log("sendWhatsAppOTP called with phone:", phone);
+
   if (!phone) {
     throw new HttpsError("invalid-argument", "Phone number is required");
   }
@@ -173,40 +193,67 @@ export const sendWhatsAppOTP = onCall(async (request) => {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes
 
+  console.log("Generated OTP:", otp, "Expiry:", otpExpiry);
+
   try {
     // Store OTP in Firestore
-    await db.collection("otps").doc(phone).set({
+    console.log("Attempting to store OTP in Firestore...");
+    const otpRef = db.collection("otps").doc(phone);
+    await otpRef.set({
       otp,
       expiresAt: otpExpiry,
       createdAt: Date.now(),
+      phone: phone, // Add phone for debugging
     });
+    console.log("OTP stored successfully in Firestore");
 
-    // Send OTP via WhatsApp
-    const result = await sendWhatsAppMessage(
-      phone,
-      TEMPLATES.OTP_VERIFICATION, 
-      [
-        { type: "text", text: otp },
-        { type: "text", text: "5" },
-      ]
+    // Verify it was written
+    const verifyDoc = await otpRef.get();
+    console.log(
+      "Verification - Document exists:",
+      verifyDoc.exists,
+      "Data:",
+      verifyDoc.data()
     );
 
+    // Send OTP via WhatsApp
+    console.log("Sending OTP via WhatsApp...");
+    const result = await sendWhatsAppMessage(
+      phone,
+      TEMPLATES.OTP_VERIFICATION,
+      [{ type: "text", text: otp }],
+      true // Include button component for OTP
+    );
+
+    console.log("WhatsApp send result:", result);
+
     if (result.success) {
+      console.log(
+        "Returning success response with messageId:",
+        result.messageId
+      );
       return {
         success: true,
         messageId: result.messageId,
+        otpStored: true, // Confirm OTP was stored
+        debug: {
+          phone,
+          otpLength: otp.length,
+          expiresAt: otpExpiry,
+        },
       };
     }
 
     throw new Error(result.error || "Failed to send OTP");
   } catch (error: any) {
     console.error("Send OTP error:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
     throw new HttpsError("internal", error.message);
   }
 });
 
 /**
- * Cloud Function: Verify WhatsApp OTP
+ * Cloud Function: Verify WhatsApp OTP (Optimized)
  */
 export const verifyWhatsAppOTP = onCall(async (request) => {
   const { phone, otp } = request.data;
@@ -216,59 +263,140 @@ export const verifyWhatsAppOTP = onCall(async (request) => {
   }
 
   try {
+    // Verify OTP from Firestore
     const otpDoc = await db.collection("otps").doc(phone).get();
 
     if (!otpDoc.exists) {
-      throw new Error("OTP not found");
+      throw new Error("OTP not found or already used");
     }
 
     const otpData = otpDoc.data();
 
+    // Check expiry
     if (Date.now() > otpData!.expiresAt) {
       await db.collection("otps").doc(phone).delete();
       throw new Error("OTP expired");
     }
 
+    // Verify OTP
     if (otpData!.otp !== otp) {
       throw new Error("Invalid OTP");
     }
 
-    // Delete used OTP
-    await db.collection("otps").doc(phone).delete();
+    // OTP is valid - delete it and check for existing user
+    const uid = phone.replace(/[^0-9]/g, "");
+
+    // Get existing user or prepare new user data
+    const userRef = db.collection("users").doc(uid);
+    const [userDoc] = await Promise.all([
+      userRef.get(),
+      db.collection("otps").doc(phone).delete(), // Delete OTP in parallel
+    ]);
+
+    let userData: any;
+    let isNewUser = false;
+    const timestamp = admin.firestore.FieldValue.serverTimestamp();
+
+    if (userDoc.exists) {
+      // Existing user - get role from database
+      userData = userDoc.data();
+      userRef.update({ lastLogin: timestamp }); // Don't await
+    } else {
+      // New user - create with default 'customer' role
+      isNewUser = true;
+      userData = {
+        uid,
+        phone,
+        role: "customer", // Always default to customer for new users
+        name: "",
+        email: "",
+        addresses: [],
+        createdAt: timestamp,
+        lastLogin: timestamp,
+      };
+      userRef.set(userData); // Don't await
+    }
+
+    // Create Firebase Auth user and custom token in parallel
+    const authPromises = [];
+
+    // Try to create auth user (will fail silently if exists)
+    authPromises.push(
+      admin
+        .auth()
+        .createUser({ uid, phoneNumber: phone })
+        .catch((err) => {
+          // Ignore if user already exists
+          if (err.code !== "auth/uid-already-exists") {
+            console.error("Auth user creation error:", err);
+          }
+        })
+    );
+
+    // Generate custom token with user's role from database
+    authPromises.push(
+      admin
+        .auth()
+        .createCustomToken(uid, { role: userData.role || "customer", phone })
+    );
+
+    const [, customToken] = await Promise.all(authPromises);
 
     return {
       success: true,
       verified: true,
+      token: customToken,
+      uid,
+      isNewUser, // Flag to determine if basic-info screen should be shown
+      user: {
+        uid,
+        phone: userData.phone || phone,
+        name: userData.name || "",
+        email: userData.email || "",
+        role: userData.role || "customer",
+        addresses: userData.addresses || [],
+      },
     };
   } catch (error: any) {
-    console.error("Verify OTP error:", error);
+    console.error("Verify OTP error:", error.message);
     throw new HttpsError("internal", error.message);
   }
 });
 
 /**
- * Cloud Function: Create custom token for Firebase Auth
+ * Scheduled Function: Cleanup expired OTPs
+ * Runs every hour to remove expired OTP documents
  */
-export const createCustomToken = onCall(async (request) => {
-  const { uid, claims } = request.data;
+export const cleanupExpiredOTPs = onSchedule(
+  {
+    schedule: "every 1 hours",
+    timeZone: "Asia/Kolkata",
+  },
+  async () => {
+    try {
+      const now = Date.now();
+      const expiredOTPs = await db
+        .collection("otps")
+        .where("expiresAt", "<", now)
+        .get();
 
-  if (!uid) {
-    throw new HttpsError("invalid-argument", "UID is required");
+      if (expiredOTPs.empty) {
+        console.log("No expired OTPs to clean up");
+        return;
+      }
+
+      const batch = db.batch();
+      expiredOTPs.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+
+      await batch.commit();
+      console.log(`Cleaned up ${expiredOTPs.size} expired OTPs`);
+    } catch (error) {
+      console.error("Error cleaning up expired OTPs:", error);
+    }
   }
-
-  try {
-    const customToken = await admin.auth().createCustomToken(uid, claims || {});
-
-    return {
-      success: true,
-      token: customToken,
-    };
-  } catch (error: any) {
-    console.error("Create custom token error:", error);
-    throw new HttpsError("internal", error.message);
-  }
-});
-
+);
 /**
  * Firestore Trigger: Order status change
  */
@@ -679,88 +807,29 @@ export const sendDailyMenuUpdates = onSchedule("0 8 * * *", async () => {
  * 1. Subscriptions expiring in 3 days (send warning)
  * 2. Subscriptions that have expired (mark as expired and send notification)
  */
-export const checkExpiringSubscriptions = onSchedule(
-  "0 9 * * *",
-  async () => {
-    try {
-      const now = new Date();
-      const threeDaysFromNow = new Date(now);
-      threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+export const checkExpiringSubscriptions = onSchedule("0 9 * * *", async () => {
+  try {
+    const now = new Date();
+    const threeDaysFromNow = new Date(now);
+    threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
 
-      // Check for expiring subscriptions
-      const expiringSnapshot = await db
-        .collection("subscriptions")
-        .where("status", "==", "active")
-        .where("endDate", "<=", threeDaysFromNow.toISOString())
-        .where("endDate", ">", now.toISOString())
-        .get();
+    // Check for expiring subscriptions
+    const expiringSnapshot = await db
+      .collection("subscriptions")
+      .where("status", "==", "active")
+      .where("endDate", "<=", threeDaysFromNow.toISOString())
+      .where("endDate", ">", now.toISOString())
+      .get();
 
-      for (const subDoc of expiringSnapshot.docs) {
-        const subscription = subDoc.data();
-        const endDate = new Date(subscription.endDate);
-        const daysRemaining = Math.ceil(
-          (endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-        );
+    for (const subDoc of expiringSnapshot.docs) {
+      const subscription = subDoc.data();
+      const endDate = new Date(subscription.endDate);
+      const daysRemaining = Math.ceil(
+        (endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      );
 
-        if (daysRemaining <= 3 && daysRemaining > 0) {
-          const userId = subscription.userId;
-          const userDoc = await db.collection("users").doc(userId).get();
-          if (!userDoc.exists) continue;
-
-          const user = userDoc.data();
-          const pushToken = user!.pushToken;
-          const phone = user!.phone;
-          const userName = user!.name || "Customer";
-          const planName = subscription.planName;
-
-          if (pushToken) {
-            await sendPushNotification(
-              pushToken,
-              "⏰ Subscription Expiring Soon",
-              `Your ${planName} subscription will expire in ${daysRemaining} days.`,
-              {
-                type: "subscription_update",
-                subscriptionId: subDoc.id,
-                screen: "subscription",
-              }
-            );
-          }
-
-          if (phone) {
-            await sendWhatsAppMessage(phone, TEMPLATES.SUBSCRIPTION_EXPIRING, [
-              { type: "text", text: userName },
-              { type: "text", text: planName },
-              { type: "text", text: String(daysRemaining) },
-            ]);
-          }
-
-          // Update subscription status to expiring
-          await subDoc.ref.update({ status: "expiring", daysRemaining });
-        }
-      }
-
-      // AUTO-TRIGGER: Check for expired subscriptions and mark them as expired
-      const expiredSnapshot = await db
-        .collection("subscriptions")
-        .where("status", "in", ["active", "expiring"])
-        .where("endDate", "<=", now.toISOString())
-        .get();
-
-      for (const subDoc of expiredSnapshot.docs) {
-        const subscription = subDoc.data();
+      if (daysRemaining <= 3 && daysRemaining > 0) {
         const userId = subscription.userId;
-
-        // Update status to expired - THIS IS THE AUTO-TRIGGER
-        await subDoc.ref.update({
-          status: "expired",
-          expiredAt: now.toISOString(),
-        });
-
-        console.log(
-          `Auto-expired subscription ${subDoc.id} for user ${userId}`
-        );
-
-        // Send expiration notification
         const userDoc = await db.collection("users").doc(userId).get();
         if (!userDoc.exists) continue;
 
@@ -773,8 +842,8 @@ export const checkExpiringSubscriptions = onSchedule(
         if (pushToken) {
           await sendPushNotification(
             pushToken,
-            "⚠️ Subscription Expired",
-            `Your ${planName} subscription has expired.`,
+            "⏰ Subscription Expiring Soon",
+            `Your ${planName} subscription will expire in ${daysRemaining} days.`,
             {
               type: "subscription_update",
               subscriptionId: subDoc.id,
@@ -784,16 +853,103 @@ export const checkExpiringSubscriptions = onSchedule(
         }
 
         if (phone) {
-          await sendWhatsAppMessage(phone, TEMPLATES.SUBSCRIPTION_EXPIRED, [
+          await sendWhatsAppMessage(phone, TEMPLATES.SUBSCRIPTION_EXPIRING, [
             { type: "text", text: userName },
             { type: "text", text: planName },
+            { type: "text", text: String(daysRemaining) },
           ]);
         }
+
+        // Update subscription status to expiring
+        await subDoc.ref.update({ status: "expiring", daysRemaining });
+      }
+    }
+
+    // AUTO-TRIGGER: Check for expired subscriptions and mark them as expired
+    const expiredSnapshot = await db
+      .collection("subscriptions")
+      .where("status", "in", ["active", "expiring"])
+      .where("endDate", "<=", now.toISOString())
+      .get();
+
+    for (const subDoc of expiredSnapshot.docs) {
+      const subscription = subDoc.data();
+      const userId = subscription.userId;
+
+      // Update status to expired - THIS IS THE AUTO-TRIGGER
+      await subDoc.ref.update({
+        status: "expired",
+        expiredAt: now.toISOString(),
+      });
+
+      console.log(`Auto-expired subscription ${subDoc.id} for user ${userId}`);
+
+      // Send expiration notification
+      const userDoc = await db.collection("users").doc(userId).get();
+      if (!userDoc.exists) continue;
+
+      const user = userDoc.data();
+      const pushToken = user!.pushToken;
+      const phone = user!.phone;
+      const userName = user!.name || "Customer";
+      const planName = subscription.planName;
+
+      if (pushToken) {
+        await sendPushNotification(
+          pushToken,
+          "⚠️ Subscription Expired",
+          `Your ${planName} subscription has expired.`,
+          {
+            type: "subscription_update",
+            subscriptionId: subDoc.id,
+            screen: "subscription",
+          }
+        );
       }
 
-      console.log("Subscription expiry check completed");
-    } catch (error) {
-      console.error("Subscription expiry check error:", error);
+      if (phone) {
+        await sendWhatsAppMessage(phone, TEMPLATES.SUBSCRIPTION_EXPIRED, [
+          { type: "text", text: userName },
+          { type: "text", text: planName },
+        ]);
+      }
     }
+
+    console.log("Subscription expiry check completed");
+  } catch (error) {
+    console.error("Subscription expiry check error:", error);
   }
-);
+});
+
+/**
+ * Cloud Function: List all OTPs (for debugging)
+ */
+export const listAllOTPs = onCall(async (request) => {
+  try {
+    const otpsSnapshot = await db.collection("otps").get();
+
+    if (otpsSnapshot.empty) {
+      return {
+        success: true,
+        count: 0,
+        message: "No OTPs found in database",
+        otps: [],
+      };
+    }
+
+    const otps = otpsSnapshot.docs.map((doc) => ({
+      phone: doc.id,
+      data: doc.data(),
+      expired: Date.now() > doc.data().expiresAt,
+    }));
+
+    return {
+      success: true,
+      count: otps.length,
+      otps,
+    };
+  } catch (error: any) {
+    console.error("List OTPs error:", error);
+    throw new HttpsError("internal", error.message);
+  }
+});

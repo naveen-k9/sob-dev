@@ -9,3 +9,7 @@ cd ..
 npx expo prebuild --clean
 
 npx expo run:android
+
+npm run build && firebase deploy --only functions:verifyWhatsAppOTP,functions:createCustomToken
+
+# firebase functions:log --only sendWhatsAppOTP

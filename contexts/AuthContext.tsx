@@ -9,7 +9,6 @@ import {
   getUserDoc,
   createUser as fbCreateUser,
   signInWithCustomToken,
-  createCustomToken,
 } from "@/services/firebase";
 import { sendWhatsAppOTP } from "@/services/whatsapp";
 
@@ -71,9 +70,45 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       phone: string,
       otp: string,
       role: UserRole = "customer",
-      referralCode?: string
+      customToken?: string,
+      userData?: any
     ) => {
       try {
+        // If we have a custom token and user data from verifyWhatsAppOTP, use it
+        if (customToken && userData) {
+          // Sign in with the custom token
+          await signInWithCustomToken(customToken);
+
+          // Create or update user in local DB
+          let user = await db.getUserByPhone(phone);
+
+          if (!user) {
+            user = await db.createUser({
+              id: userData.uid,
+              name: userData.name || "",
+              email: userData.email || "",
+              phone: userData.phone,
+              role: userData.role || role,
+              addresses: userData.addresses || [],
+              walletBalance: 500,
+              isActive: true,
+            });
+          } else {
+            // Update existing user
+            await db.updateUser(user.id, {
+              name: userData.name || user.name,
+              email: userData.email || user.email,
+              role: userData.role || user.role,
+            });
+          }
+
+          await persistUserId(user.id);
+          setUser(user);
+          setIsGuest(false);
+          return { success: true, user };
+        }
+
+        // Fallback to OTP verification (for testing)
         if (otp === "1234") {
           let user = await db.getUserByPhone(phone);
 
@@ -86,7 +121,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
               addresses: [],
               walletBalance: 500,
               isActive: true,
-              referredBy: referralCode,
             });
           }
 
