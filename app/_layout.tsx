@@ -35,7 +35,7 @@ function RootLayoutNav() {
   useEffect(() => {
     if (!isLoading && !hasRedirected) {
       if (!user && !isGuest) {
-        router.replace('/auth/role-selection');
+        router.replace('/auth/login');
         setHasRedirected(true);
       } else if (user) {
         // Redirect to role-specific dashboard only once
@@ -73,7 +73,7 @@ function RootLayoutNav() {
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="auth/login" options={{ headerShown: false }} />
-      <Stack.Screen name="auth/role-selection" options={{ headerShown: false }} />
+      {/* <Stack.Screen name="auth/role-selection" options={{ headerShown: false }} /> */}
       <Stack.Screen name="location/select" options={{ headerShown: false }} />
       <Stack.Screen name="meal/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="subscription" options={{ headerShown: false }} />
@@ -150,7 +150,7 @@ export default function RootLayout() {
         */}
         <StatusBar style="dark" backgroundColor="transparent" translucent />
         {/* <StatusBar style="auto"  /> */}
-        <trpc.Provider client={trpcClient} queryClient={queryClient}>
+       
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
               <LocationProvider>
@@ -163,7 +163,7 @@ export default function RootLayout() {
               </LocationProvider>
             </AuthProvider>
           </QueryClientProvider>
-        </trpc.Provider>
+        
       </SafeAreaProvider>
     </ErrorBoundary>
   );

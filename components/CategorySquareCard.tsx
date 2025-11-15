@@ -13,7 +13,7 @@ function CategorySquareCard({ category, onPress }: CategorySquareCardProps) {
       style={styles.container} 
       onPress={onPress} 
       testID={`cat-rect-${category.id}`}
-      activeOpacity={0.85}
+      // activeOpacity={0.85}
     >
       <ImageBackground 
         source={{ uri: category.image }} 

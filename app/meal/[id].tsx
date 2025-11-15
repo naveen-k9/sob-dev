@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Image,
@@ -13,6 +12,8 @@ import {
   Platform,
   Animated,
 } from "react-native";
+import { Image as ExpoImage } from "expo-image";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, router, useLocalSearchParams, useRouter } from "expo-router";
 import {
   ArrowLeft,
@@ -328,7 +329,7 @@ export default function MealDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+    <SafeAreaView style={[styles.container]}>
       {/* Custom Animated Header */}
       <Animated.View
         style={[
@@ -700,15 +701,16 @@ export default function MealDetailScreen() {
                                 style={[styles.mealTinyThumb, { padding: 0 }]}
                               >
                                 {addOn.image ? (
-                                  <Image
+                                  <ExpoImage
                                     source={{ uri: addOn.image }}
                                     style={{
                                       width: "100%",
                                       height: "100%",
                                       borderRadius: 8,
-                                      resizeMode: "cover",
                                       backgroundColor: "#F3F4F6",
                                     }}
+                                    contentFit="cover"
+                                    transition={200}
                                   />
                                 ) : (
                                   <Text style={styles.mealImageText}>🍽️</Text>
@@ -1078,10 +1080,23 @@ export default function MealDetailScreen() {
                     style={styles.addOnRow}
                     onPress={() => handleAddOnToggle(addOn.id)}
                   >
-                    <Image
-                      source={{ uri: addOn.image }}
-                      style={styles.addOnImage}
-                    />
+                    {addOn.image ? (
+                      <ExpoImage
+                        source={addOn.image}
+                        style={styles.addOnImage}
+                        contentFit="cover"
+                        transition={200}
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          styles.addOnImage,
+                          { justifyContent: "center", alignItems: "center" },
+                        ]}
+                      >
+                        <Text style={{ fontSize: 32 }}>🍽️</Text>
+                      </View>
+                    )}
                     <View style={styles.addOnInfo}>
                       <Text style={styles.addOnName}>{addOn.name}</Text>
                       <Text style={styles.addOnDescription}>
@@ -1684,6 +1699,7 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     marginRight: 16,
+    backgroundColor: "#F3F4F6",
   },
   drawerFooter: {
     padding: 20,

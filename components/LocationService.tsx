@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,19 +7,24 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
-import { useAsyncStorage } from '@/hooks/useStorage';
-import { Address, Polygon } from '@/types';
-import { findPolygonsContainingPoint } from '@/utils/polygonUtils';
-import { useActiveAddress } from '@/contexts/ActiveAddressContext';
-import { router } from 'expo-router';
-import { Colors } from '@/constants/colors';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
+import { useAsyncStorage } from "@/hooks/useStorage";
+import { Address, Polygon } from "@/types";
+import { findPolygonsContainingPoint } from "@/utils/polygonUtils";
+import { useActiveAddress } from "@/contexts/ActiveAddressContext";
+import { router } from "expo-router";
+import { Colors } from "@/constants/colors";
 
 interface LocationServiceProps {
   polygons: Polygon[];
-  onLocationSet?: (location: { latitude: number; longitude: number; address: string; isServiceable: boolean }) => void;
+  onLocationSet?: (location: {
+    latitude: number;
+    longitude: number;
+    address: string;
+    isServiceable: boolean;
+  }) => void;
   disableAutoDetection?: boolean; // Prevent auto location detection
 }
 
@@ -31,14 +36,20 @@ interface CurrentLocationState {
   serviceablePolygons: Array<{ id: string; name: string; color: string }>;
 }
 
-const LocationService: React.FC<LocationServiceProps> = ({ polygons, onLocationSet, disableAutoDetection = false }) => {
-  const [addresses, setAddresses] = useAsyncStorage<Address[]>('addresses', []);
+const LocationService: React.FC<LocationServiceProps> = ({
+  polygons,
+  onLocationSet,
+  disableAutoDetection = false,
+}) => {
+  const [addresses, setAddresses] = useAsyncStorage<Address[]>("addresses", []);
   const { getDisplayAddress, setCurrentLocationAddress } = useActiveAddress();
-  const [currentLocation, setCurrentLocation] = useState<CurrentLocationState | null>(null);
+  const [currentLocation, setCurrentLocation] =
+    useState<CurrentLocationState | null>(null);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [showNonServiceableModal, setShowNonServiceableModal] = useState(false);
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
-  const [locationPermissionStatus, setLocationPermissionStatus] = useState<string>('unknown');
+  const [locationPermissionStatus, setLocationPermissionStatus] =
+    useState<string>("unknown");
 
   // Auto-detect location on component mount (only if not disabled)
   useEffect(() => {
@@ -60,18 +71,21 @@ const LocationService: React.FC<LocationServiceProps> = ({ polygons, onLocationS
   const detectCurrentLocation = async () => {
     try {
       setIsDetectingLocation(true);
-      
+
       // Request location permission
       const { status } = await Location.requestForegroundPermissionsAsync();
       setLocationPermissionStatus(status);
-      
-      if (status !== 'granted') {
+
+      if (status !== "granted") {
         Alert.alert(
-          'Permission Required',
-          'Location permission is needed to detect your current location and provide delivery services.',
+          "Permission Required",
+          "Location permission is needed to detect your current location and provide delivery services.",
           [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Open Settings', onPress: () => Location.requestForegroundPermissionsAsync() }
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Open Settings",
+              onPress: () => Location.requestForegroundPermissionsAsync(),
+            },
           ]
         );
         return;
@@ -88,18 +102,20 @@ const LocationService: React.FC<LocationServiceProps> = ({ polygons, onLocationS
       };
 
       // Reverse geocode to get address
-      let addressText = 'Current Location';
+      let addressText = "Current Location";
       try {
         const reverseGeocode = await Location.reverseGeocodeAsync(coords);
         if (reverseGeocode.length > 0) {
           const addr = reverseGeocode[0];
-          addressText = `${addr.name || addr.street || ''}, ${addr.city || ''}, ${addr.region || ''}`.trim();
-          if (addressText === ', ,') {
-            addressText = 'Current Location';
+          addressText = `${addr.name || addr.street || ""}, ${
+            addr.city || ""
+          }, ${addr.region || ""}`.trim();
+          if (addressText === ", ,") {
+            addressText = "Current Location";
           }
         }
       } catch (geocodeError) {
-        console.warn('Reverse geocoding failed:', geocodeError);
+        console.warn("Reverse geocoding failed:", geocodeError);
       }
 
       // Check if location is in serviceable polygons
@@ -117,19 +133,19 @@ const LocationService: React.FC<LocationServiceProps> = ({ polygons, onLocationS
 
       // Create an Address object for the current location
       const currentLocationAddress: Address = {
-        id: 'current-location',
-        userId: '',
-        type: 'other',
-        label: 'Current Location',
-        name: 'Current Location',
-        phone: '',
-        phoneNumber: '',
-        addressLine: '',
+        id: "current-location",
+        userId: "",
+        type: "other",
+        label: "Current Location",
+        name: "Current Location",
+        phone: "",
+        phoneNumber: "",
+        addressLine: "",
         addressText: addressText,
-        street: '',
-        city: '',
-        state: '',
-        pincode: '',
+        street: "",
+        city: "",
+        state: "",
+        pincode: "",
         coordinates: coords,
         isDefault: false,
         createdAt: new Date(),
@@ -150,92 +166,126 @@ const LocationService: React.FC<LocationServiceProps> = ({ polygons, onLocationS
         address: addressText,
         isServiceable,
       });
-
     } catch (error) {
-      console.error('Location detection error:', error);
-      
-      let errorMessage = 'Failed to detect your location. Please try again.';
+      console.error("Location detection error:", error);
+
+      let errorMessage = "Failed to detect your location. Please try again.";
       if (error instanceof Error) {
-        if (error.message.includes('timeout')) {
-          errorMessage = 'Location detection timed out. Please ensure GPS is enabled and try again.';
-        } else if (error.message.includes('unavailable')) {
-          errorMessage = 'Location services are unavailable. Please enable GPS in your device settings.';
+        if (error.message.includes("timeout")) {
+          errorMessage =
+            "Location detection timed out. Please ensure GPS is enabled and try again.";
+        } else if (error.message.includes("unavailable")) {
+          errorMessage =
+            "Location services are unavailable. Please enable GPS in your device settings.";
         }
       }
 
-      Alert.alert('Location Error', errorMessage, [
-        { text: 'Retry', onPress: detectCurrentLocation },
-        { text: 'Select Manually', onPress: () => router.push('/location/select') }
+      Alert.alert("Location Error", errorMessage, [
+        { text: "Retry", onPress: detectCurrentLocation },
+        {
+          text: "Select Manually",
+          onPress: () => router.push("/location/select"),
+        },
       ]);
     } finally {
       setIsDetectingLocation(false);
     }
   };
 
-  const findMatchingAddress = (location: CurrentLocationState): Address | null => {
+  const findMatchingAddress = (
+    location: CurrentLocationState
+  ): Address | null => {
     const MATCH_THRESHOLD = 0.001; // ~100 meters
 
-    return addresses.find(address => {
-      const distance = Math.sqrt(
-        Math.pow(address.coordinates.latitude - location.latitude, 2) +
-        Math.pow(address.coordinates.longitude - location.longitude, 2)
-      );
-      return distance <= MATCH_THRESHOLD;
-    }) || null;
+    return (
+      addresses.find((address) => {
+        const distance = Math.sqrt(
+          Math.pow(address.coordinates.latitude - location.latitude, 2) +
+            Math.pow(address.coordinates.longitude - location.longitude, 2)
+        );
+        return distance <= MATCH_THRESHOLD;
+      }) || null
+    );
   };
 
   const handleSelectLocation = () => {
-    router.push('/location/select');
+    router.push("/location/select");
   };
 
   const handleMoveToServiceableArea = () => {
     setShowNonServiceableModal(false);
     router.push({
-      pathname: '/location/select',
-      params: { mode: 'pin', showOnlyServiceable: 'true' }
+      pathname: "/location/select",
+      params: { mode: "pin", showOnlyServiceable: "true" },
     });
   };
 
   const renderLocationDisplay = () => {
     const displayAddress = getDisplayAddress();
-    
+
     if (isDetectingLocation) {
       return (
-        <TouchableOpacity style={styles.locationContainer} onPress={handleSelectLocation}>
-          <ActivityIndicator size="small" color="#A3D397" />
-          <Text style={styles.locationText}>Detecting location...</Text>
+        <TouchableOpacity
+          style={styles.locationContainer}
+          onPress={handleSelectLocation}
+        >
+          <ActivityIndicator size="small" color="#FFFFFF" />
+          <View style={styles.addressTextContainer}>
+            <Text style={styles.locationLabel}>Detecting...</Text>
+            <Text style={styles.locationAddress}>Finding your location</Text>
+          </View>
         </TouchableOpacity>
       );
     }
 
     if (!displayAddress) {
       return (
-        <TouchableOpacity style={styles.locationContainer} onPress={handleSelectLocation}>
-          <Ionicons name="location-outline" size={16} color="#A3D397" />
-          <Text style={styles.locationText}>Select Location</Text>
-          <Ionicons name="chevron-down" size={16} color="#A3D397" />
+        <TouchableOpacity
+          style={styles.locationContainer}
+          onPress={handleSelectLocation}
+        >
+          <Ionicons name="location-outline" size={20} color="#FFFFFF" />
+          <View style={styles.addressTextContainer}>
+            <Text style={styles.locationLabel}>Select Location</Text>
+            <Text style={styles.locationAddress}>
+              Choose your delivery area
+            </Text>
+          </View>
+          <Ionicons name="chevron-down" size={16} color="#FFFFFF" />
         </TouchableOpacity>
       );
     }
 
     // Check if the display address is serviceable
-    const serviceablePolygons = findPolygonsContainingPoint(displayAddress.coordinates, polygons);
+    const serviceablePolygons = findPolygonsContainingPoint(
+      displayAddress.coordinates,
+      polygons
+    );
     const isServiceable = serviceablePolygons.length > 0;
 
     return (
-      <TouchableOpacity style={styles.locationContainer} onPress={handleSelectLocation}>
-        <Ionicons 
-          name="location" 
-          size={16} 
-          color={Colors.primary} 
-        />
-        <Text style={styles.locationText} numberOfLines={1}>
-          {displayAddress.name}
-        </Text>
-        <Ionicons name="chevron-down" size={16} color={Colors.primary} />
-        {!isServiceable && (
-          <View style={styles.warningDot} />
-        )}
+      <TouchableOpacity
+        style={styles.locationContainer}
+        onPress={handleSelectLocation}
+      >
+        <Ionicons name="location" size={27} color="#FFFFFF" />
+        <View style={styles.addressTextContainer}>
+          <View style={styles.labelRow}>
+            <Text style={styles.locationLabel} numberOfLines={1}>
+              {displayAddress.type === "home"
+                ? "Home"
+                : displayAddress.type === "work"
+                ? "Work"
+                : displayAddress.name}
+            </Text>
+            <Ionicons name="chevron-down" size={16} color="#FFFFFF" />
+          </View>
+          <Text style={styles.locationAddress} numberOfLines={1}>
+            {displayAddress.addressText ||
+              `${displayAddress.street}, ${displayAddress.city}`}
+          </Text>
+        </View>
+        {!isServiceable && <View style={styles.warningDot} />}
       </TouchableOpacity>
     );
   };
@@ -243,7 +293,7 @@ const LocationService: React.FC<LocationServiceProps> = ({ polygons, onLocationS
   return (
     <>
       {renderLocationDisplay()}
-      
+
       {/* Non-serviceable location modal */}
       <Modal
         visible={showNonServiceableModal}
@@ -257,26 +307,30 @@ const LocationService: React.FC<LocationServiceProps> = ({ polygons, onLocationS
               <Ionicons name="location-outline" size={48} color="#FF3B30" />
               <Text style={styles.modalTitle}>Area Not Serviceable</Text>
             </View>
-            
+
             <Text style={styles.modalDescription}>
-              Your current location is outside our delivery area. You can move the pin to a nearby serviceable location to continue.
+              Your current location is outside our delivery area. You can move
+              the pin to a nearby serviceable location to continue.
             </Text>
 
-            {currentLocation?.serviceablePolygons.length === 0 && polygons.length > 0 && (
-              <View style={styles.serviceableAreasContainer}>
-                <Text style={styles.serviceableAreasTitle}>Available Service Areas:</Text>
-                {polygons.slice(0, 3).map((polygon) => (
-                  <Text key={polygon.id} style={styles.serviceableAreaName}>
-                    • {polygon.name}
+            {currentLocation?.serviceablePolygons.length === 0 &&
+              polygons.length > 0 && (
+                <View style={styles.serviceableAreasContainer}>
+                  <Text style={styles.serviceableAreasTitle}>
+                    Available Service Areas:
                   </Text>
-                ))}
-                {polygons.length > 3 && (
-                  <Text style={styles.serviceableAreaName}>
-                    • And {polygons.length - 3} more areas
-                  </Text>
-                )}
-              </View>
-            )}
+                  {polygons.slice(0, 3).map((polygon) => (
+                    <Text key={polygon.id} style={styles.serviceableAreaName}>
+                      • {polygon.name}
+                    </Text>
+                  ))}
+                  {polygons.length > 3 && (
+                    <Text style={styles.serviceableAreaName}>
+                      • And {polygons.length - 3} more areas
+                    </Text>
+                  )}
+                </View>
+              )}
 
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -285,12 +339,14 @@ const LocationService: React.FC<LocationServiceProps> = ({ polygons, onLocationS
               >
                 <Text style={styles.secondaryButtonText}>Continue Anyway</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.modalButton, styles.primaryButton]}
                 onPress={handleMoveToServiceableArea}
               >
-                <Text style={styles.primaryButtonText}>Choose Serviceable Area</Text>
+                <Text style={styles.primaryButtonText}>
+                  Choose Serviceable Area
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -302,19 +358,39 @@ const LocationService: React.FC<LocationServiceProps> = ({ polygons, onLocationS
 
 const styles = StyleSheet.create({
   locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderWidth: 2,
-    borderColor: 'rgba(163, 211, 151, 0.3)',
-    maxWidth: 200,
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    maxWidth: 220,
+  },
+  addressTextContainer: {
+    flex: 1,
+    marginHorizontal: 8,
+    justifyContent: "center",
+  },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 4,
+  },
+  locationLabel: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    marginBottom: 2,
+  },
+  locationAddress: {
+    fontSize: 13,
+    fontWeight: "400",
+    color: "rgba(255, 255, 255, 0.8)",
   },
   locationText: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: "800",
     color: Colors.primary,
     marginHorizontal: 6,
     flex: 1,
@@ -323,80 +399,80 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#FF3B30',
+    backgroundColor: "#FF3B30",
     marginLeft: 4,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 24,
-    maxHeight: '80%',
+    maxHeight: "80%",
   },
   modalHeader: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 20,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#1C1C1E',
+    fontWeight: "600",
+    color: "#1C1C1E",
     marginTop: 12,
   },
   modalDescription: {
     fontSize: 16,
-    color: '#8E8E93',
-    textAlign: 'center',
+    color: "#8E8E93",
+    textAlign: "center",
     lineHeight: 22,
     marginBottom: 24,
   },
   serviceableAreasContainer: {
-    backgroundColor: '#F2F2F7',
+    backgroundColor: "#F2F2F7",
     borderRadius: 12,
     padding: 16,
     marginBottom: 24,
   },
   serviceableAreasTitle: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1C1C1E',
+    fontWeight: "600",
+    color: "#1C1C1E",
     marginBottom: 8,
   },
   serviceableAreaName: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: "#8E8E93",
     marginBottom: 4,
   },
   modalActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   modalButton: {
     flex: 1,
     paddingVertical: 16,
     borderRadius: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   primaryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: "#007AFF",
   },
   secondaryButton: {
-    backgroundColor: '#F2F2F7',
+    backgroundColor: "#F2F2F7",
   },
   primaryButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
   secondaryButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#007AFF',
+    fontWeight: "600",
+    color: "#007AFF",
   },
 });
 

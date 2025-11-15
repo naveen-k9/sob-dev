@@ -156,6 +156,7 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
+    // Expo dependencies
     implementation project(':react-native-razorpay')
 
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";

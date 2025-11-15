@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const styles = StyleSheet.create({
   scene: { backgroundColor: '#FFFFFF' },
-  tabBar: { backgroundColor: '#FFFFFF', borderTopWidth: 0, height: 72, paddingTop: 9, paddingBottom: 9 },
+  tabBar: { backgroundColor: '#FFFFFF', borderTopWidth: 0, height: 90, paddingTop: 9, paddingBottom: 27 },
   tabLabel: { fontSize: 12, fontWeight: '500' as const },
   centerTabButton: {
     top: -18, // makes it float above tab bar

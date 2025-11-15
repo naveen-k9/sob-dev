@@ -41,9 +41,9 @@ const offers = [
 ];
 
 const SPACING = 12;
-const CARD_WIDTH = Math.min(340, width * 0.85);
-const CARD_HEIGHT = 100;
-const NOTCH_SIZE = 20;
+const CARD_WIDTH = Math.min(340, width * 0.50);
+const CARD_HEIGHT = 72;
+const NOTCH_SIZE = 18;
 
 export default function MenuOffers() {
   const listRef = useRef<FlatList<any> | null>(null);
@@ -204,9 +204,9 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 12,
   },
   iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "#4CAF50",
     alignItems: "center",
     justifyContent: "center",

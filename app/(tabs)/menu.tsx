@@ -24,7 +24,7 @@ import OfferCard from "@/components/OfferCard";
 import OfferDetailModal from "@/components/OfferDetailModal";
 import FilterChips from "@/components/FilterChips";
 import FilterModal from "@/components/FilterModal";
-import { FilterIcon, LayoutGrid, Rows } from "lucide-react-native";
+import { ArrowLeftIcon, FilterIcon, LayoutGrid, Rows } from "lucide-react-native";
 
 import { offers as offersSeed } from "@/constants/data";
 import { Colors } from "@/constants/colors";
@@ -561,6 +561,17 @@ export default function CategoryBrowserScreen() {
             fontSize: 22,
             fontWeight: "700",
           },
+           headerLeft: () => (
+                      <View style={{ marginLeft: 18, marginRight: 9 }}>
+                        <TouchableOpacity
+                          onPress={() => router.push("/")}
+                          testID="open-filter"
+                        >
+                          <ArrowLeftIcon
+                           size={24} color={Colors.primary} />
+                        </TouchableOpacity>
+                      </View>
+                    ),
           headerRight: () => {
             const activeFilterCount = filterSections.reduce(
               (count, section) =>

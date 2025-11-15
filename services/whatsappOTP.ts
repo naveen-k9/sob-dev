@@ -10,6 +10,11 @@ const FUNCTIONS_BASE_URL = {
   verifyOTP: "https://verifywhatsappotp-nup6zrmsha-uc.a.run.app",
 };
 
+// const FUNCTIONS_BASE_URL = {
+//   sendOTP: "http://127.0.0.1:5001/sameoldbox-21666/us-central1/sendWhatsAppOTP",
+//   verifyOTP: "http://127.0.0.1:5001/sameoldbox-21666/us-central1/verifyWhatsAppOTP",
+// };
+
 interface SendOTPResponse {
   success: boolean;
   messageId?: string;

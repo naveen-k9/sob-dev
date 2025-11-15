@@ -59,14 +59,15 @@ import MealCard from "@/components/MealCard";
 import CategorySquareCard from "@/components/CategorySquareCard";
 import RoleSelector from "@/components/RoleSelector";
 import { Colors } from "@/constants/colors";
+import { Ionicons } from "@expo/vector-icons";
 
-const TOP_BG_HEIGHT = Math.round(Dimensions.get("window").height * 0.36);
+const TOP_BG_HEIGHT = Math.round(Dimensions.get("window").height * 0.38);
 
 export default function HomeScreen() {
   const { user, isGuest, isAdmin, isKitchen, isDelivery } = useAuth();
   const [polygons] = useAsyncStorage<Polygon[]>("polygons", []);
 
-  const [barStyle, setBarStyle] = useState<"light" | "dark">("light"); // Start with light for banner
+  const [barStyle, setBarStyle] = useState<"light" | "dark">("dark"); // Start with light for banner
   const [isScrolled, setIsScrolled] = useState(false); // Track if user has scrolled past banner
   const [isFocused, setIsFocused] = useState(true); // Track if page is focused
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -152,11 +153,14 @@ export default function HomeScreen() {
   }
 
   const handleCategoryPress = (categoryId: string) => {
-    console.log("[index] Category clicked, navigating to menu with categoryId:", categoryId);
+    console.log(
+      "[index] Category clicked, navigating to menu with categoryId:",
+      categoryId
+    );
     // Use router.push with proper query params to navigate to menu tab with selected category
     router.push({
       pathname: "/(tabs)/menu",
-      params: { categoryId: categoryId }
+      params: { categoryId: categoryId },
     });
   };
 
@@ -266,9 +270,9 @@ export default function HomeScreen() {
         }}
         polygons={polygons.filter((p) => p.completed)}
       />
-      <RoleSelector currentRole="admin" />
-      <TouchableOpacity
-        onPress={() => router.push("/location/select")}
+      {/* <RoleSelector currentRole="admin" /> */}
+      {/* <TouchableOpacity
+        onPress={() => router.push("/admin/test-notifications")}
         style={{
           position: "absolute",
           bottom: 50,
@@ -279,7 +283,7 @@ export default function HomeScreen() {
         }}
       >
         <Text>Switch to Admin</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </>
   );
 }
@@ -400,7 +404,10 @@ function CustomerHomeScreen({
     () => categoriesQuery.data ?? [],
     [categoriesQuery.data]
   );
-   const mealTimeCategories: Category[] = useMemo(() => categories.filter((c) => c.group === 'meal-time'), [categories]);
+  const mealTimeCategories: Category[] = useMemo(
+    () => categories.filter((c) => c.group === "meal-time"),
+    [categories]
+  );
   const collectionCategories: Category[] = useMemo(
     () => categories.filter((c) => c.group === "collection"),
     [categories]
@@ -428,7 +435,7 @@ function CustomerHomeScreen({
   return (
     <View style={styles.container}>
       {/* Sticky Header - appears on top when scrolled */}
-      {isScrolled && (
+      {/* {isScrolled && (
         <View
           style={[
             styles.stickyHeader,
@@ -444,16 +451,15 @@ function CustomerHomeScreen({
             disableAutoDetection={isScrolling || hasLocationBeenDetected} // Disable if scrolling OR already detected
           />
           <View style={styles.headerActions}>
-            
             <TouchableOpacity
               style={styles.profileCircleSticky}
               onPress={() => router.push("/wallet")}
               testID="profile-button-sticky"
             >
               <View style={styles.walletPillSticky} testID="wallet-pill-sticky">
-              <View style={styles.walletIconSticky} />
-              <Text style={styles.walletTextSticky}>Rs 0</Text>
-            </View>
+                <View style={styles.walletIconSticky} />
+                <Text style={styles.walletTextSticky}>Rs 0</Text>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.profileCircleSticky}
@@ -464,7 +470,7 @@ function CustomerHomeScreen({
             </TouchableOpacity>
           </View>
         </View>
-      )}
+      )} */}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -515,8 +521,8 @@ function CustomerHomeScreen({
             style={[
               styles.header,
               {
-                paddingTop: insets.top + 8, // Always maintain safe area + small padding for header content
-                paddingBottom: 16,
+                paddingTop: insets.top, // Always maintain safe area + small padding for header content
+                paddingBottom: 18,
               },
             ]}
           >
@@ -528,10 +534,16 @@ function CustomerHomeScreen({
               } // Disable if scrolled, scrolling, OR already detected
             />
             <View style={styles.headerActions}>
-              <View style={styles.walletPill} testID="wallet-pill">
-                <View style={styles.walletIcon} />
-                <Text style={styles.walletText}>Rs 0</Text>
-              </View>
+              <TouchableOpacity
+                // style={styles.profileCircleSticky}
+                onPress={() => router.push("/wallet")}
+                testID="profile-button-sticky"
+              >
+                <View style={styles.walletPill} testID="wallet-pill">
+                  <Ionicons name="card-outline" size={27} color="#FFFFFF" />
+                  <Text style={styles.walletText}>0</Text>
+                </View>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.profileCircle}
                 onPress={() => router.push("/profile")}
@@ -580,7 +592,7 @@ function CustomerHomeScreen({
           )}
         </View>
 
-         <View style={[styles.section]}>
+        <View style={[styles.section]}>
           <Text style={styles.sectionTitle}>Meal Time</Text>
           {categoriesQuery.isLoading ? (
             <View style={styles.pad20}>
@@ -591,9 +603,17 @@ function CustomerHomeScreen({
               <Text style={styles.errorText}>Failed to load categories</Text>
             </View>
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.horizontalScroll}
+            >
               {mealTimeCategories.map((category: Category) => (
-                <CategoryCard key={category.id} category={category} onPress={() => handleCategoryPress(category.id)} />
+                <CategoryCard
+                  key={category.id}
+                  category={category}
+                  onPress={() => handleCategoryPress(category.id)}
+                />
               ))}
             </ScrollView>
           )}
@@ -768,10 +788,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 18,
-    paddingVertical: 9,
+    paddingHorizontal: 9,
+    paddingRight: 18,
+    // paddingVertical: 9,
     backgroundColor: "transparent",
   },
+
   stickyHeader: {
     position: "absolute",
     top: 0,
@@ -800,24 +822,26 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
   },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: 12 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   walletPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(163, 211, 151, 0.27)",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    marginRight: 8,
+    backgroundColor: "transparent",
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginRight: 0,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
   },
   walletIcon: {
-    width: 18,
-    height: 18,
-    backgroundColor: "#A3D397",
+    width: 16,
+    height: 16,
+    backgroundColor: "transparent",
     borderRadius: 4,
     marginRight: 6,
   },
-  walletText: { color: "#FFFFFF", fontWeight: "700" },
+  walletText: { color: "#FFFFFF", fontWeight: "600", fontSize: 14 },
   walletPillSticky: {
     flexDirection: "row",
     alignItems: "center",
@@ -843,11 +867,13 @@ const styles = StyleSheet.create({
   profileCircle: {
     width: 40,
     height: 40,
-    borderRadius: 27,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 0,
     backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
   },
   profileCircleSticky: {
     width: 40,

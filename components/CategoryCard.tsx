@@ -34,7 +34,7 @@ export default function CategoryCard({ category, onPress, isActive = false }: Ca
       style={styles.container} 
       onPress={onPress} 
       testID={`cat-${category.id}`}
-      activeOpacity={0.7}
+      // activeOpacity={0.7}
     >
       <Animated.View 
         style={[
@@ -42,7 +42,7 @@ export default function CategoryCard({ category, onPress, isActive = false }: Ca
           isActive && styles.imageWrapActive,
           { 
             transform: [{ scale: scaleAnim }],
-            opacity: opacityAnim,
+            // opacity: opacityAnim,
           }
         ]}
       >
@@ -56,12 +56,12 @@ export default function CategoryCard({ category, onPress, isActive = false }: Ca
 const styles = StyleSheet.create({
   container: {
     width: 117,
-    marginRight: 12,
+    marginRight: 20,
     alignItems: 'center',
   },
   imageWrap: {
     padding: 4,
-    borderRadius: 44,
+    borderRadius: 60,
     borderWidth: 2,
     borderColor: 'transparent',
     backgroundColor: Colors.surface,
@@ -80,9 +80,9 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   image: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 108,
+    height: 108,
+    borderRadius: 60,
   },
   name: {
     fontSize: 13,

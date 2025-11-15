@@ -34,7 +34,7 @@ const WHATSAPP_API_URL = defineString("WHATSAPP_API_URL", {
   default: "https://graph.facebook.com/v22.0",
 });
 const WHATSAPP_PHONE_NUMBER_ID = defineString("WHATSAPP_PHONE_NUMBER_ID");
-const WHATSAPP_ACCESS_TOKEN = defineString("WHATSAPP_ACCESS_TOKEN");
+const WHATSAPP_ACCESS_TOKEN = "EAAVLZCZBw38D8BPZBqKySZBcltjcTZBqFrCqgn0DbJ8ZC9RDOZBErsMShJhaoYLnFhZCTkw3JhOeGZB3BdahFZCESe7UExk4zyqqDJ42M8MbP43CF6wZA4bcYSkVxnKpU8kM5dWhBcdrK7BKEioK2SbMTTktVXgX1QZCdkHk3ZAd6cZCOdayhMzr9RPUaZARpb1BrGawCv3JM0d5il47FrGwO0NQEgwm1edckqjKx1CDudUNH7hzQZDZD";
 
 // Template names (must match WhatsApp Business Manager templates)
 const TEMPLATES = {
@@ -62,7 +62,7 @@ function getWhatsAppClient() {
   return axios.create({
     baseURL: WHATSAPP_API_URL.value(),
     headers: {
-      Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN.value()}`,
+      Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
       "Content-Type": "application/json",
     },
   });

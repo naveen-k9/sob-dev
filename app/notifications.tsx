@@ -1,18 +1,26 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   FlatList,
   TouchableOpacity,
   Alert,
-} from 'react-native';
-import { Stack, useRouter } from 'expo-router';
-import { Bell, X, Trash2, Clock, Package, Truck, Gift } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
-import db from '@/db';
-import { Notification } from '@/types';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Stack, useRouter } from "expo-router";
+import {
+  Bell,
+  X,
+  Trash2,
+  Clock,
+  Package,
+  Truck,
+  Gift,
+} from "lucide-react-native";
+import { useAuth } from "@/contexts/AuthContext";
+import db from "@/db";
+import { Notification } from "@/types";
 
 export default function NotificationsScreen() {
   const { user } = useAuth();
@@ -24,11 +32,14 @@ export default function NotificationsScreen() {
     if (!user) return;
     try {
       const userNotifications = await db.getNotifications(user.id);
-      setNotifications(userNotifications.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ));
+      setNotifications(
+        userNotifications.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+      );
     } catch (error) {
-      console.error('Error loading notifications:', error);
+      console.error("Error loading notifications:", error);
     } finally {
       setLoading(false);
     }
@@ -36,7 +47,7 @@ export default function NotificationsScreen() {
 
   const createSampleNotifications = useCallback(async () => {
     if (!user) return;
-    
+
     try {
       const existingNotifications = await db.getNotifications(user.id);
       if (existingNotifications.length > 0) return; // Don't create duplicates
@@ -44,41 +55,44 @@ export default function NotificationsScreen() {
       const sampleNotifications = [
         {
           userId: user.id,
-          title: 'Cooking Started!',
-          message: 'Your Grilled Chicken Bowl is being prepared in our kitchen.',
-          type: 'order' as const,
+          title: "Cooking Started!",
+          message:
+            "Your Grilled Chicken Bowl is being prepared in our kitchen.",
+          type: "order" as const,
           isRead: false,
-          data: { subscriptionId: '1', status: 'preparing' },
+          data: { subscriptionId: "1", status: "preparing" },
         },
         {
           userId: user.id,
-          title: 'Out for Delivery',
-          message: 'Your Paneer Tikka Bowl is on its way! Expected delivery in 20 minutes.',
-          type: 'delivery' as const,
+          title: "Out for Delivery",
+          message:
+            "Your Paneer Tikka Bowl is on its way! Expected delivery in 20 minutes.",
+          type: "delivery" as const,
           isRead: false,
-          data: { subscriptionId: '2', deliveryPersonId: '1' },
+          data: { subscriptionId: "2", deliveryPersonId: "1" },
         },
         {
           userId: user.id,
-          title: 'Meal Delivered',
-          message: 'Your Vegan Buddha Bowl has been delivered successfully.',
-          type: 'delivery' as const,
+          title: "Meal Delivered",
+          message: "Your Vegan Buddha Bowl has been delivered successfully.",
+          type: "delivery" as const,
           isRead: true,
-          data: { subscriptionId: '3', status: 'delivered' },
+          data: { subscriptionId: "3", status: "delivered" },
         },
         {
           userId: user.id,
-          title: 'Special Offer!',
-          message: 'Get 25% off on your next subscription. Limited time offer!',
-          type: 'promotion' as const,
+          title: "Special Offer!",
+          message: "Get 25% off on your next subscription. Limited time offer!",
+          type: "promotion" as const,
           isRead: false,
-          data: { offerCode: 'SAVE25', validUntil: '2024-12-31' },
+          data: { offerCode: "SAVE25", validUntil: "2024-12-31" },
         },
         {
           userId: user.id,
-          title: 'Streak Reward Earned!',
-          message: 'Congratulations! You&apos;ve earned ₹50 for maintaining a 7-day streak.',
-          type: 'system' as const,
+          title: "Streak Reward Earned!",
+          message:
+            "Congratulations! You&apos;ve earned ₹50 for maintaining a 7-day streak.",
+          type: "system" as const,
           isRead: false,
           data: { rewardAmount: 50, streakCount: 7 },
         },
@@ -87,10 +101,10 @@ export default function NotificationsScreen() {
       for (const notification of sampleNotifications) {
         await db.createNotification(notification);
       }
-      
+
       await loadNotifications();
     } catch (error) {
-      console.error('Error creating sample notifications:', error);
+      console.error("Error creating sample notifications:", error);
     }
   }, [user, loadNotifications]);
 
@@ -105,28 +119,31 @@ export default function NotificationsScreen() {
   const dismissNotification = async (notificationId: string) => {
     try {
       await db.deleteNotification(notificationId);
-      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
     } catch (error) {
-      console.error('Error dismissing notification:', error);
+      console.error("Error dismissing notification:", error);
     }
   };
 
   const clearAllNotifications = () => {
     Alert.alert(
-      'Clear All Notifications',
-      'Are you sure you want to clear all notifications?',
+      "Clear All Notifications",
+      "Are you sure you want to clear all notifications?",
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Clear All',
-          style: 'destructive',
+          text: "Clear All",
+          style: "destructive",
           onPress: async () => {
             try {
-              await db.clearUserNotifications(user?.id ?? '');
+              await db.clearUserNotifications(user?.id ?? "");
               setNotifications([]);
             } catch (error) {
-              console.error('Error clearing notifications:', error);
-              Alert.alert('Error', 'Failed to clear notifications. Please try again.');
+              console.error("Error clearing notifications:", error);
+              Alert.alert(
+                "Error",
+                "Failed to clear notifications. Please try again."
+              );
             }
           },
         },
@@ -136,13 +153,13 @@ export default function NotificationsScreen() {
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'order':
+      case "order":
         return <Package size={20} color="#48479B" />;
-      case 'delivery':
+      case "delivery":
         return <Truck size={20} color="#10B981" />;
-      case 'promotion':
+      case "promotion":
         return <Gift size={20} color="#8B5CF6" />;
-      case 'system':
+      case "system":
         return <Bell size={20} color="#48479B" />;
       default:
         return <Bell size={20} color="#666" />;
@@ -152,9 +169,11 @@ export default function NotificationsScreen() {
   const formatTime = (date: Date) => {
     const now = new Date();
     const notificationDate = new Date(date);
-    const diffInMinutes = Math.floor((now.getTime() - notificationDate.getTime()) / (1000 * 60));
-    
-    if (diffInMinutes < 1) return 'Just now';
+    const diffInMinutes = Math.floor(
+      (now.getTime() - notificationDate.getTime()) / (1000 * 60)
+    );
+
+    if (diffInMinutes < 1) return "Just now";
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
     return `${Math.floor(diffInMinutes / 1440)}d ago`;
@@ -164,14 +183,21 @@ export default function NotificationsScreen() {
     try {
       if (!item.isRead) {
         await db.markNotificationAsRead(item.id);
-        setNotifications(prev => prev.map(n => (n.id === item.id ? { ...n, isRead: true } : n)));
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
+        );
       }
-      const hasAck = item?.data?.status === 'waiting_for_ack' && typeof item?.data?.orderId === 'string';
+      const hasAck =
+        item?.data?.status === "waiting_for_ack" &&
+        typeof item?.data?.orderId === "string";
       if (hasAck) {
-        router.push({ pathname: '/acknowledgment/[orderId]', params: { orderId: item.data.orderId } });
+        router.push({
+          pathname: "/acknowledgment/[orderId]",
+          params: { orderId: item.data.orderId },
+        });
       }
     } catch (e) {
-      console.log('onPressNotification error', e);
+      console.log("onPressNotification error", e);
     }
   };
 
@@ -211,7 +237,8 @@ export default function NotificationsScreen() {
       <Bell size={64} color="#DDD" />
       <Text style={styles.emptyTitle}>No Notifications</Text>
       <Text style={styles.emptyDescription}>
-        You&apos;re all caught up! We&apos;ll notify you about your orders and special offers.
+        You&apos;re all caught up! We&apos;ll notify you about your orders and
+        special offers.
       </Text>
     </View>
   );
@@ -220,11 +247,11 @@ export default function NotificationsScreen() {
     <SafeAreaView style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Notifications',
-          headerStyle: { backgroundColor: '#48479B' },
-          headerTintColor: 'white',
-          headerTitleStyle: { fontWeight: 'bold' },
-          headerRight: () => (
+          title: "Notifications",
+          headerStyle: { backgroundColor: "#48479B" },
+          headerTintColor: "white",
+          headerTitleStyle: { fontWeight: "bold" },
+          headerRight: () =>
             notifications.length > 0 ? (
               <TouchableOpacity
                 onPress={clearAllNotifications}
@@ -233,8 +260,7 @@ export default function NotificationsScreen() {
                 <Trash2 size={20} color="white" />
                 <Text style={styles.clearAllText}>Clear All</Text>
               </TouchableOpacity>
-            ) : null
-          ),
+            ) : null,
         }}
       />
 
@@ -247,7 +273,9 @@ export default function NotificationsScreen() {
           data={notifications}
           renderItem={renderNotification}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={notifications.length === 0 ? styles.emptyList : styles.list}
+          contentContainerStyle={
+            notifications.length === 0 ? styles.emptyList : styles.list
+          }
           ListEmptyComponent={renderEmptyState}
           showsVerticalScrollIndicator={false}
         />
@@ -259,65 +287,65 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: "#F8F9FA",
   },
   clearAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   clearAllText: {
-    color: 'white',
+    color: "white",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     marginLeft: 4,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
   },
   list: {
     padding: 16,
   },
   emptyList: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 40,
   },
   notificationCard: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
-    position: 'relative',
+    borderColor: "#F0F0F0",
+    position: "relative",
   },
   unreadCard: {
     borderLeftWidth: 4,
-    borderLeftColor: '#48479B',
-    backgroundColor: '#FFFBF8',
+    borderLeftColor: "#48479B",
+    backgroundColor: "#FFFBF8",
   },
   notificationHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
   },
   iconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F8F9FA',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F8F9FA",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   notificationContent: {
@@ -325,52 +353,52 @@ const styles = StyleSheet.create({
   },
   notificationTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 4,
   },
   notificationMessage: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     lineHeight: 20,
     marginBottom: 8,
   },
   timeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   timeText: {
     fontSize: 12,
-    color: '#999',
+    color: "#999",
     marginLeft: 4,
   },
   dismissButton: {
     padding: 4,
   },
   unreadIndicator: {
-    position: 'absolute',
+    position: "absolute",
     top: 16,
     right: 16,
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#48479B',
+    backgroundColor: "#48479B",
   },
   emptyContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 60,
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginTop: 16,
     marginBottom: 8,
   },
   emptyDescription: {
     fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
     lineHeight: 24,
     paddingHorizontal: 40,
   },

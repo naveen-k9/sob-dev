@@ -252,15 +252,20 @@ const HelpSupportScreen: React.FC = () => {
       title: "Terms & Conditions",
       icon: FileText,
       action: () => {
-        Linking.openURL("https://sameoldbox.com/terms");
+        router.push(
+          `/webview?url=https://sameoldbox.com/terms&title=Terms & Conditions` as any
+        );
       },
     },
     {
       id: "2",
       title: "Privacy Policy",
       icon: Shield,
+     
       action: () => {
-        Linking.openURL("https://sameoldbox.com/privacy");
+        router.push(
+          `/webview?url=https://sameoldbox.com/privacy&title=Privacy Policy` as any
+        );
       },
     },
     {
@@ -268,9 +273,12 @@ const HelpSupportScreen: React.FC = () => {
       title: "Refund Policy",
       icon: CreditCard,
       action: () => {
-        Linking.openURL("https://sameoldbox.com/refunds");
+        router.push(
+          `/webview?url=https://sameoldbox.com/refunds&title=Refund Policy` as any
+        );
       },
     },
+
     {
       id: "4",
       title: "View Support Tickets",
@@ -755,7 +763,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     overflow: "hidden",
   },
-  
+
   faqIconContainer: {
     width: 36,
     height: 36,
