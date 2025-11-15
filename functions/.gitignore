@@ -1,7 +1,0 @@
-node_modules/
-lib/
-*.log
-*.local
-.env
-serviceAccountKey.json
-.runtimeconfig.json
