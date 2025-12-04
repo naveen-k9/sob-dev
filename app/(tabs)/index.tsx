@@ -34,6 +34,7 @@ import OfferCard from "@/components/OfferCard";
 import OfferDetailModal from "@/components/OfferDetailModal";
 import FilterModal from "@/components/FilterModal";
 import LocationService from "@/components/LocationService";
+import FormCard from "@/components/FormCard";
 import { offers, PromotionalItem } from "@/constants/data";
 import { useAsyncStorage } from "@/hooks/useStorage";
 import {
@@ -592,8 +593,14 @@ function CustomerHomeScreen({
           )}
         </View>
 
+
+
         <View style={[styles.section]}>
-          <Text style={styles.sectionTitle}>Meal Time</Text>
+          <View style={styles.centeredSectionHeader}>
+            <View style={styles.headerLine} />
+            <Text style={styles.centeredSectionTitle}>MEAL TIME</Text>
+            <View style={styles.headerLine} />
+          </View>
           {categoriesQuery.isLoading ? (
             <View style={styles.pad20}>
               <Text style={styles.whiteText}>Loading categories...</Text>
@@ -607,6 +614,7 @@ function CustomerHomeScreen({
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.horizontalScroll}
+              contentContainerStyle={styles.categoriesScrollContent}
             >
               {mealTimeCategories.map((category: Category) => (
                 <CategoryCard
@@ -619,8 +627,14 @@ function CustomerHomeScreen({
           )}
         </View>
 
+
+
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Collections</Text>
+          <View style={styles.centeredSectionHeader}>
+            <View style={styles.headerLine} />
+            <Text style={styles.centeredSectionTitle}>COLLECTIONS</Text>
+            <View style={styles.headerLine} />
+          </View>
           {categoriesQuery.isLoading ? (
             <View style={styles.pad20}>
               <Text style={styles.whiteText}>Loading collections...</Text>
@@ -643,17 +657,44 @@ function CustomerHomeScreen({
           )}
         </View>
 
+        {/* Form Cards Section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              {selectedCategoryId ? "Meals" : "Popular Meals"}
+          <View style={styles.centeredSectionHeader}>
+            <View style={styles.headerLine} />
+            <Text style={styles.centeredSectionTitle}>SPECIAL SERVICES</Text>
+            <View style={styles.headerLine} />
+          </View>
+          <View style={styles.formCardsColumn}>
+            <FormCard
+              title="Bulk Food Delivery"
+              subtitle="Order before 7 days"
+              description="Hassle-free food for office parties & more!"
+              icon="📦"
+              gradientColors={[Colors.primary, '#6366F1']}
+              features={['No Cooking', 'No Cleaning', 'No Hassle']}
+              badge="Service & Live Cooking Available"
+              onPress={() => router.push('/corporate-form')}
+            />
+            <FormCard
+              title="Catering Service"
+              subtitle="Order before 2 days"
+              description="Suitable for small to large gatherings"
+              icon="🍽️"
+              gradientColors={['#EC4899', '#F97316']}
+              features={['Live Plating', 'Service Available']}
+              badge="Service & Live Cooking Available"
+              onPress={() => router.push('/nutrition-form')}
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.centeredSectionHeader}>
+            <View style={styles.headerLine} />
+            <Text style={styles.centeredSectionTitle}>
+              {selectedCategoryId ? "MEALS" : "POPULAR MEALS"}
             </Text>
-            <TouchableOpacity
-              onPress={() => router.push("/(tabs)/menu")}
-              testID="see-all-meals"
-            >
-              <Text style={styles.seeAll}>See All</Text>
-            </TouchableOpacity>
+            <View style={styles.headerLine} />
           </View>
           {mealsQuery.isLoading ? (
             <View style={styles.pad20}>
@@ -664,25 +705,119 @@ function CustomerHomeScreen({
               <Text style={styles.errorText}>Failed to load meals</Text>
             </View>
           ) : (
-            <View style={styles.mealGrid}>
-              <FlatList
-                data={displayedMeals}
-                renderItem={renderMealGrid}
-                keyExtractor={(item) => item.id}
-                numColumns={2}
-                columnWrapperStyle={styles.gridRow}
-                scrollEnabled={false}
-              />
-            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.horizontalScroll}
+              contentContainerStyle={styles.collectionScrollContent}
+            >
+              {displayedMeals.map((meal: Meal, index) => (
+                <View key={meal.id} style={[
+                  styles.mealCardWrapper,
+                  index !== displayedMeals.length - 1 && styles.mealCardGap
+                ]}>
+                  <MealCard
+                    meal={meal}
+                    onPress={() => handleMealPress(meal.id)}
+                    onSubscribe={() => handleMealPress(meal.id)}
+                    onTryNow={() => handleMealPress(meal.id)}
+                  />
+                </View>
+              ))}
+              {/* See All Button */}
+              <TouchableOpacity
+                style={styles.seeAllCard}
+                onPress={() => router.push("/(tabs)/menu")}
+              >
+                <View style={styles.seeAllCardContent}>
+                  <Text style={styles.seeAllCardText}>See All</Text>
+                  <Text style={styles.seeAllCardArrow}>→</Text>
+                </View>
+              </TouchableOpacity>
+            </ScrollView>
           )}
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Special Offers</Text>
+
+          {categoriesQuery.isLoading ? (
+            <View style={styles.pad20}>
+              <Text style={styles.whiteText}>Loading collections...</Text>
+            </View>
+          ) : categoriesQuery.isError ? (
+            <View style={styles.pad20}>
+              <Text style={styles.errorText}>Failed to load collections</Text>
+            </View>
+          ) : (
+            <>
+              {collectionCategories.slice(0, 3).map((collection: Category) => {
+                const collectionMeals = (mealsQuery.data ?? []).filter(
+                  (m: Meal) =>
+                    (m.categoryIds ?? []).includes(collection.id) ||
+                    m.categoryId === collection.id
+                ).slice(0, 6);
+
+                if (collectionMeals.length === 0) return null;
+
+                return (
+                  <View key={collection.id} style={styles.collectionSlider}>
+                    <View style={styles.centeredSectionHeader}>
+                      <View style={styles.headerLine} />
+                      <Text style={styles.centeredSectionTitle}>{collection.name.toUpperCase()}</Text>
+                      <View style={styles.headerLine} />
+                    </View>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.horizontalScroll}
+                      contentContainerStyle={styles.collectionScrollContent}
+                    >
+                      {collectionMeals.map((meal: Meal, index) => (
+                        <View key={meal.id} style={[
+                          styles.mealCardWrapper,
+                          index !== collectionMeals.length - 1 && styles.mealCardGap
+                        ]}>
+                          <MealCard
+                            meal={meal}
+                            onPress={() => handleMealPress(meal.id)}
+                            onSubscribe={() => handleMealPress(meal.id)}
+                            onTryNow={() => handleMealPress(meal.id)}
+                          />
+                        </View>
+                      ))}
+                      {/* See All Button */}
+                      <TouchableOpacity
+                        style={styles.seeAllCard}
+                        onPress={() => handleCategoryPress(collection.id)}
+                      >
+                        <View style={styles.seeAllCardContent}>
+                          <Text style={styles.seeAllCardText}>See All</Text>
+                          <Text style={styles.seeAllCardArrow}>→</Text>
+                        </View>
+                      </TouchableOpacity>
+                    </ScrollView>
+                  </View>
+                );
+              })}
+            </>
+          )}
+        </View>
+
+
+
+
+
+        <View style={styles.section}>
+          <View style={styles.centeredSectionHeader}>
+            <View style={styles.headerLine} />
+            <Text style={styles.centeredSectionTitle}>SPECIAL OFFERS</Text>
+            <View style={styles.headerLine} />
+          </View>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.horizontalScroll}
+            contentContainerStyle={styles.categoriesScrollContent}
           >
             {offers.map((offer) => (
               <OfferCard
@@ -695,7 +830,11 @@ function CustomerHomeScreen({
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>What Our Customers Say</Text>
+          <View style={styles.centeredSectionHeader}>
+            <View style={styles.headerLine} />
+            <Text style={styles.centeredSectionTitle}>WHAT OUR CUSTOMERS SAY</Text>
+            <View style={styles.headerLine} />
+          </View>
           {testimonialsQuery.isLoading ? (
             <View style={styles.pad20}>
               <Text style={styles.whiteText}>Loading testimonials...</Text>
@@ -709,6 +848,7 @@ function CustomerHomeScreen({
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.horizontalScroll}
+              contentContainerStyle={styles.categoriesScrollContent}
             >
               {testimonials.map((testimonial: Testimonial) => (
                 <TestimonialCard
@@ -732,11 +872,11 @@ function CustomerHomeScreen({
             prev.map((section: any) =>
               section.id === sectionId
                 ? {
-                    ...section,
-                    options: section.options.map((o: any) =>
-                      o.id === optionId ? { ...o, selected: !o.selected } : o
-                    ),
-                  }
+                  ...section,
+                  options: section.options.map((o: any) =>
+                    o.id === optionId ? { ...o, selected: !o.selected } : o
+                  ),
+                }
                 : section
             )
           );
@@ -902,6 +1042,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 9,
   },
+  centeredSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    marginBottom: 20,
+    gap: 12,
+  },
+  centeredSectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.primary,
+    letterSpacing: 1.5,
+    paddingHorizontal: 12,
+  },
+  headerLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: Colors.primary,
+    opacity: 0.2,
+  },
   seeAll: { fontSize: 14, color: "#A3D397", fontWeight: "700" },
   horizontalScroll: { paddingLeft: 18 },
   mealGrid: { paddingHorizontal: 18 },
@@ -972,4 +1133,62 @@ const styles = StyleSheet.create({
     color: "#1B1B1B",
   },
   subscriptionDetails: { fontSize: 14, color: "#E9EAF6", marginBottom: 4 },
+  formCardsColumn: {
+    gap: 0,
+  },
+  collectionSlider: {
+    marginBottom: 24,
+  },
+  collectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    marginBottom: 12,
+  },
+  collectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#000000',
+  },
+  mealCardWrapper: {
+    width: 180,
+  },
+  mealCardGap: {
+    marginRight: 16,
+  },
+  collectionScrollContent: {
+    paddingRight: 18,
+    gap: 16,
+  },
+  seeAllCard: {
+    width: 140,
+    height: 200,
+    backgroundColor: Colors.primary,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  seeAllCardContent: {
+    alignItems: 'center',
+  },
+  seeAllCardText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  seeAllCardArrow: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  categoriesScrollContent: {
+    paddingRight: 18,
+  },
 });

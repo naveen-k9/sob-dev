@@ -34,6 +34,8 @@ import db from "@/db";
 import { addOns, subscriptionPlans } from "@/constants/data";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Dimensions } from "react-native";
+import AddOnsModal from "@/components/AddOnsModal";
+import { Colors } from "@/constants/colors";
 const TOP_BG_HEIGHT = Math.round(Dimensions.get("window").height * 0.36);
 type WeekType = "mon-fri" | "mon-sat";
 type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat";
@@ -177,11 +179,8 @@ export default function MealDetailScreen() {
       features: [`${duration} Days`, "1 Meal/Day", "Free Delivery"],
       popular: duration === 6 || duration === 15,
     }));
-    if (isTrialMode) {
-      return plans.filter((plan) => plan.duration === 2);
-    } else {
-      return plans.filter((plan) => plan.duration !== 2);
-    }
+    // Show all plans regardless of trial mode
+    return plans;
   };
 
   const handleAddOnToggle = useCallback((addOnId: string) => {
@@ -474,84 +473,13 @@ export default function MealDetailScreen() {
             )}
           </View>
 
-          {/* Nutrition Info */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Nutrition Information</Text>
-            <View style={styles.nutritionGrid}>
-              <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>
-                  {meal.nutritionInfo.calories}
-                </Text>
-                <Text style={styles.nutritionLabel}>Calories</Text>
-              </View>
-              <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>
-                  {meal.nutritionInfo.protein}g
-                </Text>
-                <Text style={styles.nutritionLabel}>Protein</Text>
-              </View>
-              <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>
-                  {meal.nutritionInfo.carbs}g
-                </Text>
-                <Text style={styles.nutritionLabel}>Carbs</Text>
-              </View>
-              <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>
-                  {meal.nutritionInfo.fat}g
-                </Text>
-                <Text style={styles.nutritionLabel}>Fat</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Ingredients */}
-          <View style={styles.section}>
+          
+           {/* Ingredients */}
+           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Ingredients</Text>
             <Text style={styles.ingredients}>
               {meal.ingredients.join(", ")}
             </Text>
-          </View>
-
-          {/* Plan Selection */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Select Plan</Text>
-            <View style={styles.planContainer}>
-              {getAvailablePlans().map((plan) => {
-                const isSelected = selectedPlan
-                  ? selectedPlan.id === plan.id
-                  : false;
-                return (
-                  <TouchableOpacity
-                    key={plan.id}
-                    testID={`plan-${plan.id}`}
-                    style={[styles.planCard, isSelected && styles.selectedPlan]}
-                    onPress={() => setSelectedPlan(plan)}
-                  >
-                    {plan.popular && (
-                      <View style={styles.popularBadge}>
-                        <Text style={styles.popularText}>POPULAR</Text>
-                      </View>
-                    )}
-                    <Text style={styles.planName}>{plan.name}</Text>
-                    <Text style={styles.planDuration}>
-                      {plan.duration} days
-                    </Text>
-                    <View style={styles.planPricing}>
-                      <Text style={styles.planPrice}>
-                        ₹{plan.discountedPrice}
-                      </Text>
-                      <Text style={styles.planOriginalPrice}>
-                        ₹{plan.originalPrice}
-                      </Text>
-                    </View>
-                    <Text style={styles.planDescription}>
-                      {plan.description}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
           </View>
 
           {/* Week Type Selection */}
@@ -588,6 +516,80 @@ export default function MealDetailScreen() {
               })}
             </View>
           </View>
+
+          {/* Plan Selection */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Select Plan</Text>
+            <View style={styles.planGrid}>
+              {getAvailablePlans().map((plan) => {
+                const isSelected = selectedPlan
+                  ? selectedPlan.id === plan.id
+                  : false;
+                return (
+                  <TouchableOpacity
+                    key={plan.id}
+                    testID={`plan-${plan.id}`}
+                    style={[styles.planGridCard, isSelected && styles.selectedPlanGrid]}
+                    onPress={() => setSelectedPlan(plan)}
+                  >
+                    {plan.popular && (
+                      <View style={styles.popularBadgeGrid}>
+                        <Text style={styles.popularTextGrid}>⭐ POPULAR</Text>
+                      </View>
+                    )}
+                    <Text style={styles.planNameGrid}>{plan.name}</Text>
+                    <Text style={styles.planDurationGrid}>
+                      {plan.duration} days
+                    </Text>
+                    <View style={styles.planPricingGrid}>
+                      <Text style={styles.planPriceGrid}>
+                        ₹{plan.discountedPrice}
+                      </Text>
+                    </View>
+                    <Text style={styles.planDescriptionGrid} numberOfLines={2}>
+                      {plan.description}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+         
+
+          {/* Nutrition Info */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Nutrition Information</Text>
+            <View style={styles.nutritionGrid}>
+              <View style={styles.nutritionItem}>
+                <Text style={styles.nutritionValue}>
+                  {meal.nutritionInfo.calories}
+                </Text>
+                <Text style={styles.nutritionLabel}>Calories</Text>
+              </View>
+              <View style={styles.nutritionItem}>
+                <Text style={styles.nutritionValue}>
+                  {meal.nutritionInfo.protein}g
+                </Text>
+                <Text style={styles.nutritionLabel}>Protein</Text>
+              </View>
+              <View style={styles.nutritionItem}>
+                <Text style={styles.nutritionValue}>
+                  {meal.nutritionInfo.carbs}g
+                </Text>
+                <Text style={styles.nutritionLabel}>Carbs</Text>
+              </View>
+              <View style={styles.nutritionItem}>
+                <Text style={styles.nutritionValue}>
+                  {meal.nutritionInfo.fat}g
+                </Text>
+                <Text style={styles.nutritionLabel}>Fat</Text>
+              </View>
+            </View>
+          </View>
+
+
+          
 
           {/* Add-on Meal Type Filter */}
           {/* <View style={styles.section}>
@@ -659,211 +661,9 @@ export default function MealDetailScreen() {
             )}
           </View>
 
-          <View style={styles.section}>
-            <View style={styles.mealsCard}>
-              <View style={styles.mealsHeader}>
-                <Text style={styles.mealsTitle}>
-                  Add-ons ({selectedAddOns.length})
-                </Text>
-                <View style={styles.mealsHeaderActions}>
-                  <TouchableOpacity
-                    testID="meals-card-add"
-                    style={styles.mealsAddBtn}
-                    onPress={() => setShowAddOnsDrawer(true)}
-                  >
-                    <Plus size={16} color="white" />
-                    <Text style={styles.mealsAddBtnText}>Add</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+         
 
-              {/* Inline list preview */}
-              {selectedAddOns.length === 0 ? (
-                <View style={styles.emptyMealsContainer}>
-                  <ChefHat size={48} color="#9CA3AF" />
-                  <Text style={styles.emptyMealsTitle}>No Addons</Text>
-                  <Text style={styles.emptyMealsDescription}>
-                    Customize the addons delivery days.
-                  </Text>
-                </View>
-              ) : (
-                <View>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={styles.mealsRow}>
-                      <View style={styles.addOnsCardsContainer}>
-                        {selectedAddOns.slice(0, 6).map((addOnId) => {
-                          const addOn = addOns.find((a) => a.id === addOnId);
-                          if (!addOn) return null;
-
-                          return (
-                            <View key={addOn.id} style={styles.mealTinyCard}>
-                              <View
-                                style={[styles.mealTinyThumb, { padding: 0 }]}
-                              >
-                                {addOn.image ? (
-                                  <ExpoImage
-                                    source={{ uri: addOn.image }}
-                                    style={{
-                                      width: "100%",
-                                      height: "100%",
-                                      borderRadius: 8,
-                                      backgroundColor: "#F3F4F6",
-                                    }}
-                                    contentFit="cover"
-                                    transition={200}
-                                  />
-                                ) : (
-                                  <Text style={styles.mealImageText}>🍽️</Text>
-                                )}
-                              </View>
-                              <Text
-                                numberOfLines={1}
-                                style={styles.mealTinyName}
-                              >
-                                {addOn.name}
-                              </Text>
-                              <Text style={styles.mealTinyMeta}>
-                                ₹{addOn.price}
-                              </Text>
-                              {/* Show selected weekdays for this addon */}
-                              <View
-                                style={{
-                                  flexDirection: "row",
-                                  flexWrap: "wrap",
-                                  gap: 4,
-                                  marginTop: 4,
-                                }}
-                              >
-                                {(() => {
-                                  const days =
-                                    selectedAddOnDays[addOn.id] ?? [];
-                                  if (days.length === 0) {
-                                    // All days selected, show label and balls for all availableDays (week type)
-                                    return (
-                                      <View
-                                        style={{
-                                          flexDirection: "row",
-                                          alignItems: "center",
-                                          gap: 4,
-                                        }}
-                                      >
-                                        {/* <Text style={{ fontSize: 11, color: '#10B981', marginRight: 4 }}>All days:</Text> */}
-                                        {availableDays.map((dayObj) => (
-                                          <View
-                                            key={dayObj.key}
-                                            style={{
-                                              width: 24,
-                                              height: 24,
-                                              borderRadius: 12,
-                                              backgroundColor: "#10B981",
-                                              justifyContent: "center",
-                                              alignItems: "center",
-                                            }}
-                                          >
-                                            <Text
-                                              style={{
-                                                fontSize: 12,
-                                                color: "white",
-                                                fontWeight: "bold",
-                                              }}
-                                            >
-                                              {dayObj.short}
-                                            </Text>
-                                          </View>
-                                        ))}
-                                      </View>
-                                    );
-                                  }
-                                  return days.map((dayKey) => {
-                                    const dayObj = availableDays.find(
-                                      (d) => d.key === dayKey
-                                    );
-                                    return dayObj ? (
-                                      <View
-                                        key={dayKey}
-                                        style={{
-                                          width: 24,
-                                          height: 24,
-                                          borderRadius: 12,
-                                          backgroundColor: "#48479B",
-                                          justifyContent: "center",
-                                          alignItems: "center",
-                                        }}
-                                      >
-                                        <Text
-                                          style={{
-                                            fontSize: 12,
-                                            color: "white",
-                                            fontWeight: "bold",
-                                          }}
-                                        >
-                                          {dayObj.short}
-                                        </Text>
-                                      </View>
-                                    ) : null;
-                                  });
-                                })()}
-                              </View>
-                            </View>
-                          );
-                        })}
-                        {selectedAddOns.length > 6 && (
-                          <Text style={styles.moreAddOnsText}>
-                            +{selectedAddOns.length - 6} more
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                  </ScrollView>
-                </View>
-              )}
-            </View>
-          </View>
-
-          {/* Delivery Time Slot */}
-          {/* <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Delivery Time</Text>
-            <View style={styles.timeSlotContainer}>
-              {(allTimeSlots.filter(s => !meal.availableTimeSlotIds || meal.availableTimeSlotIds.length === 0 || meal.availableTimeSlotIds.includes(s.id))).map((slot) => {
-                const isSelected = selectedTimeSlot?.id === slot.id;
-                return (
-                  <TouchableOpacity
-                    key={slot.id}
-                    style={[styles.timeSlotButton, isSelected && styles.selectedTimeSlot]}
-                    onPress={() => setSelectedTimeSlot(slot)}
-                  >
-                    <Clock size={16} color={isSelected ? '#48479B' : '#666'} />
-                    <Text style={[styles.timeSlotText, isSelected && styles.selectedTimeSlotText]}>
-                      {slot.time}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View> */}
-
-          {/* Start Date */}
-          {/* <View style={styles.section}>
-            
-            <TouchableOpacity 
-              style={styles.dateSelector}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Calendar size={20} color="#48479B" />
-              <View style={styles.dateContent}>
-                <Text style={styles.dateLabel}>Start Date</Text>
-                <Text style={styles.dateValue}>
-                  {startDate.toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                  })}
-                </Text>
-              </View>
-              <ChevronRight size={16} color="#666" />
-            </TouchableOpacity>
-          </View> */}
+         
         </View>
       </ScrollView>
 
@@ -878,8 +678,8 @@ export default function MealDetailScreen() {
           }}
         >
           <View style={styles.priceBreakdown}>
-            <Text style={styles.totalPriceLabel}>Total Price</Text>
-            <Text style={styles.totalPriceValue}>₹{calculateTotalPrice()}</Text>
+            
+            <Text style={styles.totalPriceValue}><Text style={styles.totalPriceLabel}>Total Price</Text> ₹{calculateTotalPrice()}</Text>
             {isTrialMode && (
               <Text style={styles.trialDiscount}>
                 Trial Plan: ₹{meal ? meal.price * 2 : 0}
@@ -1045,126 +845,36 @@ export default function MealDetailScreen() {
         </SafeAreaView>
       </Modal>
 
-      {/* Add-ons Drawer Modal */}
-      <Modal
+      {/* Add-ons Modal - New Design */}
+      <AddOnsModal
         visible={showAddOnsDrawer}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowAddOnsDrawer(false)}
+        onClose={() => setShowAddOnsDrawer(false)}
+        addOns={filteredAddOns}
+        selectedAddOns={selectedAddOns}
+        onToggleAddOn={handleAddOnToggle}
+        planPrice={selectedPlan?.discountedPrice || 0}
+        weekType={weekType}
+        selectedAddOnDays={selectedAddOnDays}
+        onToggleAddOnDay={toggleAddOnDay}
+        planDuration={selectedPlan?.duration || 0}
+      />
+
+      {/* Floating Add-ons Button */}
+      <TouchableOpacity
+        style={styles.floatingAddOnsButton}
+        onPress={() => setShowAddOnsDrawer(true)}
+        activeOpacity={0.9}
       >
-        <SafeAreaView style={styles.drawerContainer}>
-          <View style={styles.drawerHeader}>
-            <Text style={styles.drawerTitle}>Select Add-ons</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowAddOnsDrawer(false)}
-            >
-              <X size={24} color="#333" />
-            </TouchableOpacity>
+        <View style={styles.floatingButtonContent}>
+          <Plus size={20} color="white" />
+          <Text style={styles.floatingButtonText}>Add-ons</Text>
+        </View>
+        {selectedAddOns.length > 0 && (
+          <View style={styles.floatingBadge}>
+            <Text style={styles.floatingBadgeText}>{selectedAddOns.length}</Text>
           </View>
-
-          <ScrollView style={styles.drawerContent}>
-            {filteredAddOns.map((addOn) => {
-              const isSelected = selectedAddOns.includes(addOn.id);
-              const days = selectedAddOnDays[addOn.id] ?? [];
-              return (
-                <View
-                  key={addOn.id}
-                  style={[
-                    styles.drawerAddOnCard,
-                    isSelected && styles.selectedDrawerAddOn,
-                  ]}
-                >
-                  <TouchableOpacity
-                    testID={`addon-toggle-${addOn.id}`}
-                    style={styles.addOnRow}
-                    onPress={() => handleAddOnToggle(addOn.id)}
-                  >
-                    {addOn.image ? (
-                      <ExpoImage
-                        source={addOn.image}
-                        style={styles.addOnImage}
-                        contentFit="cover"
-                        transition={200}
-                      />
-                    ) : (
-                      <View
-                        style={[
-                          styles.addOnImage,
-                          { justifyContent: "center", alignItems: "center" },
-                        ]}
-                      >
-                        <Text style={{ fontSize: 32 }}>🍽️</Text>
-                      </View>
-                    )}
-                    <View style={styles.addOnInfo}>
-                      <Text style={styles.addOnName}>{addOn.name}</Text>
-                      <Text style={styles.addOnDescription}>
-                        {addOn.description}
-                      </Text>
-                      <Text style={styles.addOnPrice}>+₹{addOn.price}</Text>
-                    </View>
-                    {isSelected && (
-                      <View style={styles.addOnSelected}>
-                        <Text style={styles.checkMark}>✓</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-
-                  {isSelected && (
-                    <View style={styles.daySelectorContainer}>
-                      <Text style={styles.daySelectorLabel}>
-                        Select days for this addon
-                      </Text>
-                      <View style={styles.daysRow}>
-                        {availableDays.map((d) => {
-                          const active = days.includes(d.key);
-                          return (
-                            <TouchableOpacity
-                              key={d.key}
-                              testID={`addon-${addOn.id}-day-${d.key}`}
-                              style={[
-                                styles.dayChip,
-                                active && styles.dayChipActive,
-                              ]}
-                              onPress={() => toggleAddOnDay(addOn.id, d.key)}
-                            >
-                              <Text
-                                style={[
-                                  styles.dayChipText,
-                                  active && styles.dayChipTextActive,
-                                ]}
-                              >
-                                {d.short}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                      {days.length === 0 && (
-                        <Text style={styles.applyAllDaysNote}>
-                          No day selected → applies to all plan days
-                        </Text>
-                      )}
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-          </ScrollView>
-
-          <View style={styles.drawerFooter}>
-            <TouchableOpacity
-              style={styles.doneButton}
-              onPress={() => setShowAddOnsDrawer(false)}
-            >
-              <Text style={styles.doneButtonText}>
-                Done ({selectedAddOns.length} selected)
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
+        )}
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -1407,6 +1117,122 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#666",
   },
+  planGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  planGridCard: {
+    flex: 1,
+    minWidth: '47%',
+    maxWidth: '48%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    position: 'relative',
+    minHeight: 150,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  selectedPlanGrid: {
+    borderColor: Colors.primary,
+    backgroundColor: "#ffffff",
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  popularBadgeGrid: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  popularTextGrid: {
+    color: '#1F2937',
+    fontSize: 9,
+    fontWeight: 'bold',
+    letterSpacing: 0.3,
+  },
+  planNameGrid: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 3,
+    marginTop: 2,
+  },
+  planDurationGrid: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 10,
+    fontWeight: '500',
+  },
+  planPricingGrid: {
+    marginBottom: 8,
+  },
+  planPriceGrid: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#48479B',
+  },
+  planDescriptionGrid: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    lineHeight: 15,
+  },
+  floatingAddOnsButton: {
+    position: 'absolute',
+    bottom: 162,
+    right: 20,
+    backgroundColor:Colors.accent,
+    borderRadius: 28,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#EC4899',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  floatingButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  floatingButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  floatingBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor:Colors.primary,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
+  },
+  floatingBadgeText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
   toggleContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1620,7 +1446,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   bottomActions: {
-    padding: 20,
+    padding: 9,
     backgroundColor: "white",
     borderTopWidth: 1,
     borderTopColor: "#F0F0F0",
