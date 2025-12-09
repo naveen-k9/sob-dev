@@ -27,12 +27,15 @@ import FilterModal from "@/components/FilterModal";
 import { ArrowLeftIcon, FilterIcon, LayoutGrid, Rows } from "lucide-react-native";
 
 import { offers as offersSeed } from "@/constants/data";
-import { Colors } from "@/constants/colors";
+import { getColors } from "@/constants/colors";
+import { useTheme } from "@/contexts/ThemeContext";
 import MealCard from "@/components/MealCard";
 import MenuOffers from "@/components/MenuOffers";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CategoryBrowserScreen() {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
   const params = useLocalSearchParams<{ categoryId?: string }>();
   const initialCategoryId =
     typeof params.categoryId === "string" ? params.categoryId : null;
@@ -223,16 +226,16 @@ export default function CategoryBrowserScreen() {
     // If a category is selected, filter by that category
     let list = activeCategoryId
       ? validMeals.filter((m) => {
-          // Check both categoryId and categoryIds array
-          const ids = [
-            ...(m.categoryIds ?? []),
-            ...(m.categoryId ? [m.categoryId] : []),
-          ];
+        // Check both categoryId and categoryIds array
+        const ids = [
+          ...(m.categoryIds ?? []),
+          ...(m.categoryId ? [m.categoryId] : []),
+        ];
 
-          // If the meal is in this category or any of its subcategories
-          const matches = ids.some((id) => id === activeCategoryId);
-          return matches;
-        })
+        // If the meal is in this category or any of its subcategories
+        const matches = ids.some((id) => id === activeCategoryId);
+        return matches;
+      })
       : validMeals; // If no category selected, show all meals
 
     // Collect all selected filters from sections
@@ -375,11 +378,11 @@ export default function CategoryBrowserScreen() {
         prev.map((s) =>
           s.id === sectionId
             ? {
-                ...s,
-                options: s.options.map((o) =>
-                  o.id === optionId ? { ...o, selected: !o.selected } : o
-                ),
-              }
+              ...s,
+              options: s.options.map((o) =>
+                o.id === optionId ? { ...o, selected: !o.selected } : o
+              ),
+            }
             : s
         )
       );
@@ -550,28 +553,28 @@ export default function CategoryBrowserScreen() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
           title: "Menu",
           headerShown: true,
-          headerStyle: { backgroundColor: Colors.surface },
+          headerStyle: { backgroundColor: colors.surface },
           headerTitleStyle: {
-            color: Colors.primary,
+            color: colors.primary,
             fontSize: 22,
             fontWeight: "700",
           },
-           headerLeft: () => (
-                      <View style={{ marginLeft: 18, marginRight: 9 }}>
-                        <TouchableOpacity
-                          onPress={() => router.push("/")}
-                          testID="open-filter"
-                        >
-                          <ArrowLeftIcon
-                           size={24} color={Colors.primary} />
-                        </TouchableOpacity>
-                      </View>
-                    ),
+          headerLeft: () => (
+            <View style={{ marginLeft: 18, marginRight: 9 }}>
+              <TouchableOpacity
+                onPress={() => router.push("/")}
+                testID="open-filter"
+              >
+                <ArrowLeftIcon
+                  size={24} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
+          ),
           headerRight: () => {
             const activeFilterCount = filterSections.reduce(
               (count, section) =>
@@ -581,33 +584,33 @@ export default function CategoryBrowserScreen() {
 
             return (
               <View style={styles.filtersBar}>
-                 <Text style={styles.filtersLabel}>
+                <Text style={[styles.filtersLabel, { backgroundColor: colors.primary, color: colors.surface }]}>
                   {activeFilterCount > 0 ? `${activeFilterCount}` : ""}
                 </Text>
                 <TouchableOpacity
                   onPress={() => setShowFilterModal(true)}
                   testID="open-filter"
                 >
-                  
-                 
-                <Text style={styles.filterAction}>
-                    <FilterIcon />
+
+
+                  <Text style={styles.filterAction}>
+                    <FilterIcon color={colors.text} />
                   </Text>
                 </TouchableOpacity>
-                
+
               </View>
             );
           },
         }}
       />
 
-      <View style={[styles.sectionMain, { marginTop: -27 }]}>
+      <View style={[styles.sectionMain, { marginTop: -36 }]}>
         <ScrollView
           ref={scrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.horizontalScroll}
-          contentContainerStyle={styles.horizontalContent}
+          contentContainerStyle={[styles.horizontalContent, { backgroundColor: colors.background }]}
           decelerationRate="fast"
           scrollEventThrottle={16}
           snapToAlignment="center"
@@ -720,10 +723,12 @@ export default function CategoryBrowserScreen() {
 
           {/* Active Category Name below ScrollView */}
           {activeCategoryName ? (
-            <View style={styles.activeCategoryNameWrap}>
-              <Text style={styles.activeCategoryNameText}>
-                {activeCategoryName} Products
-              </Text>
+
+            <View style={styles.centeredSectionHeader}>
+              <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+              <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>{activeCategoryName} Products</Text>
+              <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+
             </View>
           ) : null}
 
@@ -843,7 +848,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 8,
   },
-  filtersLabel: { fontSize: 12, fontWeight: "700", marginTop:-18, marginRight:-6, backgroundColor:Colors.primary, paddingHorizontal:7, borderRadius:12, color:Colors.surface },
+  filtersLabel: { fontSize: 12, fontWeight: "700", marginTop: -18, marginRight: -6, paddingHorizontal: 7, borderRadius: 12 },
   filterAction: { color: "#111", fontWeight: "600" },
   headerIconBtn: { padding: 8 },
   loadingWrap: {
@@ -864,7 +869,7 @@ const styles = StyleSheet.create({
   offersRow: { paddingLeft: 20, paddingVertical: 8 },
   horizontalContent: {
     paddingHorizontal: 18,
-    backgroundColor: "rgba(255,255,255,0.7)",
+    backgroundColor: "#fff",
     paddingVertical: 9,
   },
   activeCategoryNameWrap: {
@@ -874,4 +879,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   activeCategoryNameText: { fontSize: 16, fontWeight: "700", color: "#000" },
+  centeredSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    marginBottom: 20,
+    gap: 12,
+  },
+  centeredSectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    paddingHorizontal: 12,
+  },
+  headerLine: {
+    flex: 1,
+    height: 2,
+    opacity: 0.2,
+  },
 });

@@ -3,34 +3,32 @@ import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Home, ShoppingBag, Gift, SquareMenu, MapPin } from "lucide-react-native";
 import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Colors } from "@/constants/colors";
+import { useTheme } from "@/contexts/ThemeContext";
+import { getColors } from "@/constants/colors";
 import { FlipCircle } from "@/components/FlipCircle";
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const styles = StyleSheet.create({
-  scene: { backgroundColor: '#FFFFFF' },
-  tabBar: { backgroundColor: '#FFFFFF', borderTopWidth: 0, height: 90, paddingTop: 9, paddingBottom: 27 },
-  tabLabel: { fontSize: 12, fontWeight: '500' as const },
-  centerTabButton: {
-    top: -18, // makes it float above tab bar
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
-
 export default function TabLayout() {
   const { isAdmin, isKitchen, isDelivery } = useAuth();
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
   const router = useRouter();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        sceneStyle: styles.scene,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: Colors.accent,
-        tabBarInactiveTintColor:  Colors.primary,
-        tabBarLabelStyle: styles.tabLabel,
+        sceneStyle: { backgroundColor: colors.background },
+        tabBarStyle: { 
+          backgroundColor: colors.tabBarBg, 
+          borderTopWidth: 0, 
+          height: 90, 
+          paddingTop: 9, 
+          paddingBottom: 27 
+        },
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.primary,
+        tabBarLabelStyle: { fontSize: 12, fontWeight: '500' as const },
       }}
     >
       {/* Left Tab 1 */}

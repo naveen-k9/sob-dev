@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { TouchableOpacity, Image, Text, StyleSheet, View, Animated } from 'react-native';
 import { Category } from '@/types';
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/contexts/ThemeContext';
+import { getColors } from '@/constants/colors';
 
 interface CategoryCardProps {
   category: Category;
@@ -10,6 +11,8 @@ interface CategoryCardProps {
 }
 
 export default function CategoryCard({ category, onPress, isActive = false }: CategoryCardProps) {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
   const scaleAnim = useRef(new Animated.Value(isActive ? 1.05 : 1)).current;
   const opacityAnim = useRef(new Animated.Value(isActive ? 1 : 0.7)).current;
   
@@ -34,64 +37,58 @@ export default function CategoryCard({ category, onPress, isActive = false }: Ca
       style={styles.container} 
       onPress={onPress} 
       testID={`cat-${category.id}`}
-      // activeOpacity={0.7}
     >
       <Animated.View 
         style={[
           styles.imageWrap,
-          isActive && styles.imageWrapActive,
+          { backgroundColor: colors.surface },
+          isActive && [styles.imageWrapActive, { borderColor: colors.accent, backgroundColor: colors.accent }],
           { 
             transform: [{ scale: scaleAnim }],
-            // opacity: opacityAnim,
           }
         ]}
       >
         <Image source={{ uri: category.image }} style={styles.image} />
       </Animated.View>
-      <Text style={[styles.name, isActive && styles.nameActive]} numberOfLines={1}>{category.name}</Text>
+      <Text 
+        style={[
+          styles.name, 
+          { color: colors.text },
+          isActive && { color: colors.primary, fontWeight: '700' }
+        ]} 
+        numberOfLines={1}
+      >
+        {category.name}
+      </Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    width: 117,
-    marginRight: 20,
+    width: 108,
+    marginRight: 14,
     alignItems: 'center',
   },
   imageWrap: {
-    padding: 4,
+    padding: 0,
     borderRadius: 60,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    backgroundColor: Colors.surface,
     marginBottom: 6,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   imageWrapActive: {
-    borderColor: Colors.primary,
-    backgroundColor: '#F5F7FF',
+    borderWidth: 3,
     shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 4,
   },
   image: {
-    width: 108,
-    height: 108,
+    width: 90,
+    height: 90,
     borderRadius: 60,
   },
   name: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.text,
     textAlign: 'center',
-  },
-  nameActive: {
-    color: Colors.primary,
-    fontWeight: '700',
   },
 });

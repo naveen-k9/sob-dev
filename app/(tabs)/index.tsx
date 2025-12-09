@@ -28,6 +28,8 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "@/contexts/LocationContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { getColors } from "@/constants/colors";
 import CategoryCard from "@/components/CategoryCard";
 import TestimonialCard from "@/components/TestimonialCard";
 import OfferCard from "@/components/OfferCard";
@@ -35,6 +37,7 @@ import OfferDetailModal from "@/components/OfferDetailModal";
 import FilterModal from "@/components/FilterModal";
 import LocationService from "@/components/LocationService";
 import FormCard from "@/components/FormCard";
+import ThemeToggle from "@/components/ThemeToggle";
 import { offers, PromotionalItem } from "@/constants/data";
 import { useAsyncStorage } from "@/hooks/useStorage";
 import {
@@ -59,13 +62,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MealCard from "@/components/MealCard";
 import CategorySquareCard from "@/components/CategorySquareCard";
 import RoleSelector from "@/components/RoleSelector";
-import { Colors } from "@/constants/colors";
 import { Ionicons } from "@expo/vector-icons";
 
 const TOP_BG_HEIGHT = Math.round(Dimensions.get("window").height * 0.38);
 
 export default function HomeScreen() {
   const { user, isGuest, isAdmin, isKitchen, isDelivery } = useAuth();
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
   const [polygons] = useAsyncStorage<Polygon[]>("polygons", []);
 
   const [barStyle, setBarStyle] = useState<"light" | "dark">("dark"); // Start with light for banner
@@ -270,6 +274,8 @@ export default function HomeScreen() {
           }
         }}
         polygons={polygons.filter((p) => p.completed)}
+        isDark={isDark}
+        colors={colors}
       />
       {/* <RoleSelector currentRole="admin" /> */}
       {/* <TouchableOpacity
@@ -314,6 +320,8 @@ function CustomerHomeScreen({
   barStyle,
   onScrollStatusChange,
   polygons,
+  isDark,
+  colors,
 }: {
   user: any;
   isGuest: boolean;
@@ -339,6 +347,8 @@ function CustomerHomeScreen({
   barStyle: "light" | "dark";
   onScrollStatusChange: (next: "light" | "dark", scrolled: boolean) => void;
   polygons: Polygon[];
+  isDark: boolean;
+  colors: ReturnType<typeof getColors>;
 }) {
   const { locationState } = useLocation();
   const insets = useSafeAreaInsets();
@@ -434,7 +444,7 @@ function CustomerHomeScreen({
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Sticky Header - appears on top when scrolled */}
       {/* {isScrolled && (
         <View
@@ -535,8 +545,9 @@ function CustomerHomeScreen({
               } // Disable if scrolled, scrolling, OR already detected
             />
             <View style={styles.headerActions}>
+              {/* DARK/LIGHT MODE SWITCH */}
+              <ThemeToggle size={18} variant="pill" />
               <TouchableOpacity
-                // style={styles.profileCircleSticky}
                 onPress={() => router.push("/wallet")}
                 testID="profile-button-sticky"
               >
@@ -597,9 +608,9 @@ function CustomerHomeScreen({
 
         <View style={[styles.section]}>
           <View style={styles.centeredSectionHeader}>
-            <View style={styles.headerLine} />
-            <Text style={styles.centeredSectionTitle}>MEAL TIME</Text>
-            <View style={styles.headerLine} />
+            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+            <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>MEAL TIME</Text>
+            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
           </View>
           {categoriesQuery.isLoading ? (
             <View style={styles.pad20}>
@@ -631,9 +642,9 @@ function CustomerHomeScreen({
 
         <View style={styles.section}>
           <View style={styles.centeredSectionHeader}>
-            <View style={styles.headerLine} />
-            <Text style={styles.centeredSectionTitle}>COLLECTIONS</Text>
-            <View style={styles.headerLine} />
+            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+            <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>COLLECTIONS</Text>
+            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
           </View>
           {categoriesQuery.isLoading ? (
             <View style={styles.pad20}>
@@ -660,9 +671,9 @@ function CustomerHomeScreen({
         {/* Form Cards Section */}
         <View style={styles.section}>
           <View style={styles.centeredSectionHeader}>
-            <View style={styles.headerLine} />
-            <Text style={styles.centeredSectionTitle}>SPECIAL SERVICES</Text>
-            <View style={styles.headerLine} />
+            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+            <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>SPECIAL SERVICES</Text>
+            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
           </View>
           <View style={styles.formCardsColumn}>
             <FormCard
@@ -670,7 +681,7 @@ function CustomerHomeScreen({
               subtitle="Order before 7 days"
               description="Hassle-free food for office parties & more!"
               icon="📦"
-              gradientColors={[Colors.primary, '#6366F1']}
+              gradientColors={[colors.primary, '#6366F1']}
               features={['No Cooking', 'No Cleaning', 'No Hassle']}
               badge="Service & Live Cooking Available"
               onPress={() => router.push('/corporate-form')}
@@ -690,11 +701,11 @@ function CustomerHomeScreen({
 
         <View style={styles.section}>
           <View style={styles.centeredSectionHeader}>
-            <View style={styles.headerLine} />
-            <Text style={styles.centeredSectionTitle}>
+            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+            <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>
               {selectedCategoryId ? "MEALS" : "POPULAR MEALS"}
             </Text>
-            <View style={styles.headerLine} />
+            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
           </View>
           {mealsQuery.isLoading ? (
             <View style={styles.pad20}>
@@ -726,7 +737,7 @@ function CustomerHomeScreen({
               ))}
               {/* See All Button */}
               <TouchableOpacity
-                style={styles.seeAllCard}
+                style={[styles.seeAllCard, { backgroundColor: colors.primary }]}
                 onPress={() => router.push("/(tabs)/menu")}
               >
                 <View style={styles.seeAllCardContent}>
@@ -742,7 +753,7 @@ function CustomerHomeScreen({
 
           {categoriesQuery.isLoading ? (
             <View style={styles.pad20}>
-              <Text style={styles.whiteText}>Loading collections...</Text>
+              <Text style={[styles.whiteText, { color: colors.text }]}>Loading collections...</Text>
             </View>
           ) : categoriesQuery.isError ? (
             <View style={styles.pad20}>
@@ -762,9 +773,9 @@ function CustomerHomeScreen({
                 return (
                   <View key={collection.id} style={styles.collectionSlider}>
                     <View style={styles.centeredSectionHeader}>
-                      <View style={styles.headerLine} />
-                      <Text style={styles.centeredSectionTitle}>{collection.name.toUpperCase()}</Text>
-                      <View style={styles.headerLine} />
+                      <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+                      <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>{collection.name.toUpperCase()}</Text>
+                      <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
                     </View>
                     <ScrollView
                       horizontal
@@ -787,7 +798,7 @@ function CustomerHomeScreen({
                       ))}
                       {/* See All Button */}
                       <TouchableOpacity
-                        style={styles.seeAllCard}
+                        style={[styles.seeAllCard, { backgroundColor: colors.primary }]}
                         onPress={() => handleCategoryPress(collection.id)}
                       >
                         <View style={styles.seeAllCardContent}>
@@ -809,9 +820,9 @@ function CustomerHomeScreen({
 
         <View style={styles.section}>
           <View style={styles.centeredSectionHeader}>
-            <View style={styles.headerLine} />
-            <Text style={styles.centeredSectionTitle}>SPECIAL OFFERS</Text>
-            <View style={styles.headerLine} />
+            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+            <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>SPECIAL OFFERS</Text>
+            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
           </View>
           <ScrollView
             horizontal
@@ -831,9 +842,9 @@ function CustomerHomeScreen({
 
         <View style={styles.section}>
           <View style={styles.centeredSectionHeader}>
-            <View style={styles.headerLine} />
-            <Text style={styles.centeredSectionTitle}>WHAT OUR CUSTOMERS SAY</Text>
-            <View style={styles.headerLine} />
+            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+            <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>WHAT OUR CUSTOMERS SAY</Text>
+            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
           </View>
           {testimonialsQuery.isLoading ? (
             <View style={styles.pad20}>
@@ -1053,14 +1064,12 @@ const styles = StyleSheet.create({
   centeredSectionTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: Colors.primary,
     letterSpacing: 1.5,
     paddingHorizontal: 12,
   },
   headerLine: {
     flex: 1,
     height: 2,
-    backgroundColor: Colors.primary,
     opacity: 0.2,
   },
   seeAll: { fontSize: 14, color: "#A3D397", fontWeight: "700" },
@@ -1164,7 +1173,6 @@ const styles = StyleSheet.create({
   seeAllCard: {
     width: 140,
     height: 200,
-    backgroundColor: Colors.primary,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',

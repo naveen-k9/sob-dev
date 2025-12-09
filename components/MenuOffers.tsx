@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -10,45 +10,43 @@ import {
   ListRenderItemInfo,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import { Percent } from "lucide-react-native";
-import { Colors } from "@/constants/colors";
-import Svg, { Circle } from "react-native-svg";
+import { LinearGradient } from "expo-linear-gradient";
+import { useTheme } from "@/contexts/ThemeContext";
+import { getColors } from "@/constants/colors";
 
 const { width } = Dimensions.get("window");
 
 const offers = [
   {
     id: "1",
-    code: "FIRSTMEAL",
-    title: "Get your first meal free",
-    subText: "Try us — first meal is on the house. No strings attached.",
-    discount: "100%",
+    code: "SAVE50",
+    discount: "₹50",
+    minOrder: "₹1199",
   },
   {
     id: "2",
-    code: "SAVE100",
-    title: "Save ₹100 instantly",
-    subText: "Use this coupon for a quick ₹100 discount on checkout.",
-    discount: "₹100",
+    code: "SAVE150",
+    discount: "₹150",
+    minOrder: "₹2399",
   },
   {
     id: "3",
-    code: "SAVE500",
-    title: "Big Savings: ₹500 OFF",
-    subText: "Great for subscriptions — big discount on your next plan.",
-    discount: "₹500",
+    code: "SAVE200",
+    discount: "₹200",
+    minOrder: "₹2999",
   },
 ];
 
-const SPACING = 12;
-const CARD_WIDTH = Math.min(340, width * 0.50);
+const HORIZONTAL_PADDING = 16;
+const SPACING = 10;
+// Calculate card width so all 3 cards fit perfectly
+const CARD_WIDTH = (width - (2 * HORIZONTAL_PADDING) - (2 * SPACING)) / 3;
 const CARD_HEIGHT = 72;
-const NOTCH_SIZE = 18;
+const NOTCH_SIZE = 14;
 
 export default function MenuOffers() {
-  const listRef = useRef<FlatList<any> | null>(null);
-  const indexRef = useRef(0);
-  const [isPaused, setIsPaused] = useState(false);
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
 
   const handleCopy = async (code: string) => {
     try {
@@ -61,59 +59,52 @@ export default function MenuOffers() {
       } else {
         await Clipboard.setStringAsync(code);
       }
-      // lightweight feedback; host app can replace with toast
       alert("Coupon copied: " + code);
     } catch (e) {
       alert("Copied: " + code);
     }
   };
 
-  useEffect(() => {
-    if (offers.length <= 1) return;
-    const interval = setInterval(() => {
-      if (isPaused) return;
-      indexRef.current = (indexRef.current + 1) % offers.length;
-      const offset = indexRef.current * (CARD_WIDTH + SPACING);
-      listRef.current?.scrollToOffset({ offset, animated: true });
-    }, 3400);
-    return () => clearInterval(interval);
-  }, [isPaused]);
+  // Theme-aware gradient colors
+  const gradientColors = isDark 
+    ? ["#1a1a2e", "#252540", "#1a1a2e"] as const
+    : ["#f8f0ff", "#ece4f8", "#f0e8fc"] as const;
 
-  const renderItem = ({ item }: ListRenderItemInfo<any>) => {
+  const notchBgColor = isDark ? "#252540" : "#f0e8fc";
+  const cardBgColor = isDark ? colors.surface : "#fff";
+  const discountTextColor = isDark ? "#a78bfa" : "#5b21b6";
+  const dashColor = isDark ? "#6366f1" : "#c4b5fd";
+
+  const renderItem = ({ item, index }: ListRenderItemInfo<any>) => {
+    const isLast = index === offers.length - 1;
     return (
       <Pressable
         onPress={() => handleCopy(item.code)}
-        style={styles.cardWrapper}
-        onTouchStart={() => setIsPaused(true)}
-        onTouchEnd={() => setIsPaused(false)}
+        style={[styles.cardWrapper, isLast && { marginRight: 0 }]}
       >
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: cardBgColor }]}>
           {/* Left notch cutout */}
-          <View style={styles.leftNotch} />
+          <View style={[styles.leftNotch, { backgroundColor: notchBgColor }]} />
           
           {/* Right notch cutout */}
-          <View style={styles.rightNotch} />
+          <View style={[styles.rightNotch, { backgroundColor: notchBgColor }]} />
 
-          {/* Left section with icon */}
-          <View style={styles.leftSection}>
-            <View style={styles.iconCircle}>
-              <Percent color="#fff" size={32} strokeWidth={3} />
+          {/* Content */}
+          <View style={styles.contentContainer}>
+            {/* Discount text */}
+            <Text style={[styles.discountText, { color: discountTextColor }]}>{item.discount} off</Text>
+            
+            {/* Horizontal dashed line */}
+            <View style={styles.dashedLineContainer}>
+              {[...Array(12)].map((_, i) => (
+                <View key={i} style={[styles.dash, { backgroundColor: dashColor }]} />
+              ))}
             </View>
-          </View>
-
-          {/* Dashed divider */}
-          <View style={styles.dashedDivider}>
-            {[...Array(8)].map((_, i) => (
-              <View key={i} style={styles.dash} />
-            ))}
-          </View>
-
-          {/* Right section with content */}
-          <View style={styles.rightSection}>
-            <View style={styles.discountBadge}>
-              <Text style={styles.discountText}>{item.discount} off</Text>
-            </View>
-            <Text style={styles.codeLabel}>Use Code : <Text style={styles.codeValue}>{item.code}</Text></Text>
+            
+            {/* Minimum order text */}
+            <Text style={[styles.minOrderText, { color: colors.mutedText }]}>
+              on {item.minOrder} & above
+            </Text>
           </View>
         </View>
       </Pressable>
@@ -121,32 +112,31 @@ export default function MenuOffers() {
   };
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={gradientColors}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}
+    >
       <FlatList
-        ref={listRef}
         data={offers}
         keyExtractor={(i) => String(i.id)}
         horizontal
         showsHorizontalScrollIndicator={false}
         renderItem={renderItem}
         contentContainerStyle={styles.scrollContent}
-        snapToInterval={CARD_WIDTH + SPACING}
-        decelerationRate="fast"
-        snapToAlignment="start"
-        onScrollBeginDrag={() => setIsPaused(true)}
-        onScrollEndDrag={() => setIsPaused(false)}
+        scrollEnabled={false}
       />
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#fff",
-    paddingVertical: 6,
+    paddingVertical: 14,
   },
   scrollContent: {
-    paddingHorizontal: SPACING,
+    paddingHorizontal: HORIZONTAL_PADDING,
   },
   cardWrapper: {
     width: CARD_WIDTH,
@@ -154,17 +144,12 @@ const styles = StyleSheet.create({
   },
   card: {
     height: CARD_HEIGHT,
-    backgroundColor: "#fff",
     borderRadius: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: "#8b5cf6",
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
-    shadowRadius: 12,
+    shadowRadius: 8,
     elevation: 4,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
     overflow: "visible",
     position: "relative",
   },
@@ -176,9 +161,6 @@ const styles = StyleSheet.create({
     width: NOTCH_SIZE,
     height: NOTCH_SIZE,
     borderRadius: NOTCH_SIZE / 2,
-    backgroundColor: "#f5f5f5",
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
     zIndex: 10,
   },
   rightNotch: {
@@ -189,71 +171,38 @@ const styles = StyleSheet.create({
     width: NOTCH_SIZE,
     height: NOTCH_SIZE,
     borderRadius: NOTCH_SIZE / 2,
-    backgroundColor: "#f5f5f5",
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
     zIndex: 10,
   },
-  leftSection: {
-    width: 90,
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#f8f8f8",
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
-  },
-  iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#4CAF50",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#4CAF50",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  dashedDivider: {
-    width: 1,
-    height: "80%",
-    alignItems: "center",
-    justifyContent: "space-evenly",
-    marginHorizontal: 0,
-  },
-  dash: {
-    width: 2,
-    height: 6,
-    backgroundColor: "#d0d0d0",
-    borderRadius: 1,
-  },
-  rightSection: {
+  contentContainer: {
     flex: 1,
-    paddingLeft: 16,
-    paddingRight: 16,
+    alignItems: "center",
     justifyContent: "center",
-  },
-  discountBadge: {
-    alignSelf: "flex-start",
-    marginBottom: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
   },
   discountText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
-    color: "#111",
-    letterSpacing: 0.5,
+    letterSpacing: -0.3,
+    marginBottom: 1,
   },
-  codeLabel: {
-    fontSize: 13,
-    color: "#666",
-    fontWeight: "400",
+  dashedLineContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    marginVertical: 4,
+    width: "80%",
   },
-  codeValue: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#4CAF50",
-    letterSpacing: 1,
+  dash: {
+    width: 5,
+    height: 0.9,
+    borderRadius: 1,
+  },
+  minOrderText: {
+    fontSize: 11,
+    fontWeight: "500",
+    marginTop: 2,
+    textAlign: "center",
   },
 });
