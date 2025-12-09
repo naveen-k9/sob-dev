@@ -542,7 +542,8 @@ function CustomerHomeScreen({
               onLocationSet={handleLocationSet}
               disableAutoDetection={
                 isScrolled || isScrolling || hasLocationBeenDetected
-              } // Disable if scrolled, scrolling, OR already detected
+              } // Disable if scrolled, scrolling, OR alr
+              
             />
             <View style={styles.headerActions}>
               {/* DARK/LIGHT MODE SWITCH */}
