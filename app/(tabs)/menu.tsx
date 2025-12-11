@@ -739,6 +739,8 @@ export default function CategoryBrowserScreen() {
               renderItem={({ item }) => (
                 <MealCard
                   meal={item}
+                  variant={gridCols === 1 ? "list" : "grid"}
+                  columns={gridCols === 1 ? 1 : 2}
                   onPress={() => handleMealPress(item.id)}
                   onTryNow={() => handleAdd(item.id)}
                 />

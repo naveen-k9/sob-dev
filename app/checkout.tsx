@@ -646,11 +646,13 @@ export default function CheckoutScreen() {
       return;
     }
     const orderData = await orderResp.json();
+    const razorpayKey =
+      process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID ?? "rzp_test_RFSonKoJy6tEEL";
     const options = {
       description,
       image: "https://i.imgur.com/3g7nmJC.jpg",
       currency: "INR",
-      key: "rzp_test_RFSonKoJy6tEEL", // Use your public Razorpay key here
+      key: razorpayKey, // Public Razorpay key (set EXPO_PUBLIC_RAZORPAY_KEY_ID for EAS builds)
       amount: `${orderSummary.payableAmount * 100}`,
       name: "SOB",
       order_id: orderData.id, // Use the order_id from backend

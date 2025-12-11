@@ -1,28 +1,66 @@
-import React, { memo } from 'react';
-import { TouchableOpacity, ImageBackground, Text, StyleSheet } from 'react-native';
-import { Category } from '@/types';
+import React, { memo, useMemo } from "react";
+import {
+  TouchableOpacity,
+  ImageBackground,
+  Text,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Category } from "@/types";
 
 interface CategorySquareCardProps {
   category: Category;
   onPress: () => void;
+  /**
+   * Optional explicit size for the square tile (width/height).
+   * If omitted, defaults to a 2-column grid size based on window width.
+   */
+  size?: number;
 }
 
-function CategorySquareCard({ category, onPress }: CategorySquareCardProps) {
+function CategorySquareCard({
+  category,
+  onPress,
+  size,
+}: CategorySquareCardProps) {
+  const { width } = useWindowDimensions();
+  const tileSize = useMemo(() => {
+    if (typeof size === "number") return size;
+
+    // Default: 2 columns, with a single gap between columns.
+    const horizontalPadding = 18 * 2; // matches `styles.mealGrid` paddingHorizontal in home screen
+    const gap = 36; // space between the two tiles
+    const computed = Math.floor((width - horizontalPadding - gap) / 2);
+    return Math.max(132, computed); // sensible minimum for small screens
+  }, [size, width]);
+
   return (
-    <TouchableOpacity 
-      style={styles.container} 
-      onPress={onPress} 
+    <TouchableOpacity
+      style={[styles.container, { width: tileSize, height: tileSize }]}
+      onPress={onPress}
       testID={`cat-rect-${category.id}`}
       // activeOpacity={0.85}
     >
-      <ImageBackground 
-        source={{ uri: category.image }} 
-        style={styles.image} 
+      <ImageBackground
+        source={{ uri: category.image }}
+        style={styles.image}
         imageStyle={styles.imageRadius}
       >
-        <Text style={styles.name} numberOfLines={2}>
-          {category.name}
-        </Text>
+        {/* Subtle dark overlay for readability */}
+        <LinearGradient
+          colors={["rgba(0,0,0,0.00)", "rgba(0,0,0,0.65)"]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0.5, y: 0.25 }}
+          end={{ x: 0.5, y: 1.0 }}
+        />
+
+        <View style={styles.labelWrap}>
+          <Text style={styles.name} numberOfLines={2}>
+            {category.name}
+          </Text>
+        </View>
       </ImageBackground>
     </TouchableOpacity>
   );
@@ -32,35 +70,39 @@ export default memo(CategorySquareCard);
 
 const styles = StyleSheet.create({
   container: {
-    width: '48%',         // two cards per row
-    height: 117,          // rectangle height
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 12,
-    backgroundColor: '#f3f4f6',
-    elevation: 2,
-    shadowColor: '#000',
+    borderRadius: 18,
+    overflow: "hidden",
+    backgroundColor: "#f3f4f6",
+    marginBottom: 21,
+
+    // Shadow (iOS) + elevation (Android) like the screenshot tiles
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
   },
   image: {
     flex: 1,
-    justifyContent: 'flex-end',
-    padding: 8,
+    justifyContent: "flex-end",
+    alignItems: "stretch",
   },
   imageRadius: {
-    borderRadius: 16,
+    borderRadius: 18,
+  },
+  labelWrap: {
+    paddingHorizontal: 9,
+    paddingVertical: 18,
+    alignItems: "center",
   },
   name: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: 'white',
-    backgroundColor: 'rgba(0,0,0,0.4)', // makes text readable
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 6,
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    textAlign: "center",
+    letterSpacing: 0.2,
+    textShadowColor: "rgba(0,0,0,0.55)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
   },
 });

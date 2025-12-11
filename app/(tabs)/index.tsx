@@ -30,7 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "@/contexts/LocationContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getColors } from "@/constants/colors";
-import CategoryCard from "@/components/CategoryCard";
+import CategoryCard from "@/components/CategoryCardMealTime";
 import TestimonialCard from "@/components/TestimonialCard";
 import OfferCard from "@/components/OfferCard";
 import OfferDetailModal from "@/components/OfferDetailModal";
@@ -543,7 +543,6 @@ function CustomerHomeScreen({
               disableAutoDetection={
                 isScrolled || isScrolling || hasLocationBeenDetected
               } // Disable if scrolled, scrolling, OR alr
-              
             />
             <View style={styles.headerActions}>
               {/* DARK/LIGHT MODE SWITCH */}
@@ -605,13 +604,19 @@ function CustomerHomeScreen({
           )}
         </View>
 
-
-
         <View style={[styles.section]}>
           <View style={styles.centeredSectionHeader}>
-            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
-            <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>MEAL TIME</Text>
-            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+            <View
+              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+            />
+            <Text
+              style={[styles.centeredSectionTitle, { color: colors.primary }]}
+            >
+              MEAL TIME
+            </Text>
+            <View
+              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+            />
           </View>
           {categoriesQuery.isLoading ? (
             <View style={styles.pad20}>
@@ -639,13 +644,19 @@ function CustomerHomeScreen({
           )}
         </View>
 
-
-
         <View style={styles.section}>
           <View style={styles.centeredSectionHeader}>
-            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
-            <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>COLLECTIONS</Text>
-            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+            <View
+              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+            />
+            <Text
+              style={[styles.centeredSectionTitle, { color: colors.primary }]}
+            >
+              COLLECTIONS
+            </Text>
+            <View
+              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+            />
           </View>
           {categoriesQuery.isLoading ? (
             <View style={styles.pad20}>
@@ -658,7 +669,7 @@ function CustomerHomeScreen({
           ) : (
             <View style={styles.mealGrid}>
               <FlatList
-                data={collectionCategories}
+                data={collectionCategories.slice(0, 4)}
                 renderItem={renderCollectionsGrid}
                 keyExtractor={(item) => item.id}
                 numColumns={2}
@@ -672,9 +683,17 @@ function CustomerHomeScreen({
         {/* Form Cards Section */}
         <View style={styles.section}>
           <View style={styles.centeredSectionHeader}>
-            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
-            <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>SPECIAL SERVICES</Text>
-            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+            <View
+              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+            />
+            <Text
+              style={[styles.centeredSectionTitle, { color: colors.primary }]}
+            >
+              SPECIAL SERVICES
+            </Text>
+            <View
+              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+            />
           </View>
           <View style={styles.formCardsColumn}>
             <FormCard
@@ -682,31 +701,37 @@ function CustomerHomeScreen({
               subtitle="Order before 7 days"
               description="Hassle-free food for office parties & more!"
               icon="📦"
-              gradientColors={[colors.primary, '#6366F1']}
-              features={['No Cooking', 'No Cleaning', 'No Hassle']}
+              gradientColors={[colors.primary, "#6366F1"]}
+              features={["No Cooking", "No Cleaning", "No Hassle"]}
               badge="Service & Live Cooking Available"
-              onPress={() => router.push('/corporate-form')}
+              onPress={() => router.push("/corporate-form")}
             />
             <FormCard
               title="Catering Service"
               subtitle="Order before 2 days"
               description="Suitable for small to large gatherings"
               icon="🍽️"
-              gradientColors={['#EC4899', '#F97316']}
-              features={['Live Plating', 'Service Available']}
+              gradientColors={["#EC4899", "#F97316"]}
+              features={["Live Plating", "Service Available"]}
               badge="Service & Live Cooking Available"
-              onPress={() => router.push('/nutrition-form')}
+              onPress={() => router.push("/nutrition-form")}
             />
           </View>
         </View>
 
         <View style={styles.section}>
           <View style={styles.centeredSectionHeader}>
-            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
-            <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>
+            <View
+              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+            />
+            <Text
+              style={[styles.centeredSectionTitle, { color: colors.primary }]}
+            >
               {selectedCategoryId ? "MEALS" : "POPULAR MEALS"}
             </Text>
-            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+            <View
+              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+            />
           </View>
           {mealsQuery.isLoading ? (
             <View style={styles.pad20}>
@@ -724,12 +749,16 @@ function CustomerHomeScreen({
               contentContainerStyle={styles.collectionScrollContent}
             >
               {displayedMeals.map((meal: Meal, index) => (
-                <View key={meal.id} style={[
-                  styles.mealCardWrapper,
-                  index !== displayedMeals.length - 1 && styles.mealCardGap
-                ]}>
+                <View
+                  key={meal.id}
+                  style={[
+                    styles.mealCardWrapper,
+                    index !== displayedMeals.length - 1 && styles.mealCardGap,
+                  ]}
+                >
                   <MealCard
                     meal={meal}
+                    variant="carousel"
                     onPress={() => handleMealPress(meal.id)}
                     onSubscribe={() => handleMealPress(meal.id)}
                     onTryNow={() => handleMealPress(meal.id)}
@@ -737,7 +766,7 @@ function CustomerHomeScreen({
                 </View>
               ))}
               {/* See All Button */}
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 style={[styles.seeAllCard, { backgroundColor: colors.primary }]}
                 onPress={() => router.push("/(tabs)/menu")}
               >
@@ -745,16 +774,17 @@ function CustomerHomeScreen({
                   <Text style={styles.seeAllCardText}>See All</Text>
                   <Text style={styles.seeAllCardArrow}>→</Text>
                 </View>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </ScrollView>
           )}
         </View>
 
         <View style={styles.section}>
-
           {categoriesQuery.isLoading ? (
             <View style={styles.pad20}>
-              <Text style={[styles.whiteText, { color: colors.text }]}>Loading collections...</Text>
+              <Text style={[styles.whiteText, { color: colors.text }]}>
+                Loading collections...
+              </Text>
             </View>
           ) : categoriesQuery.isError ? (
             <View style={styles.pad20}>
@@ -763,20 +793,39 @@ function CustomerHomeScreen({
           ) : (
             <>
               {collectionCategories.slice(0, 3).map((collection: Category) => {
-                const collectionMeals = (mealsQuery.data ?? []).filter(
-                  (m: Meal) =>
-                    (m.categoryIds ?? []).includes(collection.id) ||
-                    m.categoryId === collection.id
-                ).slice(0, 6);
+                const collectionMeals = (mealsQuery.data ?? [])
+                  .filter(
+                    (m: Meal) =>
+                      (m.categoryIds ?? []).includes(collection.id) ||
+                      m.categoryId === collection.id
+                  )
+                  .slice(0, 6);
 
                 if (collectionMeals.length === 0) return null;
 
                 return (
                   <View key={collection.id} style={styles.collectionSlider}>
                     <View style={styles.centeredSectionHeader}>
-                      <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
-                      <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>{collection.name.toUpperCase()}</Text>
-                      <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+                      <View
+                        style={[
+                          styles.headerLine,
+                          { backgroundColor: colors.primary },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.centeredSectionTitle,
+                          { color: colors.primary },
+                        ]}
+                      >
+                        {collection.name.toUpperCase()}
+                      </Text>
+                      <View
+                        style={[
+                          styles.headerLine,
+                          { backgroundColor: colors.primary },
+                        ]}
+                      />
                     </View>
                     <ScrollView
                       horizontal
@@ -785,12 +834,17 @@ function CustomerHomeScreen({
                       contentContainerStyle={styles.collectionScrollContent}
                     >
                       {collectionMeals.map((meal: Meal, index) => (
-                        <View key={meal.id} style={[
-                          styles.mealCardWrapper,
-                          index !== collectionMeals.length - 1 && styles.mealCardGap
-                        ]}>
+                        <View
+                          key={meal.id}
+                          style={[
+                            styles.mealCardWrapper,
+                            index !== collectionMeals.length - 1 &&
+                              styles.mealCardGap,
+                          ]}
+                        >
                           <MealCard
                             meal={meal}
+                            variant="carousel"
                             onPress={() => handleMealPress(meal.id)}
                             onSubscribe={() => handleMealPress(meal.id)}
                             onTryNow={() => handleMealPress(meal.id)}
@@ -799,7 +853,10 @@ function CustomerHomeScreen({
                       ))}
                       {/* See All Button */}
                       <TouchableOpacity
-                        style={[styles.seeAllCard, { backgroundColor: colors.primary }]}
+                        style={[
+                          styles.seeAllCard,
+                          { backgroundColor: colors.primary },
+                        ]}
                         onPress={() => handleCategoryPress(collection.id)}
                       >
                         <View style={styles.seeAllCardContent}>
@@ -815,15 +872,19 @@ function CustomerHomeScreen({
           )}
         </View>
 
-
-
-
-
         <View style={styles.section}>
           <View style={styles.centeredSectionHeader}>
-            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
-            <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>SPECIAL OFFERS</Text>
-            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+            <View
+              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+            />
+            <Text
+              style={[styles.centeredSectionTitle, { color: colors.primary }]}
+            >
+              SPECIAL OFFERS
+            </Text>
+            <View
+              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+            />
           </View>
           <ScrollView
             horizontal
@@ -843,9 +904,17 @@ function CustomerHomeScreen({
 
         <View style={styles.section}>
           <View style={styles.centeredSectionHeader}>
-            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
-            <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>WHAT OUR CUSTOMERS SAY</Text>
-            <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+            <View
+              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+            />
+            <Text
+              style={[styles.centeredSectionTitle, { color: colors.primary }]}
+            >
+              WHAT OUR CUSTOMERS SAY
+            </Text>
+            <View
+              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+            />
           </View>
           {testimonialsQuery.isLoading ? (
             <View style={styles.pad20}>
@@ -884,11 +953,11 @@ function CustomerHomeScreen({
             prev.map((section: any) =>
               section.id === sectionId
                 ? {
-                  ...section,
-                  options: section.options.map((o: any) =>
-                    o.id === optionId ? { ...o, selected: !o.selected } : o
-                  ),
-                }
+                    ...section,
+                    options: section.options.map((o: any) =>
+                      o.id === optionId ? { ...o, selected: !o.selected } : o
+                    ),
+                  }
                 : section
             )
           );
@@ -1055,16 +1124,16 @@ const styles = StyleSheet.create({
     paddingBottom: 9,
   },
   centeredSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 18,
     marginBottom: 20,
     gap: 12,
   },
   centeredSectionTitle: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: "800",
     letterSpacing: 1.5,
     paddingHorizontal: 12,
   },
@@ -1075,7 +1144,7 @@ const styles = StyleSheet.create({
   },
   seeAll: { fontSize: 14, color: "#A3D397", fontWeight: "700" },
   horizontalScroll: { paddingLeft: 18 },
-  mealGrid: { paddingHorizontal: 18 },
+  mealGrid: { paddingHorizontal: 25 },
   gridRow: { justifyContent: "space-between" },
   row: { flexDirection: "row", alignItems: "center" },
   rowMB6: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
@@ -1089,7 +1158,7 @@ const styles = StyleSheet.create({
   bannersRow: { paddingRight: 20 },
   bannersContainer: { position: "absolute", left: 0, right: 0, bottom: 18 },
   bannerCard: {
-    width: 117,
+    width: 132,
     height: 108,
     marginRight: 18,
     borderRadius: 18,
@@ -1113,8 +1182,8 @@ const styles = StyleSheet.create({
     left: 9,
     right: 9,
     color: "#fff",
-    fontWeight: "900",
-    fontSize: 14,
+    fontWeight: "700",
+    fontSize: 12,
   },
   bottomSpacing: { height: 18 },
   subscriptionCard: {
@@ -1150,52 +1219,56 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   collectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 18,
     marginBottom: 12,
   },
   collectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#000000',
+    fontWeight: "700",
+    color: "#000000",
   },
   mealCardWrapper: {
-    width: 180,
+    width: 306,
   },
   mealCardGap: {
-    marginRight: 16,
+    marginRight: 9,
   },
   collectionScrollContent: {
     paddingRight: 18,
-    gap: 16,
+    gap: 9,
+    alignItems: "center",
   },
   seeAllCard: {
-    width: 140,
-    height: 200,
+    width: 90,
+    height: 90,
     borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    justifyContent: "center",
+    alignItems: "center",
+ 
+    marginRight: 18,
+    marginLeft: 9,
   },
   seeAllCardContent: {
-    alignItems: 'center',
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
   },
   seeAllCardText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 8,
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.2,
+    marginRight: 6,
   },
   seeAllCardArrow: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#FFFFFF",
+    marginTop: -1,
   },
   categoriesScrollContent: {
     paddingRight: 18,

@@ -93,7 +93,7 @@
     "updates": {
       "enabled": true
     },
-    "runtimeVersion": "<UNKNOWN>",
+    "runtimeVersion": "1.0.0",
     "extra": {
       "router": {
         "origin": "https://sameoldbox.com/"

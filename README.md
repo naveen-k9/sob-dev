@@ -1,6 +1,12 @@
 # npx expo start --dev-client
 
+# Build an installable APK (includes native modules like Razorpay / Maps / FCM)
+
 # npx eas build -p android --profile preview --local
+
+# (cloud) eas build -p android --profile preview
+
+# (cloud, release APK) eas build -p android --profile production-apk
 
 cd android
 ./gradlew clean
@@ -19,11 +25,8 @@ implementation project(':react-native-razorpay')
 
 AndroidManifest.xml (above activity) <meta-data android:name="com.google.android.geo.API_KEY" android:value="AIzaSyAz5QXMfoHQLZ_ZpWWqE_7OUrAIaYPSmi4"/>
 
-
 To refresh the Gradle cache
 ./gradlew clean
-
-
 
 banners
 heroImage
