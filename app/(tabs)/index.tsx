@@ -1143,7 +1143,7 @@ const styles = StyleSheet.create({
     opacity: 0.2,
   },
   seeAll: { fontSize: 14, color: "#A3D397", fontWeight: "700" },
-  horizontalScroll: { paddingLeft: 0 },
+  horizontalScroll: { paddingLeft: 9 },
   mealGrid: { paddingHorizontal: 25 },
   gridRow: { justifyContent: "space-between" },
   row: { flexDirection: "row", alignItems: "center" },

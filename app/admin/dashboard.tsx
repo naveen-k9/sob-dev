@@ -53,7 +53,12 @@ import {
   Building2,
 } from "lucide-react-native";
 import db from "@/db";
-import { seedIfEmpty } from "@/services/firebase";
+import {
+  seedIfEmpty,
+  fetchServiceableLocations as fbFetchServiceableLocations,
+  updateServiceableLocation as fbUpdateServiceableLocation,
+  deleteServiceableLocation as fbDeleteServiceableLocation,
+} from "@/services/firebase";
 import {
   Subscription,
   User,
@@ -63,11 +68,10 @@ import {
   UserRole,
   TimeSlot,
   Meal,
+  ServiceableLocation,
 } from "@/types";
 import PromotionalAdmin from "@/components/PromotionalAdmin";
 import RoleSelector from "@/components/RoleSelector";
-import PolygonMap from "@/components/PolygonMap";
-import PolygonSelector from "@/components/PolygonSelector";
 
 interface DashboardCard {
   id: string;
@@ -213,9 +217,19 @@ export default function AdminDashboard() {
 
   const [categories, setCategories] = useState<any[]>([]);
   const [meals, setMeals] = useState<any[]>([]);
-  const [locations, setLocations] = useState<any[]>([]);
+  const [locations, setLocations] = useState<ServiceableLocation[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(false);
   const [showViewCategories, setShowViewCategories] = useState(false);
   const [showViewMeals, setShowViewMeals] = useState(false);
+  
+  // Location edit state
+  const [showEditLocation, setShowEditLocation] = useState(false);
+  const [editingLocation, setEditingLocation] = useState<ServiceableLocation | null>(null);
+  const [editLocationName, setEditLocationName] = useState("");
+  const [editLocationDeliveryFee, setEditLocationDeliveryFee] = useState("");
+  const [editLocationRadius, setEditLocationRadius] = useState("");
+  const [editLocationIsActive, setEditLocationIsActive] = useState(true);
+  const [savingLocation, setSavingLocation] = useState(false);
   const [selectedMealCategory, setSelectedMealCategory] = useState<string>("");
   const [showViewLocations, setShowViewLocations] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -974,14 +988,96 @@ export default function AdminDashboard() {
     setShowViewMeals(true);
   };
 
-  const loadLocations = async () => {
+  const loadLocations = async (showModal = true) => {
     try {
-      const locs = await db.getServiceableLocations();
+      setLocationsLoading(true);
+      // Fetch directly from Firebase
+      const locs = await fbFetchServiceableLocations();
       setLocations(locs);
-      setShowViewLocations(true);
-      console.log("Locations loaded:", locs.length);
+      if (showModal) {
+        setShowViewLocations(true);
+      }
+      console.log("Locations loaded from Firebase:", locs.length);
     } catch (error) {
       console.error("Error loading locations:", error);
+      Alert.alert("Error", "Failed to load locations from server");
+    } finally {
+      setLocationsLoading(false);
+    }
+  };
+
+  const openEditLocation = (location: ServiceableLocation) => {
+    setEditingLocation(location);
+    setEditLocationName(location.name);
+    setEditLocationDeliveryFee(location.deliveryFee.toString());
+    setEditLocationRadius(location.radius.toString());
+    setEditLocationIsActive(location.isActive);
+    setShowEditLocation(true);
+  };
+
+  const handleSaveLocation = async () => {
+    if (!editingLocation) return;
+    if (!editLocationName.trim()) {
+      Alert.alert("Error", "Location name is required");
+      return;
+    }
+
+    try {
+      setSavingLocation(true);
+      const updates: Partial<ServiceableLocation> = {
+        name: editLocationName.trim(),
+        deliveryFee: parseFloat(editLocationDeliveryFee) || 0,
+        radius: parseFloat(editLocationRadius) || 5,
+        isActive: editLocationIsActive,
+      };
+
+      await fbUpdateServiceableLocation(editingLocation.id, updates);
+      Alert.alert("Success", "Location updated successfully");
+      setShowEditLocation(false);
+      setEditingLocation(null);
+      // Reload locations
+      await loadLocations(false);
+    } catch (error) {
+      console.error("Error updating location:", error);
+      Alert.alert("Error", "Failed to update location");
+    } finally {
+      setSavingLocation(false);
+    }
+  };
+
+  const handleDeleteLocation = (location: ServiceableLocation) => {
+    Alert.alert(
+      "Delete Location",
+      `Are you sure you want to delete "${location.name}"? This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await fbDeleteServiceableLocation(location.id);
+              Alert.alert("Success", "Location deleted successfully");
+              await loadLocations(false);
+            } catch (error) {
+              console.error("Error deleting location:", error);
+              Alert.alert("Error", "Failed to delete location");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleToggleLocationActive = async (location: ServiceableLocation) => {
+    try {
+      await fbUpdateServiceableLocation(location.id, {
+        isActive: !location.isActive,
+      });
+      await loadLocations(false);
+    } catch (error) {
+      console.error("Error toggling location status:", error);
+      Alert.alert("Error", "Failed to update location status");
     }
   };
 
@@ -2888,15 +2984,13 @@ export default function AdminDashboard() {
 
               <TouchableOpacity
                 style={styles.saveButton}
-                onPress={() =>
-                  console.log(
-                    "Map selection feature - would open polygon selector"
-                  )
-                }
+                onPress={() => {
+                  setShowAddLocation(false);
+                  router.push('/admin/polygon-locations');
+                }}
               >
                 <Text style={styles.saveButtonText}>Select Area on Map</Text>
               </TouchableOpacity>
-              <PolygonSelector />
 
               <TouchableOpacity
                 style={[
@@ -3703,39 +3797,90 @@ export default function AdminDashboard() {
               <Text style={styles.modalTitle}>
                 Locations ({locations.length})
               </Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowViewLocations(false)}
-              >
-                <X size={24} color="#374151" />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <TouchableOpacity
+                  style={[styles.saveButton, { paddingVertical: 8, paddingHorizontal: 16, marginTop: 0 }]}
+                  onPress={() => {
+                    setShowViewLocations(false);
+                    router.push('/admin/polygon-locations');
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Plus size={18} color="white" />
+                    <Text style={styles.saveButtonText}>Add Polygon</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => setShowViewLocations(false)}
+                >
+                  <X size={24} color="#374151" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <ScrollView style={styles.modalContent}>
-              {locations.map((location) => (
-                <View key={location.id} style={styles.itemCard}>
-                  <View style={styles.itemInfo}>
-                    <Text style={styles.itemName}>{location.name}</Text>
-                    <Text style={styles.itemDescription}>
-                      Delivery Fee: ₹{location.deliveryFee}
-                    </Text>
-                    <Text style={styles.itemDescription}>
-                      Radius: {location.radius}km
-                    </Text>
-                    <Text style={styles.itemStatus}>
-                      Status: {location.isActive ? "Active" : "Inactive"}
-                    </Text>
-                  </View>
-                  <View style={styles.itemActions}>
-                    <TouchableOpacity style={styles.editButton}>
-                      <Edit size={16} color="white" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.deleteButton}>
-                      <Trash2 size={16} color="white" />
-                    </TouchableOpacity>
-                  </View>
+              {locationsLoading ? (
+                <View style={{ padding: 40, alignItems: 'center' }}>
+                  <Text style={{ color: '#6B7280' }}>Loading locations...</Text>
                 </View>
-              ))}
+              ) : locations.length === 0 ? (
+                <View style={{ padding: 40, alignItems: 'center' }}>
+                  <MapPin size={48} color="#D1D5DB" />
+                  <Text style={{ color: '#6B7280', marginTop: 12, fontSize: 16 }}>
+                    No locations found
+                  </Text>
+                  <Text style={{ color: '#9CA3AF', marginTop: 4, textAlign: 'center' }}>
+                    Add a polygon area to create a serviceable location
+                  </Text>
+                </View>
+              ) : (
+                locations.map((location) => (
+                  <View key={location.id} style={styles.itemCard}>
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName}>{location.name}</Text>
+                      <Text style={styles.itemDescription}>
+                        Delivery Fee: ₹{location.deliveryFee}
+                      </Text>
+                      <Text style={styles.itemDescription}>
+                        Radius: {location.radius}km
+                      </Text>
+                      {location.polygon && (
+                        <Text style={[styles.itemDescription, { color: '#8B5CF6' }]}>
+                          📍 {location.polygon.length} polygon points
+                        </Text>
+                      )}
+                      <TouchableOpacity
+                        onPress={() => handleToggleLocationActive(location)}
+                        style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}
+                      >
+                        {location.isActive ? (
+                          <ToggleRight size={20} color="#10B981" />
+                        ) : (
+                          <ToggleLeft size={20} color="#9CA3AF" />
+                        )}
+                        <Text style={[styles.itemStatus, { marginLeft: 6 }]}>
+                          {location.isActive ? "Active" : "Inactive"}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.itemActions}>
+                      <TouchableOpacity
+                        style={styles.editButton}
+                        onPress={() => openEditLocation(location)}
+                      >
+                        <Edit size={16} color="white" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => handleDeleteLocation(location)}
+                      >
+                        <Trash2 size={16} color="white" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
 
               {notifyRequests.length > 0 && (
                 <View style={styles.notifySection}>
@@ -3761,6 +3906,97 @@ export default function AdminDashboard() {
               )}
             </ScrollView>
           </SafeAreaView>
+        </Modal>
+
+        {/* Edit Location Modal */}
+        <Modal
+          visible={showEditLocation}
+          animationType="slide"
+          transparent={true}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.editLocationModal}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Edit Location</Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => {
+                    setShowEditLocation(false);
+                    setEditingLocation(null);
+                  }}
+                >
+                  <X size={24} color="#374151" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={{ padding: 16 }}>
+                <Text style={styles.inputLabel}>Location Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={editLocationName}
+                  onChangeText={setEditLocationName}
+                  placeholder="Enter location name"
+                  placeholderTextColor="#9CA3AF"
+                />
+
+                <Text style={styles.inputLabel}>Delivery Fee (₹)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={editLocationDeliveryFee}
+                  onChangeText={setEditLocationDeliveryFee}
+                  placeholder="e.g., 29"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                />
+
+                <Text style={styles.inputLabel}>Radius (km)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={editLocationRadius}
+                  onChangeText={setEditLocationRadius}
+                  placeholder="e.g., 5"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                />
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 8 }}>
+                  <Text style={styles.inputLabel}>Active Status</Text>
+                  <TouchableOpacity
+                    onPress={() => setEditLocationIsActive(!editLocationIsActive)}
+                    style={{ flexDirection: 'row', alignItems: 'center' }}
+                  >
+                    {editLocationIsActive ? (
+                      <ToggleRight size={32} color="#10B981" />
+                    ) : (
+                      <ToggleLeft size={32} color="#9CA3AF" />
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {editingLocation?.polygon && (
+                  <View style={{ marginTop: 16, padding: 12, backgroundColor: '#F3F4F6', borderRadius: 8 }}>
+                    <Text style={{ fontSize: 13, color: '#6B7280' }}>
+                      📍 This location has {editingLocation.polygon.length} polygon boundary points
+                    </Text>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={[
+                    styles.saveButton,
+                    { marginTop: 24 },
+                    savingLocation && { opacity: 0.7 }
+                  ]}
+                  onPress={handleSaveLocation}
+                  disabled={savingLocation}
+                >
+                  <Text style={styles.saveButtonText}>
+                    {savingLocation ? "Saving..." : "Save Changes"}
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </View>
         </Modal>
 
         {/* Invoice Generation Modal */}
@@ -4453,6 +4689,42 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: "#F9FAFB",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  editLocationModal: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    width: "100%",
+    maxWidth: 400,
+    maxHeight: "80%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  input: {
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: "#1F2937",
   },
   modalHeader: {
     flexDirection: "row",

@@ -6,7 +6,13 @@ import PolygonMap from '@/components/PolygonMap';
 import PolygonList from '@/components/PolygonList';
 import { useAsyncStorage } from '@/hooks/useStorage';
 import { Polygon } from '@/types';
-import { Region } from 'react-native-maps';
+
+interface Region {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
+}
 
 const COLORS = [
   '#FF3B30', '#FF9500', '#FFCC00', '#34C759', 

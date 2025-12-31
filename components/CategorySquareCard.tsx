@@ -31,14 +31,14 @@ function CategorySquareCard({
 
     // Default: 2 columns, with a single gap between columns.
     const horizontalPadding = 18 * 2; // matches `styles.mealGrid` paddingHorizontal in home screen
-    const gap = 36; // space between the two tiles
+    const gap = 27; // space between the two tiles
     const computed = Math.floor((width - horizontalPadding - gap) / 2);
     return Math.max(132, computed); // sensible minimum for small screens
   }, [size, width]);
 
   return (
     <TouchableOpacity
-      style={[styles.container, { width: tileSize, height: tileSize }]}
+      style={[styles.container, { width: tileSize, height: tileSize/2 }]}
       onPress={onPress}
       testID={`cat-rect-${category.id}`}
       // activeOpacity={0.85}

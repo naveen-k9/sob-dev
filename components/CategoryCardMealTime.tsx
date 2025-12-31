@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   image: {
-    width:108,
+    width: 150,
     height: 108,
     borderRadius: 60,
   },

@@ -8,6 +8,8 @@ import {
   UserRole,
   Subscription,
   ServiceAreaNotificationRequest,
+  Polygon,
+  ServiceableLocation,
 } from "@/types";
 import Constants from "expo-constants";
 
@@ -981,4 +983,68 @@ export async function updateSubscriptionDoc(
   updates: Partial<Subscription>
 ): Promise<void> {
   await updateDocument("subscriptions", id, updates as Record<string, any>);
+}
+
+// ============ Polygon Functions ============
+
+export async function fetchPolygons(): Promise<Polygon[]> {
+  try {
+    const items = await fetchCollection<Polygon>("polygons");
+    console.log("[firebase] Fetched polygons:", items.length);
+    return items;
+  } catch (error) {
+    console.error("[firebase] Error fetching polygons:", error);
+    return [];
+  }
+}
+
+export async function createPolygon(polygon: Polygon): Promise<void> {
+  console.log("[firebase] Creating polygon:", polygon.id, polygon.name);
+  await createDocument("polygons", polygon.id, polygon as Record<string, any>);
+}
+
+export async function updatePolygon(
+  id: string,
+  updates: Partial<Polygon>
+): Promise<void> {
+  console.log("[firebase] Updating polygon:", id);
+  await updateDocument("polygons", id, updates as Record<string, any>);
+}
+
+export async function deletePolygon(id: string): Promise<void> {
+  console.log("[firebase] Deleting polygon:", id);
+  await deleteDocument("polygons", id);
+}
+
+// ============ Serviceable Location Functions ============
+
+export async function fetchServiceableLocations(): Promise<ServiceableLocation[]> {
+  try {
+    const items = await fetchCollection<ServiceableLocation>("serviceableLocations");
+    console.log("[firebase] Fetched serviceable locations:", items.length);
+    return items;
+  } catch (error) {
+    console.error("[firebase] Error fetching serviceable locations:", error);
+    return [];
+  }
+}
+
+export async function createServiceableLocation(
+  location: ServiceableLocation
+): Promise<void> {
+  console.log("[firebase] Creating serviceable location:", location.id, location.name);
+  await createDocument("serviceableLocations", location.id, location as Record<string, any>);
+}
+
+export async function updateServiceableLocation(
+  id: string,
+  updates: Partial<ServiceableLocation>
+): Promise<void> {
+  console.log("[firebase] Updating serviceable location:", id);
+  await updateDocument("serviceableLocations", id, updates as Record<string, any>);
+}
+
+export async function deleteServiceableLocation(id: string): Promise<void> {
+  console.log("[firebase] Deleting serviceable location:", id);
+  await deleteDocument("serviceableLocations", id);
 }

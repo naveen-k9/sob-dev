@@ -67,17 +67,17 @@ export default function FormCard({
 
         {/* Bottom Row with Badge and CTA */}
         <View style={styles.bottomRow}>
-          {badge && (
+          {/* {badge && (
             <View style={styles.badgeContainer}>
               <Text style={styles.badgeText}>{badge}</Text>
             </View>
-          )}
+          )} */}
           <TouchableOpacity 
             style={styles.ctaButton}
             onPress={onPress}
             activeOpacity={0.8}
           >
-            <Text style={styles.arrowText}>→</Text>
+            <Text style={styles.arrowText}>&#62;</Text>
           </TouchableOpacity>
         </View>
 

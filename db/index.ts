@@ -36,6 +36,10 @@ import {
   fetchSubscriptions as fbFetchSubscriptions,
   createSubscription as fbCreateSubscription,
   updateSubscriptionDoc as fbUpdateSubscription,
+  fetchServiceableLocations as fbFetchServiceableLocations,
+  createServiceableLocation as fbCreateServiceableLocation,
+  updateServiceableLocation as fbUpdateServiceableLocation,
+  deleteServiceableLocation as fbDeleteServiceableLocation,
 } from "@/services/firebase";
 
 class Database {
@@ -1372,7 +1376,21 @@ class Database {
 
   // Serviceable Location methods
   async getServiceableLocations(): Promise<ServiceableLocation[]> {
-    return (await this.getItem("serviceableLocations")) || [];
+    try {
+      // Fetch from Firebase as primary source
+      const fbLocations = await fbFetchServiceableLocations();
+      if (fbLocations.length > 0) {
+        // Cache to AsyncStorage for offline access
+        await this.setItem("serviceableLocations", fbLocations);
+        return fbLocations;
+      }
+      // Fall back to AsyncStorage if Firebase is empty
+      return (await this.getItem("serviceableLocations")) || [];
+    } catch (error) {
+      console.error("[db] Error fetching serviceable locations from Firebase:", error);
+      // Fall back to AsyncStorage on error
+      return (await this.getItem("serviceableLocations")) || [];
+    }
   }
 
   async getActiveServiceableLocations(): Promise<ServiceableLocation[]> {
@@ -2094,6 +2112,15 @@ class Database {
       polygon: locationData.polygon,
     };
 
+    // Save to Firebase
+    try {
+      await fbCreateServiceableLocation(newLocation);
+      console.log("[db] Serviceable location saved to Firebase:", newLocation.name);
+    } catch (error) {
+      console.error("[db] Error saving serviceable location to Firebase:", error);
+    }
+
+    // Also save to AsyncStorage for offline access
     locations.push(newLocation);
     await this.setItem("serviceableLocations", locations);
     return newLocation;
