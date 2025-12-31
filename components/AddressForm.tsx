@@ -9,9 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import { useLocation } from '@/contexts/LocationContext';
 
 interface AddressFormProps {
   onSubmit: (address: {
@@ -24,11 +26,13 @@ interface AddressFormProps {
 }
 
 const AddressForm: React.FC<AddressFormProps> = ({ onSubmit, onCancel }) => {
+  const { checkLocationServiceability } = useLocation();
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [addressText, setAddressText] = useState('');
   const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [isCheckingServiceability, setIsCheckingServiceability] = useState(false);
 
   const getCurrentLocation = async () => {
     try {
@@ -82,7 +86,7 @@ const AddressForm: React.FC<AddressFormProps> = ({ onSubmit, onCancel }) => {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name.trim()) {
       Alert.alert('Error', 'Please enter a name.');
       return;
@@ -103,18 +107,40 @@ const AddressForm: React.FC<AddressFormProps> = ({ onSubmit, onCancel }) => {
       return;
     }
 
-    onSubmit({
-      name: name.trim(),
-      phoneNumber: phoneNumber.trim(),
-      addressText: addressText.trim(),
-      coordinates,
-    });
+    try {
+      setIsCheckingServiceability(true);
 
-    // Reset form
-    setName('');
-    setPhoneNumber('');
-    setAddressText('');
-    setCoordinates(null);
+      // Check if location is serviceable
+      const isServiceable = await checkLocationServiceability(coordinates);
+
+      if (!isServiceable) {
+        Alert.alert(
+          "Area Not Serviceable Yet",
+          "We're sorry, but we don't deliver to this location yet. We're constantly expanding our service areas.",
+          [{ text: "OK" }]
+        );
+        setIsCheckingServiceability(false);
+        return;
+      }
+
+      onSubmit({
+        name: name.trim(),
+        phoneNumber: phoneNumber.trim(),
+        addressText: addressText.trim(),
+        coordinates,
+      });
+
+      // Reset form
+      setName('');
+      setPhoneNumber('');
+      setAddressText('');
+      setCoordinates(null);
+    } catch (error) {
+      console.error('Error checking serviceability:', error);
+      Alert.alert('Error', 'Failed to verify service area. Please try again.');
+    } finally {
+      setIsCheckingServiceability(false);
+    }
   };
  
   return (
@@ -203,8 +229,16 @@ const AddressForm: React.FC<AddressFormProps> = ({ onSubmit, onCancel }) => {
           <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-            <Text style={styles.submitButtonText}>Save Address</Text>
+          <TouchableOpacity 
+            style={[styles.submitButton, isCheckingServiceability && styles.submitButtonDisabled]} 
+            onPress={handleSubmit}
+            disabled={isCheckingServiceability}
+          >
+            {isCheckingServiceability ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.submitButtonText}>Save Address</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -320,6 +354,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#C7C7CC',
   },
   submitButtonText: {
     fontSize: 16,

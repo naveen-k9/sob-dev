@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker } from "react-native-maps";
 import { router, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "@/contexts/LocationContext";
 import { Address } from "@/types";
 
 interface AddAddressFormScreenProps {
@@ -29,6 +30,7 @@ const AddAddressFormScreen: React.FC<AddAddressFormScreenProps> = ({
 }) => {
   const params = useLocalSearchParams();
   const { user, addAddress } = useAuth();
+  const { checkLocationServiceability } = useLocation();
 
   const latitude = params.latitude
     ? parseFloat(params.latitude as string)
@@ -107,6 +109,34 @@ const AddAddressFormScreen: React.FC<AddAddressFormScreenProps> = ({
 
     try {
       setIsSubmitting(true);
+
+      // Check if location is serviceable before saving
+      const isServiceable = await checkLocationServiceability({
+        latitude,
+        longitude,
+      });
+
+      if (!isServiceable) {
+        setIsSubmitting(false);
+        Alert.alert(
+          "Area Not Serviceable Yet",
+          "We're sorry, but we don't deliver to this location yet. We're constantly expanding our service areas. Would you like to get notified when we start serving this area?",
+          [
+            {
+              text: "Maybe Later",
+              style: "cancel",
+            },
+            {
+              text: "Notify Me",
+              onPress: () => {
+                // Navigate to notify me request
+                router.push('/notify-me');
+              },
+            },
+          ]
+        );
+        return;
+      }
 
       const newAddress: Omit<Address, "id"> = {
         userId: user?.id || "",

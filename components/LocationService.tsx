@@ -12,13 +12,13 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { useAsyncStorage } from "@/hooks/useStorage";
 import { Address, Polygon } from "@/types";
-import { findPolygonsContainingPoint } from "@/utils/polygonUtils";
 import { useActiveAddress } from "@/contexts/ActiveAddressContext";
+import { useLocation } from "@/contexts/LocationContext";
 import { router } from "expo-router";
 import { Colors } from "@/constants/colors";
 
 interface LocationServiceProps {
-  polygons: Polygon[];
+  polygons?: Polygon[]; // Now optional, we use LocationContext instead
   onLocationSet?: (location: {
     latitude: number;
     longitude: number;
@@ -43,6 +43,7 @@ const LocationService: React.FC<LocationServiceProps> = ({
 }) => {
   const [addresses, setAddresses] = useAsyncStorage<Address[]>("addresses", []);
   const { getDisplayAddress, setCurrentLocationAddress } = useActiveAddress();
+  const { checkLocationServiceability, locationState } = useLocation();
   const [currentLocation, setCurrentLocation] =
     useState<CurrentLocationState | null>(null);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
@@ -118,18 +119,18 @@ const LocationService: React.FC<LocationServiceProps> = ({
         console.warn("Reverse geocoding failed:", geocodeError);
       }
 
-      // Check if location is in serviceable polygons
-      const serviceablePolygons = findPolygonsContainingPoint(coords, polygons);
-      const isServiceable = serviceablePolygons.length > 0;
+      // Check serviceability using LocationContext (fetches from Firebase)
+      const isServiceable = await checkLocationServiceability(coords);
+      console.log("[LocationService] Serviceability check result:", isServiceable);
 
-      const locationState: CurrentLocationState = {
+      const currentLocationState: CurrentLocationState = {
         ...coords,
         address: addressText,
         isServiceable,
-        serviceablePolygons,
+        serviceablePolygons: [], // No longer using local polygon list
       };
 
-      setCurrentLocation(locationState);
+      setCurrentLocation(currentLocationState);
 
       // Create an Address object for the current location
       const currentLocationAddress: Address = {
@@ -256,12 +257,11 @@ const LocationService: React.FC<LocationServiceProps> = ({
       );
     }
 
-    // Check if the display address is serviceable
-    const serviceablePolygons = findPolygonsContainingPoint(
-      displayAddress.coordinates,
-      polygons
-    );
-    const isServiceable = serviceablePolygons.length > 0;
+    // Check if the display address is serviceable using LocationContext
+    // If we have a selected location in context and it matches, use that status
+    // Otherwise, assume serviceable for display purposes (actual check happens on detection)
+    const isServiceable = locationState.isLocationServiceable || 
+      (locationState.selectedLocation !== null);
 
     return (
       <TouchableOpacity

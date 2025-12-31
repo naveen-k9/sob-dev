@@ -2,7 +2,8 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { ServiceableLocation, LocationState } from '@/types';
 import * as Location from 'expo-location';
-import db from '@/db';
+import { fetchServiceableLocations as fbFetchServiceableLocations } from '@/services/firebase';
+import { isPointInPolygon } from '@/utils/polygonUtils';
 
 export const [LocationProvider, useLocation] = createContextHook(() => {
   const [locationState, setLocationState] = useState<LocationState>({
@@ -26,31 +27,15 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
     return R * c;
   }, []);
 
-  // TODO: Implement polygon-based location checking when native maps are available
-  // const isPointInPolygon = useCallback((point: { latitude: number; longitude: number }, polygon: { latitude: number; longitude: number }[]) => {
-  //   const x = point.longitude;
-  //   const y = point.latitude;
-  //   let inside = false;
-
-  //   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-  //     const xi = polygon[i].longitude;
-  //     const yi = polygon[i].latitude;
-  //     const xj = polygon[j].longitude;
-  //     const yj = polygon[j].latitude;
-
-  //     if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
-  //       inside = !inside;
-  //     }
-  //   }
-
-  //   return inside;
-  // }, []);
-
   const loadServiceableLocations = useCallback(async () => {
     try {
       setError(null);
-      const locations = await db.getActiveServiceableLocations();
-      setServiceableLocations(locations);
+      // Fetch from Firebase
+      const locations = await fbFetchServiceableLocations();
+      // Filter to only active locations
+      const activeLocations = locations.filter(loc => loc.isActive);
+      setServiceableLocations(activeLocations);
+      console.log('[LocationContext] Loaded', activeLocations.length, 'active serviceable locations from Firebase');
     } catch (error) {
       console.error('Error loading serviceable locations:', error);
       setError('Failed to load serviceable locations');
@@ -72,17 +57,34 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
   const checkLocationServiceability = useCallback(async (userLocation: { latitude: number; longitude: number }) => {
     try {
       setError(null);
-      const locations = await db.getActiveServiceableLocations();
+      // Fetch from Firebase
+      const locations = await fbFetchServiceableLocations();
+      const activeLocations = locations.filter(loc => loc.isActive);
       
-      for (const location of locations) {
-        const distance = calculateDistance(
-          userLocation.latitude,
-          userLocation.longitude,
-          location.coordinates.latitude,
-          location.coordinates.longitude
-        );
+      console.log('[LocationContext] Checking serviceability for:', userLocation);
+      console.log('[LocationContext] Against', activeLocations.length, 'active locations');
+      
+      for (const location of activeLocations) {
+        let isWithinArea = false;
+        
+        // Check polygon first if it exists
+        if (location.polygon && location.polygon.length >= 3) {
+          isWithinArea = isPointInPolygon(userLocation, location.polygon);
+          console.log('[LocationContext] Polygon check for', location.name, ':', isWithinArea);
+        } else {
+          // Fall back to radius-based check
+          const distance = calculateDistance(
+            userLocation.latitude,
+            userLocation.longitude,
+            location.coordinates.latitude,
+            location.coordinates.longitude
+          );
+          isWithinArea = distance <= location.radius;
+          console.log('[LocationContext] Radius check for', location.name, '- distance:', distance, 'km, radius:', location.radius, 'km, within:', isWithinArea);
+        }
 
-        if (distance <= location.radius) {
+        if (isWithinArea) {
+          console.log('[LocationContext] Location is serviceable:', location.name);
           setLocationState(prev => ({
             ...prev,
             selectedLocation: location,
@@ -92,6 +94,7 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
         }
       }
 
+      console.log('[LocationContext] Location is NOT serviceable');
       setLocationState(prev => ({
         ...prev,
         selectedLocation: null,
@@ -173,7 +176,6 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
     selectLocation,
     requestLocationPermission,
     clearError,
-    // isPointInPolygon, // TODO: Uncomment when native maps are available
   }), [
     locationState,
     serviceableLocations,
@@ -185,6 +187,5 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
     selectLocation,
     requestLocationPermission,
     clearError,
-    // isPointInPolygon, // TODO: Uncomment when native maps are available
   ]);
 });
