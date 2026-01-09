@@ -5,12 +5,12 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
   TextInput,
   Modal,
   FlatList,
 } from 'react-native';
+import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, Stack } from 'expo-router';
 import {
@@ -230,7 +230,7 @@ export default function ManualSubscription() {
         totalAmount: totals.total,
         paidAmount: totals.total, // Assume fully paid for manual subscriptions
         status: 'active',
-
+        weekType: 'mon-fri',
         totalDeliveries: selectedPlan.days,
         remainingDeliveries: selectedPlan.days,
 

@@ -142,13 +142,13 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
                 <Text style={styles.statLabel}>Valid Until</Text>
                 <Text style={styles.statValue}>{offer.validUntil}</Text>
               </View>
-              {offer.usageLimit && (
+              {/* {offer.usageLimit && (
                 <View style={styles.statItem}>
                   <Users size={16} color="#666" />
                   <Text style={styles.statLabel}>Remaining Uses</Text>
                   <Text style={styles.statValue}>{remainingUses} left</Text>
                 </View>
-              )}
+              )} */}
               {offer.minOrderAmount && (
                 <View style={styles.statItem}>
                   <CheckCircle size={16} color="#666" />
@@ -160,7 +160,7 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
           </View>
 
           {/* Usage Progress */}
-          {offer.usageLimit && (
+          {/* {offer.usageLimit && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Offer Usage</Text>
               <View style={styles.progressContainer}>
@@ -180,7 +180,7 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
                 </Text>
               </View>
             </View>
-          )}
+          )} */}
 
           {/* Terms and Conditions */}
           {offer.terms && offer.terms.length > 0 && (
@@ -202,10 +202,10 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
             <Text style={styles.cancelButtonText}>Close</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            onPress={handleUseOffer} 
+            onPress={copyPromoCode} 
             style={[styles.useButton, { backgroundColor: getOfferTypeColor() }]}
           >
-            <Text style={styles.useButtonText}>Use This Offer</Text>
+            <Text style={styles.useButtonText}>{offer.code ? 'Copy Code' : 'Use Offer'}</Text>
           </TouchableOpacity>
         </View>
       </View>

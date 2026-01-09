@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   TextInput,
   ScrollView,
@@ -14,6 +13,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker, Region } from "react-native-maps";
 import * as Location from "expo-location";
@@ -387,7 +387,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.actionItem}
             onPress={handleUseCurrentLocation}
             disabled={isLoadingLocation}
@@ -404,7 +404,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
                 ? "Getting location..."
                 : "Use my Current Location"}
             </Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity
             style={styles.actionItem}
@@ -417,7 +417,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
             <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionItem}>
+          {/* <TouchableOpacity style={styles.actionItem}>
             <View
               style={[
                 styles.actionIconContainer,
@@ -428,7 +428,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
             </View>
             <Text style={styles.actionText}>Request address from friend</Text>
             <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
         {/* Saved Addresses */}

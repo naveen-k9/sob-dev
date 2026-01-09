@@ -5,12 +5,12 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   TextInput,
   Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from 'expo-router';
 import { ArrowLeft, Send } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';

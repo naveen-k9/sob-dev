@@ -1111,9 +1111,9 @@ export default function CheckoutScreen() {
                       );
                     })}
                 </View>
-                <Text style={{ fontSize: 12, color: "#666" }}>
+                {/* <Text style={{ fontSize: 12, color: "#666" }}>
                   DEBUG: selectedTimeSlot = {JSON.stringify(selectedTimeSlot)}
-                </Text>
+                </Text> */}
               </View>
               {/* Start Date Selection (EXACT MATCH + DEBUG) */}
               <View style={styles.section}>
@@ -1137,9 +1137,9 @@ export default function CheckoutScreen() {
                     })}
                   </Text>
                 </TouchableOpacity>
-                <Text style={{ fontSize: 12, color: "#666" }}>
+                {/* <Text style={{ fontSize: 12, color: "#666" }}>
                   DEBUG: startDate = {startDate.toISOString()}
-                </Text>
+                </Text> */}
               </View>
 
               {/* Order for Someone Else Section */}
@@ -1492,9 +1492,9 @@ export default function CheckoutScreen() {
                   modify or skip meals up to the cutoff time.
                 </Text>
               </View>
-              <Text style={{ fontSize: 12, color: "#666", marginTop: 12 }}>
+              {/* <Text style={{ fontSize: 12, color: "#666", marginTop: 12 }}>
                 DEBUG: startDate = {startDate.toISOString()}
-              </Text>
+              </Text> */}
             </ScrollView>
           </SafeAreaView>
         </Modal>

@@ -57,8 +57,8 @@ export default function MealCard({
   const sizing = useMemo(() => {
     if (variant === "carousel") {
       return {
-        imageHeight: 196,
-        contentPad: 14,
+        imageHeight: 126,
+        contentPad: 9,
         titleSize: 18,
         titleLines: 2,
         subtitleLines: 2,
@@ -72,8 +72,8 @@ export default function MealCard({
 
     if (variant === "list" || columns === 1) {
       return {
-        imageHeight: 130,
-        contentPad: 12,
+        imageHeight: 126,
+        contentPad: 9,
         titleSize: 16,
         titleLines: 2,
         subtitleLines: 2,
@@ -86,8 +86,8 @@ export default function MealCard({
     }
 
     return {
-      imageHeight: 132,
-      contentPad: 12,
+      imageHeight: 126,
+      contentPad: 9,
       titleSize: 15,
       titleLines: 1,
       subtitleLines: 1,
@@ -190,7 +190,7 @@ export default function MealCard({
         ) : null}
 
         {/* Top overlay badges */}
-        <View style={styles.topBadgesRow}>
+        {/* <View style={styles.topBadgesRow}>
           <View
             style={[
               styles.pill,
@@ -235,18 +235,18 @@ export default function MealCard({
               </View>
             ) : null}
           </View>
-        </View>
+        </View> */}
 
         {/* gradient for readability */}
-        <LinearGradient
+        {/* <LinearGradient
           colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.74)"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={styles.imageGradient}
-        />
+        /> */}
 
         {/* bottom meta row */}
-        {sizing.showMetaRow ? (
+        {/* {sizing.showMetaRow ? (
           <View style={styles.metaRow}>
             {ratingText ? (
               <View style={styles.metaPill}>
@@ -272,7 +272,7 @@ export default function MealCard({
               </View>
             ) : null}
           </View>
-        ) : null}
+        ) : null} */}
       </View>
 
       {/* CONTENT */}
@@ -287,19 +287,12 @@ export default function MealCard({
           {meal.name}
         </Text>
 
-        {meal.description ? (
-          <Text
-            style={[styles.subtitle, { color: colors.mutedText }]}
-            numberOfLines={sizing.subtitleLines}
-          >
-            {meal.description}
-          </Text>
-        ) : null}
+        
 
         <View style={styles.priceRow}>
-          <View style={styles.priceLeft}>
+          
             <Text style={[styles.startingFrom, { color: colors.mutedText }]}>
-              Starting from
+              STARTING @
             </Text>
             <View style={styles.priceInline}>
               {meal.originalPrice ? (
@@ -309,9 +302,9 @@ export default function MealCard({
               ) : null}
               <Text style={[styles.price, { color: colors.primary }]}>₹{meal.price}</Text>
             </View>
-          </View>
+         
 
-          {variant === "carousel" ? (
+          {/* {variant === "carousel" ? (
             <View style={styles.macroPills}>
               {typeof meal.nutritionInfo?.protein === "number" &&
               meal.nutritionInfo.protein > 0 ? (
@@ -322,7 +315,7 @@ export default function MealCard({
                 </View>
               ) : null}
             </View>
-          ) : null}
+          ) : null} */}
         </View>
 
         <View style={styles.ctaRow}>
@@ -341,7 +334,7 @@ export default function MealCard({
             accessibilityLabel={`Try ${meal.name} for 2 days`}
             activeOpacity={0.85}
           >
-            <Sparkles size={14} color={colors.primary} strokeWidth={2.5} />
+            {/* <Sparkles size={14} color={colors.primary} strokeWidth={2.5} /> */}
             <Text style={[styles.secondaryBtnText, { color: colors.primary }]}>
               2-Day Trial
             </Text>
@@ -455,9 +448,9 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   priceRow: {
-    marginTop: 10,
+    marginTop: 3,
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
   },

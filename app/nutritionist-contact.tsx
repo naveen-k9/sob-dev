@@ -3,13 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TextInput,
   TouchableOpacity,
   Alert,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   User,
   Phone,
@@ -115,7 +115,7 @@ export default function NutritionistContactScreen() {
     <SafeAreaView style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Nutritionist Consultation',
+          title: 'Get Personalized Meal Plans',
           headerShown: true,
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -126,7 +126,7 @@ export default function NutritionistContactScreen() {
       />
       
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
-        <View style={styles.header}>
+        {/* <View style={styles.header}>
           <View style={styles.headerIcon}>
             <Heart size={32} color="#48479B" />
           </View>
@@ -134,7 +134,7 @@ export default function NutritionistContactScreen() {
           <Text style={styles.headerSubtitle}>
             Connect with our certified nutritionists for customized meal plans and health advice
           </Text>
-        </View>
+        </View> */}
 
         {/* Personal Information */}
         <View style={styles.section}>

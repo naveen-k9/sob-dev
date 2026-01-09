@@ -34,7 +34,10 @@ export default function CategoryCard({ category, onPress, isActive = false }: Ca
   
   return (
     <TouchableOpacity 
-      style={styles.container} 
+      style={[
+        styles.container,
+        isActive && { borderBottomWidth: 5, borderBottomColor: colors.accent, paddingBottom: 6, borderRadius: 4 },
+      ]} 
       onPress={onPress} 
       testID={`cat-${category.id}`}
     >
@@ -42,7 +45,7 @@ export default function CategoryCard({ category, onPress, isActive = false }: Ca
         style={[
           styles.imageWrap,
           { backgroundColor: colors.surface },
-          isActive && [styles.imageWrapActive, { borderColor: colors.accent, backgroundColor: colors.accent }],
+          // isActive && styles.imageWrapActive,
           { 
             transform: [{ scale: scaleAnim }],
           }

@@ -5,11 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Modal,
-  SafeAreaView,
 } from 'react-native';
 import { ChevronDown, X, User, Shield, ChefHat, Truck } from 'lucide-react-native';
 import { router } from 'expo-router';
-
+import { SafeAreaView } from "react-native-safe-area-context";
 interface RoleSelectorProps {
   currentRole: 'user' | 'admin' | 'kitchen' | 'delivery';
 }

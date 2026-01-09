@@ -5,12 +5,12 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, router } from 'expo-router';
 import { ArrowLeft, User, Mail, MapPin, Home, Briefcase, Plus } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,6 +19,7 @@ import { Address } from '@/types';
 interface BasicInfoForm {
   name: string;
   email: string;
+  dob?: string;
   addresses: Partial<Address>[];
 }
 
@@ -28,6 +29,7 @@ export default function BasicInfoScreen() {
   const [formData, setFormData] = useState<BasicInfoForm>({
     name: user?.name || '',
     email: user?.email || '',
+    dob: user?.dob ? (user.dob instanceof Date ? user.dob.toISOString().slice(0,10) : String(user.dob)) : undefined,
     addresses: user?.addresses?.length ? user.addresses : [{
       type: 'home',
       label: 'Home',
@@ -51,6 +53,15 @@ export default function BasicInfoScreen() {
       return;
     }
 
+    // Validate DOB if provided
+    if (formData.dob) {
+      const parsed = parseDateInput(formData.dob);
+      if (!parsed || !isReasonableAge(parsed)) {
+        Alert.alert('Error', 'Please enter a valid Date of Birth (YYYY-MM-DD). Age must be between 13 and 120 years.');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const validAddresses = formData.addresses.filter(addr => 
@@ -66,6 +77,7 @@ export default function BasicInfoScreen() {
       await updateUser({
         name: formData.name,
         email: formData.email,
+        dob: formData.dob ? new Date(formData.dob) : undefined,
         addresses: validAddresses,
       });
 
@@ -77,6 +89,47 @@ export default function BasicInfoScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Parse date strings in common formats. Prefer YYYY-MM-DD.
+  const parseDateInput = (value: string): Date | null => {
+    if (!value) return null;
+    // Normalize separators
+    const v = value.trim();
+    // Try ISO YYYY-MM-DD
+    const iso = /^\d{4}-\d{2}-\d{2}$/;
+    const dmy1 = /^\d{2}\/\d{2}\/\d{4}$/; // DD/MM/YYYY
+    const dmy2 = /^\d{2}-\d{2}-\d{4}$/; // DD-MM-YYYY
+    try {
+      if (iso.test(v)) {
+        const dt = new Date(v + 'T00:00:00');
+        if (isNaN(dt.getTime())) return null;
+        return dt;
+      }
+      if (dmy1.test(v) || dmy2.test(v)) {
+        const parts = v.includes('/') ? v.split('/') : v.split('-');
+        const day = Number(parts[0]);
+        const month = Number(parts[1]) - 1;
+        const year = Number(parts[2]);
+        const dt = new Date(year, month, day);
+        if (isNaN(dt.getTime())) return null;
+        return dt;
+      }
+      // Last resort: try Date constructor
+      const fallback = new Date(v);
+      if (isNaN(fallback.getTime())) return null;
+      return fallback;
+    } catch {
+      return null;
+    }
+  };
+
+  const isReasonableAge = (dob: Date) => {
+    const now = new Date();
+    let age = now.getFullYear() - dob.getFullYear();
+    const m = now.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--;
+    return age >= 13 && age <= 120;
   };
 
   const handleSkip = () => {
@@ -195,6 +248,21 @@ export default function BasicInfoScreen() {
                 />
               </View>
             </View>
+
+                {/* Date of Birth Field */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Date of Birth</Text>
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="YYYY-MM-DD"
+                      value={formData.dob}
+                      onChangeText={(text) => setFormData({ ...formData, dob: text })}
+                      // keyboardType={Platform.OS === 'web' ? 'text' : 'numbers-and-punctuation'}
+                      autoCapitalize="none"
+                    />
+                  </View>
+                </View>
 
             {/* Addresses Section */}
             <View style={styles.addressSection}>

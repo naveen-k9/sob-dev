@@ -38,7 +38,7 @@ function CategorySquareCard({
 
   return (
     <TouchableOpacity
-      style={[styles.container, { width: tileSize, height: tileSize/2 }]}
+      style={[styles.container, { width: tileSize, height: 108 }]}
       onPress={onPress}
       testID={`cat-rect-${category.id}`}
       // activeOpacity={0.85}
@@ -91,9 +91,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   labelWrap: {
-    paddingHorizontal: 9,
-    paddingVertical: 18,
-    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    alignItems: "flex-start",
   },
   name: {
     fontSize: 15,

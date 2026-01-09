@@ -2,11 +2,11 @@ import React from 'react';
 import {
   View,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   Text,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { ArrowLeft, ExternalLink } from 'lucide-react-native';
 import { router, useLocalSearchParams, Stack } from 'expo-router';

@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
+  
   ScrollView,
   TextInput,
   TouchableOpacity,
@@ -19,6 +19,7 @@ import {
 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface CateringRequest {
   companyName: string;
@@ -232,14 +233,7 @@ export default function CorporateCateringScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Hero Section */}
-          <View style={styles.heroSection}>
-            <Building2 size={48} color="#48479B" />
-            <Text style={styles.heroTitle}>Corporate Catering Services</Text>
-            <Text style={styles.heroDescription}>
-              Provide healthy, delicious meals for your team. Get a customized quotation based on your requirements.
-            </Text>
-          </View>
+         
 
           {/* Form */}
           <View style={styles.formContainer}>
@@ -443,6 +437,7 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     paddingHorizontal: 20,
+    paddingVertical: 20,
   },
   section: {
     backgroundColor: 'white',

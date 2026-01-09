@@ -84,22 +84,8 @@ export default function CategoryBrowserScreen() {
         { id: "above-400", label: "Above ₹400", selected: false },
       ],
     },
-    {
-      id: "rating",
-      title: "Rating",
-      options: [
-        { id: "4plus", label: "4★ & above", selected: false },
-        { id: "3plus", label: "3★ & above", selected: false },
-      ],
-    },
-    {
-      id: "special",
-      title: "Special Features",
-      options: [
-        { id: "featured", label: "Featured Items", selected: false },
-        { id: "quick-prep", label: "Quick Prep (< 30 min)", selected: false },
-      ],
-    },
+    
+  
     {
       id: "nutrition",
       title: "Nutrition",
@@ -726,7 +712,7 @@ export default function CategoryBrowserScreen() {
 
             <View style={styles.centeredSectionHeader}>
               <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
-              <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>{activeCategoryName} Products</Text>
+              <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>{activeCategoryName} PRODUCTS</Text>
               <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
 
             </View>
@@ -895,6 +881,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1.5,
     paddingHorizontal: 12,
+    textTransform: 'uppercase'
   },
   headerLine: {
     flex: 1,

@@ -3,13 +3,14 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
+  
   TouchableOpacity,
   Alert,
   TextInput,
   Modal,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import MapView, { Polygon as MapPolygon, Marker, Region } from 'react-native-maps';

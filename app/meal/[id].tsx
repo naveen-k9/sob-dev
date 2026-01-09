@@ -54,9 +54,7 @@ export default function MealDetailScreen() {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(
     null
   );
-  const [weekendExclusion, setWeekendExclusion] = useState<
-    "saturdays" | "sundays" | "both"
-  >("both");
+  
   const [startDate, setStartDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const routerInstance = useRouter();
@@ -128,13 +126,14 @@ export default function MealDetailScreen() {
   // Update selected plan when trial mode changes
   useEffect(() => {
     const availablePlans = getAvailablePlans();
-    if (availablePlans.length > 0 && selectedPlan) {
-      const isCurrentPlanAvailable = availablePlans.some(
-        (plan) => plan.id === selectedPlan.id
-      );
-      if (!isCurrentPlanAvailable) {
-        setSelectedPlan(availablePlans[0]);
-      }
+    if (isTrialMode) {
+      // Shift to 2-day trial plan immediately
+      const twoDay = availablePlans.find((p) => p.duration === 2) ?? availablePlans[0];
+      setSelectedPlan(twoDay);
+    } else {
+      // When trial mode is turned off, immediately prefer the 6-day plan
+      const sixDay = availablePlans.find((p) => p.duration === 6) ?? availablePlans[0];
+      setSelectedPlan(sixDay);
     }
   }, [isTrialMode]);
 
@@ -183,18 +182,32 @@ export default function MealDetailScreen() {
     return plans;
   };
 
-  const handleAddOnToggle = useCallback((addOnId: string) => {
-    setSelectedAddOns((prev) => {
-      const exists = prev.includes(addOnId);
-      const next = exists
-        ? prev.filter((id) => id !== addOnId)
-        : [...prev, addOnId];
-      if (!exists) {
-        setSelectedAddOnDays((d) => ({ ...d, [addOnId]: d[addOnId] ?? [] }));
-      }
-      return next;
-    });
-  }, []);
+  const handleAddOnToggle = useCallback(
+    (addOnId: string) => {
+      setSelectedAddOns((prev) => {
+        const exists = prev.includes(addOnId);
+        const next = exists ? prev.filter((id) => id !== addOnId) : [...prev, addOnId];
+        if (exists) {
+          // If removing the add-on, also remove its selected days to avoid stale state
+          setSelectedAddOnDays((d) => {
+            const copy = { ...d };
+            delete copy[addOnId];
+            return copy;
+          });
+        } else {
+          // When adding an add-on, default to selecting the first available day only
+          // (previously an empty array was treated as "all days"). Use the current
+          // availableDays ordering so trial mode will set Day 1 by default.
+          const defaultFirstDay: DayKey = "mon";
+          setSelectedAddOnDays((d) => ({
+            ...d,
+            [addOnId]: d[addOnId] && d[addOnId].length > 0 ? d[addOnId] : [defaultFirstDay],
+          }));
+        }
+        return next;
+      });
+    }, []
+  );
 
   const availableDays: { key: DayKey; label: string; short: string }[] =
     useMemo(() => {
@@ -234,6 +247,26 @@ export default function MealDetailScreen() {
     }
   }, [availableDays.length]);
 
+  // Sanitize selectedAddOnDays whenever availableDays changes (e.g. trial mode toggle)
+  useEffect(() => {
+    if (availableDays.length === 0) return;
+    const allowedKeys = availableDays.map((d) => d.key);
+    setSelectedAddOnDays((prev) => {
+      const next: Record<string, DayKey[]> = { ...prev };
+      Object.keys(next).forEach((addOnId) => {
+        const prevArr = next[addOnId] ?? [];
+        // If previously explicitly empty (meaning 'all days'), default to first available day
+        if (prevArr.length === 0) {
+          next[addOnId] = [allowedKeys[0]];
+        } else {
+          const filtered = prevArr.filter((k) => allowedKeys.includes(k));
+          next[addOnId] = filtered.length > 0 ? filtered : [allowedKeys[0]];
+        }
+      });
+      return next;
+    });
+  }, [availableDays]);
+
   const toggleAddOnDay = useCallback((addOnId: string, day: DayKey) => {
     setSelectedAddOnDays((prev) => {
       const current = prev[addOnId] ?? [];
@@ -259,7 +292,7 @@ export default function MealDetailScreen() {
 
   const calculateTotalPrice = () => {
     if (!meal || !selectedPlan) return 0;
-    const daysPerWeek = weekType === "mon-fri" ? 5 : 6;
+    const daysPerWeek = isTrialMode ? 2 : weekType === "mon-fri" ? 5 : 6;
     const weeks = Math.ceil(selectedPlan.duration / daysPerWeek);
 
     // Base price is always plan duration × meal price
@@ -365,9 +398,9 @@ export default function MealDetailScreen() {
             {meal.name}
           </Text>
 
-          <TouchableOpacity style={styles.customHeaderButton}>
+          {/* <TouchableOpacity style={styles.customHeaderButton}>
             <Share size={24} color="#333" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </Animated.View>
 
@@ -418,9 +451,9 @@ export default function MealDetailScreen() {
               <ArrowLeft size={24} color="white" />
             </TouchableOpacity>
             <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.headerButton}>
+              {/* <TouchableOpacity style={styles.headerButton}>
                 <Share size={24} color="white" />
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
           </View>
           <Image source={{ uri: meal.images[0] }} style={styles.mealImage} />
@@ -428,7 +461,7 @@ export default function MealDetailScreen() {
             colors={["transparent", "rgba(0,0,0,0.7)"]}
             style={styles.imageOverlay}
           />
-        </View>
+        </View> 
 
         <View style={styles.content}>
           <View style={styles.basicInfo}>
@@ -530,7 +563,18 @@ export default function MealDetailScreen() {
                     key={plan.id}
                     testID={`plan-${plan.id}`}
                     style={[styles.planGridCard, isSelected && styles.selectedPlanGrid]}
-                    onPress={() => setSelectedPlan(plan)}
+                    onPress={() => {
+                      // If user picks a 2-day plan, enable trial mode automatically.
+                      if (plan.duration === 2) {
+                        setIsTrialMode(true);
+                        setSelectedPlan(plan);
+                      } else {
+                        // Selecting any other plan disables trial mode.
+                        setIsTrialMode(false);
+                        setSelectedPlan(plan);
+                      }
+                    }}
+                    disabled={isTrialMode && plan.duration !== 2}
                   >
                     {plan.popular && (
                       <View style={styles.popularBadgeGrid}>
@@ -854,6 +898,7 @@ export default function MealDetailScreen() {
         onToggleAddOn={handleAddOnToggle}
         planPrice={selectedPlan?.discountedPrice || 0}
         weekType={weekType}
+        isTrialMode={isTrialMode}
         selectedAddOnDays={selectedAddOnDays}
         onToggleAddOnDay={toggleAddOnDay}
         planDuration={selectedPlan?.duration || 0}
@@ -1132,7 +1177,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#E5E7EB',
     position: 'relative',
-    minHeight: 150,
+    minHeight: 135,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,

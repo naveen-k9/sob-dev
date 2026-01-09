@@ -1,16 +1,14 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, View, ImageBackground } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { ArrowRight, ChevronRight } from 'lucide-react-native';
+import { Colors } from '@/constants/colors';
 
 interface FormCardProps {
   title: string;
   description: string;
   subtitle?: string;
-  icon: string;
   gradientColors: [string, string, ...string[]];
-  features?: string[];
-  badge?: string;
-  ctaText?: string;
   onPress: () => void;
 }
 
@@ -18,11 +16,7 @@ export default function FormCard({
   title,
   description,
   subtitle,
-  icon,
   gradientColors,
-  features,
-  badge,
-  ctaText = "See Platters",
   onPress,
 }: FormCardProps) {
   return (
@@ -39,48 +33,25 @@ export default function FormCard({
       >
         {/* Header with Icon and Title */}
         <View style={styles.header}>
-          <View style={styles.iconCircle}>
-            <Text style={styles.icon}>{icon}</Text>
-          </View>
+          
           <View style={styles.headerText}>
             <Text style={styles.title}>{title}</Text>
-            {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+            {/* {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>} */}
           </View>
-        </View>
 
-        {/* Description */}
-        <Text style={styles.description}>{description}</Text>
-
-        {/* Features Pills */}
-        {features && features.length > 0 && (
-          <View style={styles.featuresContainer}>
-            {features.map((feature, index) => (
-              <View key={index} style={styles.featurePill}>
-                <View style={styles.checkIcon}>
-                  <Text style={styles.checkText}>✓</Text>
-                </View>
-                <Text style={styles.featureText}>{feature}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Bottom Row with Badge and CTA */}
-        <View style={styles.bottomRow}>
-          {/* {badge && (
-            <View style={styles.badgeContainer}>
-              <Text style={styles.badgeText}>{badge}</Text>
-            </View>
-          )} */}
           <TouchableOpacity 
             style={styles.ctaButton}
             onPress={onPress}
             activeOpacity={0.8}
           >
-            <Text style={styles.arrowText}>&#62;</Text>
+            <Text style={styles.arrowText}><ArrowRight /></Text>
           </TouchableOpacity>
         </View>
 
+        {/* Description */}
+        <Text style={styles.description}>{description}</Text>
+
+       
         {/* Decorative Elements */}
         <View style={styles.decorativeCircle1} />
         <View style={styles.decorativeCircle2} />
@@ -93,7 +64,7 @@ const styles = StyleSheet.create({
   container: {
     marginHorizontal: 18,
     marginVertical: 8,
-    borderRadius: 24,
+    borderRadius: 18,
     overflow: 'hidden',
     elevation: 6,
     shadowColor: '#000',
@@ -102,15 +73,15 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
   },
   gradient: {
-    padding: 20,
-    paddingBottom: 18,
+    padding: 16,
+    paddingBottom: 14,
     position: 'relative',
-    minHeight: 200,
+    minHeight: 144,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 10,
   },
   iconCircle: {
     width: 56,
@@ -209,7 +180,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FCD34D',
+    backgroundColor: Colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -221,7 +192,7 @@ const styles = StyleSheet.create({
   arrowText: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.primary,
   },
   decorativeCircle1: {
     position: 'absolute',

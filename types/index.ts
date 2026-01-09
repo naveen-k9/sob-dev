@@ -5,6 +5,8 @@ export interface User {
   name: string;
   email: string;
   phone: string;
+  /** Date of birth (optional) - stored as Date when available */
+  dob?: Date | string;
   role: UserRole;
   addresses: Address[];
   walletBalance: number;

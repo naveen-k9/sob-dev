@@ -27,6 +27,7 @@ interface AddOnsModalProps {
   selectedAddOnDays?: Record<string, DayKey[]>;
   onToggleAddOnDay?: (addOnId: string, day: DayKey) => void;
   planDuration?: number;
+  isTrialMode?: boolean;
 }
 
 export default function AddOnsModal({
@@ -40,24 +41,29 @@ export default function AddOnsModal({
   selectedAddOnDays = {},
   onToggleAddOnDay,
   planDuration = 0,
+  isTrialMode = false,
 }: AddOnsModalProps) {
-  const availableDays: { key: DayKey; label: string; short: string }[] = 
-    weekType === 'mon-fri' 
-      ? [
-          { key: 'mon', label: 'Mon', short: 'M' },
-          { key: 'tue', label: 'Tue', short: 'T' },
-          { key: 'wed', label: 'Wed', short: 'W' },
-          { key: 'thu', label: 'Thu', short: 'T' },
-          { key: 'fri', label: 'Fri', short: 'F' },
-        ]
-      : [
-          { key: 'mon', label: 'Mon', short: 'M' },
-          { key: 'tue', label: 'Tue', short: 'T' },
-          { key: 'wed', label: 'Wed', short: 'W' },
-          { key: 'thu', label: 'Thu', short: 'T' },
-          { key: 'fri', label: 'Fri', short: 'F' },
-          { key: 'sat', label: 'Sat', short: 'S' },
-        ];
+  const availableDays: { key: DayKey; label: string; short: string }[] = isTrialMode
+    ? [
+        { key: 'mon', label: 'Day 1', short: '1' },
+        { key: 'tue', label: 'Day 2', short: '2' },
+      ]
+    : weekType === 'mon-fri'
+    ? [
+        { key: 'mon', label: 'Mon', short: 'M' },
+        { key: 'tue', label: 'Tue', short: 'T' },
+        { key: 'wed', label: 'Wed', short: 'W' },
+        { key: 'thu', label: 'Thu', short: 'T' },
+        { key: 'fri', label: 'Fri', short: 'F' },
+      ]
+    : [
+        { key: 'mon', label: 'Mon', short: 'M' },
+        { key: 'tue', label: 'Tue', short: 'T' },
+        { key: 'wed', label: 'Wed', short: 'W' },
+        { key: 'thu', label: 'Thu', short: 'T' },
+        { key: 'fri', label: 'Fri', short: 'F' },
+        { key: 'sat', label: 'Sat', short: 'S' },
+      ];
 
   // Calculate add-ons price
   const addOnsPrice = selectedAddOns.reduce((sum, addOnId) => {
@@ -65,7 +71,7 @@ export default function AddOnsModal({
     if (!addOn) return sum;
 
     const selectedDaysCount = selectedAddOnDays[addOnId]?.length ?? 0;
-    const daysPerWeek = weekType === 'mon-fri' ? 5 : 6;
+    const daysPerWeek = isTrialMode ? 2 : weekType === 'mon-fri' ? 5 : 6;
     const weeks = Math.ceil(planDuration / daysPerWeek);
 
     const totalDaysForAddon = selectedDaysCount === 0 
@@ -133,16 +139,23 @@ export default function AddOnsModal({
                     <View key={addOn.id} style={styles.addOnCard}>
                       <View style={styles.addOnMain}>
                         <View style={styles.addOnLeft}>
-                          {addOn.image ? (
-                            <Image source={{ uri: addOn.image }} style={styles.addOnImage} />
-                          ) : (
-                            <View style={[styles.addOnImage, styles.addOnImagePlaceholder]}>
-                              <Text style={styles.addOnImageEmoji}>🍽️</Text>
-                            </View>
-                          )}
+                          <View style={[styles.addOnImage, styles.addOnImageContainer]}> 
+                            {addOn.image ? (
+                              <Image
+                                source={{ uri: addOn.image }}
+                                style={styles.addOnImageInner}
+                                resizeMode="cover"
+                                onError={() => console.warn(`Failed to load addOn image: ${addOn.image}`)}
+                              />
+                            ) : (
+                              <View style={styles.addOnImagePlaceholder}>
+                                <Text style={styles.addOnImageEmoji}>🍽️</Text>
+                              </View>
+                            )}
+                          </View>
                           <View style={styles.addOnInfo}>
                             <View style={styles.addOnTitleRow}>
-                              <View style={[styles.vegBadge, !addOn.isVeg && styles.nonVegBadge]} />
+                              {/* <View style={[styles.vegBadge, !addOn.isVeg && styles.nonVegBadge]} /> */}
                               <Text style={styles.addOnName}>{addOn.name}</Text>
                             </View>
                             {/* <Text style={styles.addOnDescription} numberOfLines={2}>
@@ -371,6 +384,13 @@ const styles = StyleSheet.create({
     width: 45,
     height: 45,
     borderRadius: 12,
+  },
+  addOnImageContainer: {
+    overflow: 'hidden',
+  },
+  addOnImageInner: {
+    width: '100%',
+    height: '100%',
   },
   addOnImagePlaceholder: {
     backgroundColor: '#F3F4F6',

@@ -24,6 +24,8 @@ import {
   Package,
   User,
   User2,
+  Shield,
+  Truck,
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -680,6 +682,22 @@ function CustomerHomeScreen({
           )}
         </View>
 
+        {/* Benefits */}
+        <View style={styles.benefitsContainer}>
+          <View style={styles.benefitItem}>
+            <Clock size={20} color="#48479B" />
+            <Text style={styles.benefitText}>Daily Fresh Meals</Text>
+          </View>
+          <View style={styles.benefitItem}>
+            <Truck size={20} color="#48479B" />
+            <Text style={styles.benefitText}>Free Delivery</Text>
+          </View>
+          <View style={styles.benefitItem}>
+            <Shield size={20} color="#48479B" />
+            <Text style={styles.benefitText}>Cancel Anytime</Text>
+          </View>
+        </View>
+
         {/* Form Cards Section */}
         <View style={styles.section}>
           <View style={styles.centeredSectionHeader}>
@@ -697,24 +715,18 @@ function CustomerHomeScreen({
           </View>
           <View style={styles.formCardsColumn}>
             <FormCard
-              title="Bulk Food Delivery"
-              subtitle="Order before 7 days"
-              description="Hassle-free food for office parties & more!"
-              icon="📦"
-              gradientColors={[colors.primary, "#6366F1"]}
-              features={["No Cooking", "No Cleaning", "No Hassle"]}
-              badge="Service & Live Cooking Available"
-              onPress={() => router.push("/corporate-form")}
+              title="Corporate Catering"
+              subtitle=""
+              description="Share your requirements and our team will curate a tailored corporate catering experience"
+              gradientColors={[colors.primary, colors.primary]}
+              onPress={() => router.push("/corporate-catering")}
             />
             <FormCard
-              title="Catering Service"
-              subtitle="Order before 2 days"
-              description="Suitable for small to large gatherings"
-              icon="🍽️"
-              gradientColors={["#EC4899", "#F97316"]}
-              features={["Live Plating", "Service Available"]}
-              badge="Service & Live Cooking Available"
-              onPress={() => router.push("/nutrition-form")}
+              title="Get Personalized Meal Plans"
+              subtitle=""
+              description="Based on your preferences, our team manually designs and activates your custom meal plan"
+              gradientColors={[colors.primary, colors.primary]}
+              onPress={() => router.push("/nutritionist-contact")}
             />
           </View>
         </View>
@@ -839,7 +851,7 @@ function CustomerHomeScreen({
                           style={[
                             styles.mealCardWrapper,
                             index !== collectionMeals.length - 1 &&
-                              styles.mealCardGap,
+                            styles.mealCardGap,
                           ]}
                         >
                           <MealCard
@@ -953,11 +965,11 @@ function CustomerHomeScreen({
             prev.map((section: any) =>
               section.id === sectionId
                 ? {
-                    ...section,
-                    options: section.options.map((o: any) =>
-                      o.id === optionId ? { ...o, selected: !o.selected } : o
-                    ),
-                  }
+                  ...section,
+                  options: section.options.map((o: any) =>
+                    o.id === optionId ? { ...o, selected: !o.selected } : o
+                  ),
+                }
                 : section
             )
           );
@@ -1231,7 +1243,7 @@ const styles = StyleSheet.create({
     color: "#000000",
   },
   mealCardWrapper: {
-    width: 306,
+    width: 225,
   },
   mealCardGap: {
     marginRight: 9,
@@ -1247,7 +1259,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
- 
+
     marginRight: 18,
     marginLeft: 9,
   },
@@ -1272,5 +1284,24 @@ const styles = StyleSheet.create({
   },
   categoriesScrollContent: {
     paddingRight: 0,
+  },
+  benefitsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: 'white',
+    marginHorizontal: 20,
+    borderRadius: 12,
+    marginBottom: 24,
+  },
+  benefitItem: {
+    alignItems: 'center',
+  },
+  benefitText: {
+    fontSize: 12,
+    color: '#333',
+    marginTop: 4,
+    fontWeight: '600',
   },
 });

@@ -3,11 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   Alert,
   TextInput,
 } from 'react-native';
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, router } from 'expo-router';
 import { ArrowLeft, Save, MapPin } from 'lucide-react-native';
 // TODO: Uncomment when native maps are available

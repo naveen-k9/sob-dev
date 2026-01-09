@@ -4,9 +4,9 @@ import {
   ScrollView,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
 } from 'react-native';
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, router, useRouter } from 'expo-router';
 import { ArrowLeft, Check, Star, Clock, Truck, Shield } from 'lucide-react-native';
 import { subscriptionPlans, addOns } from '@/constants/data';

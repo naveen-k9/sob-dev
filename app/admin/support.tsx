@@ -5,10 +5,10 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from 'expo-router';
 import { ArrowLeft, MessageCircle, Clock, CheckCircle, XCircle, Filter } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';

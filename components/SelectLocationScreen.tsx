@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   TextInput,
   ScrollView,
@@ -11,6 +10,7 @@ import {
   ActivityIndicator,
   Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { router } from "expo-router";
@@ -155,7 +155,7 @@ const SelectLocationScreen: React.FC<SelectLocationScreenProps> = ({
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.actionItem}
             onPress={handleUseCurrentLocation}
             disabled={isLoadingLocation}
@@ -172,7 +172,7 @@ const SelectLocationScreen: React.FC<SelectLocationScreenProps> = ({
                 ? "Getting location..."
                 : "Use my Current Location"}
             </Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity
             style={styles.actionItem}
@@ -185,7 +185,7 @@ const SelectLocationScreen: React.FC<SelectLocationScreenProps> = ({
             <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
           </TouchableOpacity>
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.actionItem}
             onPress={handleRequestFromFriend}
           >
@@ -194,7 +194,7 @@ const SelectLocationScreen: React.FC<SelectLocationScreenProps> = ({
             </View>
             <Text style={styles.actionText}>Request address from friend</Text>
             <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
         {/* Saved Addresses */}

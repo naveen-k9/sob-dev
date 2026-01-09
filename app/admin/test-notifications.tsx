@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 import {
-  SafeAreaView,
+  
   View,
   Text,
   StyleSheet,
@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
 import { Bell, Send, TestTube, RefreshCw, Trash2 } from "lucide-react-native";
 import { useAuth } from "@/contexts/AuthContext";

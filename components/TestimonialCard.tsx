@@ -11,10 +11,10 @@ export default function TestimonialCard({ testimonial }: TestimonialCardProps) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Image source={{ uri: testimonial.image }} style={styles.avatar} />
+        <Image source={{ uri: testimonial.userImage }} style={styles.avatar} />
         <View style={styles.userInfo}>
-          <Text style={styles.name}>{testimonial.name}</Text>
-          <Text style={styles.location}>{testimonial.location}</Text>
+          <Text style={styles.name}>{testimonial.userName}</Text>
+          {/* <Text style={styles.location}>{testimonial.}</Text> */}
         </View>
         <View style={styles.rating}>
           {[...Array(testimonial.rating)].map((_, i) => (
