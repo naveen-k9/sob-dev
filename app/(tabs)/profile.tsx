@@ -81,8 +81,8 @@ export default function ProfileScreen() {
     { icon: Heart, title: 'Nutritionist Consultation', onPress: () => router.push('/nutritionist-contact' as any) },
     { icon: Package, title: 'Corporate Catering', onPress: () => router.push('/corporate-catering' as any) },
     { icon: CreditCard, title: 'Payment Methods', onPress: () => {} },
-    { icon: Bell, title: 'Notifications', onPress: () => router.push('/notifications' as any) },
-    { icon: HelpCircle, title: 'FAQs', onPress: () => router.push('/faqs' as any) },
+    // { icon: Bell, title: 'Notifications', onPress: () => router.push('/notifications' as any) },
+    // { icon: HelpCircle, title: 'FAQs', onPress: () => router.push('/faqs' as any) },
     { icon: MessageSquare, title: 'Support Tickets', onPress: () => router.push('/support' as any) },
   ];
 

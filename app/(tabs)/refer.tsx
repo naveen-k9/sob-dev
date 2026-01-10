@@ -126,7 +126,7 @@ export default function ReferScreen() {
           </Text>
         </View>
 
-        {/* Referral Section */}
+        {/* Referral Section 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Gift size={24} color="#48479B" />
@@ -152,9 +152,9 @@ export default function ReferScreen() {
               🎁 Both you and your friend get ₹500 when they subscribe to a 26-day plan!
             </Text>
           </View>
-        </View>
+        </View>*/}
 
-        {/* Referral Stats */}
+        {/* Referral Stats 
         <View style={styles.section}>
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
@@ -168,9 +168,9 @@ export default function ReferScreen() {
               <Text style={styles.statLabel}>Referral Earnings</Text>
             </View>
           </View>
-        </View>
+        </View>*/}
 
-        {/* Streak Section */}
+        {/* Streak Section 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Flame size={24} color="#F59E0B" />
@@ -198,9 +198,9 @@ export default function ReferScreen() {
               </View>
             )}
           </View>
-        </View>
+        </View>*/}
 
-        {/* Streak Milestones */}
+        {/* Streak Milestones 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Streak Rewards</Text>
           <View style={styles.milestones}>
@@ -232,9 +232,9 @@ export default function ReferScreen() {
               </View>
             ))}
           </View>
-        </View>
+        </View>*/}
 
-        {/* Recent Rewards */}
+        {/* Recent Rewards 
         {(referralRewards.length > 0 || streakRewards.length > 0) && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recent Rewards</Text>
@@ -267,9 +267,9 @@ export default function ReferScreen() {
               ))}
             </View>
           </View>
-        )}
+        )}*/}
 
-        {/* How it Works */}
+        {/* How it Works 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>How it Works</Text>
           <View style={styles.howItWorks}>
@@ -298,7 +298,7 @@ export default function ReferScreen() {
               </Text>
             </View>
           </View>
-        </View>
+        </View>*/}
       </ScrollView>
     </SafeAreaView>
   );
