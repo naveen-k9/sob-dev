@@ -65,6 +65,8 @@ import MealCard from "@/components/MealCard";
 import CategorySquareCard from "@/components/CategorySquareCard";
 import RoleSelector from "@/components/RoleSelector";
 import { Ionicons } from "@expo/vector-icons";
+import TodayMealSlider from "@/components/TodayMealSlider";
+import SubscriptionNotificationCards from "@/components/SubscriptionNotificationCards";
 
 const TOP_BG_HEIGHT = Math.round(Dimensions.get("window").height * 0.38);
 
@@ -568,7 +570,14 @@ function CustomerHomeScreen({
             </View>
           </View>
 
-          {bannersQuery.isLoading ? (
+          {!isGuest && user && mySubscriptions.length > 0 ? (
+            <View style={styles.bannersContainer}>
+              <SubscriptionNotificationCards
+                userId={user.id}
+                subscriptions={mySubscriptions}
+              />
+            </View>
+          ) : bannersQuery.isLoading ? (
             <View style={[styles.bannersContainer, styles.pad20v24]}>
               <Text style={styles.whiteText}>Loading banners...</Text>
             </View>
@@ -605,6 +614,30 @@ function CustomerHomeScreen({
             </View>
           )}
         </View>
+
+        {/* Today's Meals Section - Only show for logged-in users with active subscriptions */}
+        {!isGuest && user && mySubscriptions.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.centeredSectionHeader}>
+              <View
+                style={[styles.headerLine, { backgroundColor: colors.primary }]}
+              />
+              <Text
+                style={[styles.centeredSectionTitle, { color: colors.primary }]}
+              >
+                TODAY'S DELIVERIES
+              </Text>
+              <View
+                style={[styles.headerLine, { backgroundColor: colors.primary }]}
+              />
+            </View>
+            <TodayMealSlider
+              userId={user.id}
+              subscriptions={mySubscriptions}
+              onRefresh={onRefresh}
+            />
+          </View>
+        )}
 
         <View style={[styles.section]}>
           <View style={styles.centeredSectionHeader}>
@@ -1120,7 +1153,7 @@ const styles = StyleSheet.create({
   },
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 20 },
-  section: { marginBottom: 9, marginTop: 18 },
+  section: { marginBottom: 16, marginTop: 20 },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1144,15 +1177,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   centeredSectionTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    letterSpacing: 1.5,
-    paddingHorizontal: 12,
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 1.8,
+    paddingHorizontal: 5,
   },
   headerLine: {
     flex: 1,
-    height: 2,
-    opacity: 0.2,
+    height: 1.5,
+    opacity: 0.25,
   },
   seeAll: { fontSize: 14, color: "#A3D397", fontWeight: "700" },
   horizontalScroll: { paddingLeft: 9 },
@@ -1243,14 +1276,15 @@ const styles = StyleSheet.create({
     color: "#000000",
   },
   mealCardWrapper: {
-    width: 225,
+
+    width: 171,
   },
   mealCardGap: {
     marginRight: 9,
   },
   collectionScrollContent: {
     paddingRight: 18,
-    gap: 9,
+    gap: 0,
     alignItems: "center",
   },
   seeAllCard: {

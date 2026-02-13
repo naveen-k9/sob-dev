@@ -72,6 +72,9 @@ export default function AdminMealsScreen() {
   const [vegVariantPrice, setVegVariantPrice] = useState("");
   const [nonVegVariantPrice, setNonVegVariantPrice] = useState("");
   const [allowDaySelection, setAllowDaySelection] = useState(false);
+  const [availableWeekTypes, setAvailableWeekTypes] = useState<
+    ("mon-fri" | "mon-sat" | "everyday")[]
+  >([]);
 
   useEffect(() => {
     loadData();
@@ -167,6 +170,7 @@ export default function AdminMealsScreen() {
     setVegVariantPrice("");
     setNonVegVariantPrice("");
     setAllowDaySelection(false);
+    setAvailableWeekTypes([]);
   };
 
   const openAddModal = () => {
@@ -201,7 +205,14 @@ export default function AdminMealsScreen() {
     setVegVariantPrice(meal.variantPricing?.veg?.toString() || "");
     setNonVegVariantPrice(meal.variantPricing?.nonveg?.toString() || "");
     setAllowDaySelection(meal.allowDaySelection || false);
+    setAvailableWeekTypes(meal.availableWeekTypes ?? []);
     setShowEditModal(true);
+  };
+
+  const toggleWeekType = (wt: "mon-fri" | "mon-sat" | "everyday") => {
+    setAvailableWeekTypes((prev) =>
+      prev.includes(wt) ? prev.filter((x) => x !== wt) : [...prev, wt]
+    );
   };
 
   const handleAdd = async () => {
@@ -274,6 +285,8 @@ export default function AdminMealsScreen() {
         variantPricing,
         allowDaySelection,
         addonIds: selectedAddons.length > 0 ? selectedAddons : undefined,
+        availableWeekTypes:
+          availableWeekTypes.length > 0 ? availableWeekTypes : undefined,
       });
 
       Alert.alert("Success", "Meal added successfully");
@@ -356,6 +369,8 @@ export default function AdminMealsScreen() {
         variantPricing,
         allowDaySelection,
         addonIds: selectedAddons.length > 0 ? selectedAddons : undefined,
+        availableWeekTypes:
+          availableWeekTypes.length > 0 ? availableWeekTypes : undefined,
       });
 
       Alert.alert("Success", "Meal updated successfully");
@@ -437,6 +452,8 @@ export default function AdminMealsScreen() {
         variantPricing,
         allowDaySelection,
         addonIds: selectedAddons.length > 0 ? selectedAddons : undefined,
+        availableWeekTypes:
+          availableWeekTypes.length > 0 ? availableWeekTypes : undefined,
       });
 
       Alert.alert("Success", "Meal saved as draft successfully");
@@ -799,6 +816,39 @@ export default function AdminMealsScreen() {
           value={allowDaySelection}
           onValueChange={setAllowDaySelection}
         />
+      </View>
+
+      <Text style={styles.sectionTitle}>Week Types (optional)</Text>
+      <Text style={[styles.label, { marginBottom: 6 }]}>
+        Limit which week types this meal offers. Leave all unchecked to offer
+        Mon-Fri, Mon-Sat, and Every Day.
+      </Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        {(
+          [
+            ["mon-fri", "Mon-Fri"],
+            ["mon-sat", "Mon-Sat"],
+            ["everyday", "Every Day"],
+          ] as const
+        ).map(([value, label]) => {
+          const selected = availableWeekTypes.includes(value);
+          return (
+            <TouchableOpacity
+              key={value}
+              style={[styles.chip, selected && styles.chipSelected]}
+              onPress={() => toggleWeekType(value)}
+            >
+              <Text
+                style={[
+                  styles.chipLabel,
+                  selected && styles.chipLabelSelected,
+                ]}
+              >
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {isBasicThali && (

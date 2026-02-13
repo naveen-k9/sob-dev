@@ -19,6 +19,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "@/contexts/LocationContext";
 import { Address } from "@/types";
+import * as Location from "expo-location";
 
 interface AddAddressFormScreenProps {
   onBack?: () => void;
@@ -33,12 +34,23 @@ const AddAddressFormScreen: React.FC<AddAddressFormScreenProps> = ({
   const { user, addAddress } = useAuth();
   const { checkLocationServiceability } = useLocation();
 
-  const latitude = params.latitude
-    ? parseFloat(params.latitude as string)
-    : 17.385044;
-  const longitude = params.longitude
-    ? parseFloat(params.longitude as string)
-    : 78.486671;
+  // Check if coordinates were provided via params
+  const hasParamsCoordinates = params.latitude && params.longitude;
+  
+  console.log('[AddAddressForm] Component mounted with params:', {
+    hasParamsCoordinates,
+    latitude: params.latitude,
+    longitude: params.longitude,
+  });
+  
+  // If no params, start with loading state and fetch current location
+  const [latitude, setLatitude] = useState<number>(
+    hasParamsCoordinates ? parseFloat(params.latitude as string) : 17.385044
+  );
+  const [longitude, setLongitude] = useState<number>(
+    hasParamsCoordinates ? parseFloat(params.longitude as string) : 78.486671
+  );
+  const [isLoadingLocation, setIsLoadingLocation] = useState(!hasParamsCoordinates);
   const initialAddress = (params.address as string) || "";
 
   const [formData, setFormData] = useState({
@@ -55,6 +67,42 @@ const AddAddressFormScreen: React.FC<AddAddressFormScreenProps> = ({
   const [showCustomLabelInput, setShowCustomLabelInput] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Automatically get current location if no coordinates were provided
+  useEffect(() => {
+    const getCurrentLocation = async () => {
+      // Skip if coordinates were provided via params
+      if (hasParamsCoordinates) {
+        return;
+      }
+
+      try {
+        console.log('[AddAddressForm] Fetching current location...');
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        
+        if (status !== 'granted') {
+          console.log('[AddAddressForm] Location permission denied, using defaults');
+          setIsLoadingLocation(false);
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        console.log('[AddAddressForm] Got current location:', location.coords);
+        setLatitude(location.coords.latitude);
+        setLongitude(location.coords.longitude);
+      } catch (error) {
+        console.error('[AddAddressForm] Error getting current location:', error);
+        // Keep default coordinates on error
+      } finally {
+        setIsLoadingLocation(false);
+      }
+    };
+
+    getCurrentLocation();
+  }, [hasParamsCoordinates]);
+
   const location = {
     latitude,
     longitude,
@@ -66,6 +114,15 @@ const AddAddressFormScreen: React.FC<AddAddressFormScreenProps> = ({
     latitudeDelta: 0.005,
     longitudeDelta: 0.005,
   };
+
+  // Log when coordinates change
+  useEffect(() => {
+    console.log('[AddAddressForm] Map coordinates updated:', {
+      latitude,
+      longitude,
+      isLoading: isLoadingLocation,
+    });
+  }, [latitude, longitude, isLoadingLocation]);
 
   useEffect(() => {
     if (selectedAddressType === "Other") {
@@ -123,6 +180,10 @@ const AddAddressFormScreen: React.FC<AddAddressFormScreenProps> = ({
           "Area Not Serviceable Yet",
           "We're sorry, but we don't deliver to this location yet. We're constantly expanding our service areas. Would you like to get notified when we start serving this area?",
           [
+            {
+              text: "Get Notified",
+              onPress: () => router.push("/service-area-request"),
+            },
             {
               text: "Maybe Later",
               style: "cancel",
@@ -228,16 +289,25 @@ const AddAddressFormScreen: React.FC<AddAddressFormScreenProps> = ({
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Map Preview */}
           <View style={styles.mapContainer}>
-            <MapView
-              style={styles.map}
-              region={mapRegion}
-              scrollEnabled={false}
-              zoomEnabled={false}
-              pitchEnabled={false}
-              rotateEnabled={false}
-            >
-              <Marker coordinate={location} />
-            </MapView>
+            {isLoadingLocation ? (
+              <View style={[styles.map, styles.mapLoading]}>
+                <ActivityIndicator size="large" color="#48479B" />
+                <Text style={styles.loadingText}>Getting your location...</Text>
+              </View>
+            ) : (
+              <MapView
+                key={`map-${latitude}-${longitude}`}
+                style={styles.map}
+                initialRegion={mapRegion}
+                region={mapRegion}
+                scrollEnabled={false}
+                zoomEnabled={false}
+                pitchEnabled={false}
+                rotateEnabled={false}
+              >
+                <Marker coordinate={location} />
+              </MapView>
+            )}
 
             <TouchableOpacity
               style={styles.changeButton}
@@ -417,6 +487,16 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  mapLoading: {
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F9F9F9",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#8E8E93",
   },
   changeButton: {
     position: "absolute",

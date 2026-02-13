@@ -34,11 +34,7 @@ import {
 } from "lucide-react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { router } from "expo-router";
-import {
-  getUserSubscriptions,
-  Meals as featuredMeals,
-  addOns,
-} from "@/constants/data";
+import { getUserSubscriptions, addOns } from "@/constants/data";
 import { Subscription, Meal, AddOn, AppSettings, Order } from "@/types";
 import db from "@/db";
 import {
@@ -137,13 +133,28 @@ export default function OrdersScreen() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
     "upi" | "card" | "wallet"
   >("upi");
+  const [mealsMap, setMealsMap] = useState<Record<string, Meal>>({});
 
   const handleLoginPrompt = () => {
     router.push("/auth/login");
   };
 
+  const loadMealsMap = async () => {
+    try {
+      const meals = await db.getMeals();
+      const map: Record<string, Meal> = {};
+      meals.forEach((m) => {
+        map[m.id] = m;
+      });
+      setMealsMap(map);
+    } catch (error) {
+      console.error("Error loading meals for orders:", error);
+    }
+  };
+
   useEffect(() => {
     if (user) {
+      loadMealsMap();
       loadUserSubscriptions();
       loadAppSettings();
       loadAvailableAddOns();
@@ -164,7 +175,14 @@ export default function OrdersScreen() {
       generateCalendarDays();
       loadSelectedDateDelivery();
     }
-  }, [user, currentDate, userSubscriptions, selectedDate, selectedPlanId]);
+  }, [user, currentDate, userSubscriptions, selectedDate, selectedPlanId, mealsMap]);
+
+  // Re-load today orders when meals map is populated so meal names resolve correctly
+  useEffect(() => {
+    if (user && Object.keys(mealsMap).length > 0) {
+      loadTodayOrders();
+    }
+  }, [user, mealsMap]);
 
   // Debug logging
   useEffect(() => {
@@ -191,15 +209,25 @@ export default function OrdersScreen() {
     }
   };
 
+  /**
+   * Resolve weekend exclusion setting from subscription
+   * Handles both legacy (excludeWeekends boolean) and new (weekendExclusion string) formats
+   */
   const resolveWeekendExclusion = (sub: Subscription): string => {
+    if (sub.weekType === "everyday") return "none";
     const fromNew = sub.weekendExclusion ?? null;
     if (fromNew) return fromNew;
+    // Legacy format: excludeWeekends boolean
     if (sub.excludeWeekends === true) return "both";
     return "none";
   };
 
+  /**
+   * Check if a specific date should be excluded based on subscription's weekend settings
+   */
   const isWeekendExcludedForDate = (date: Date, sub: Subscription): boolean => {
-    const day = date.getDay();
+    if (sub.weekType === "everyday") return false;
+    const day = date.getDay(); // 0 = Sunday, 6 = Saturday
     const setting = resolveWeekendExclusion(sub);
     if (setting === "both") return day === 0 || day === 6;
     if (setting === "saturday") return day === 6;
@@ -207,6 +235,9 @@ export default function OrdersScreen() {
     return false;
   };
 
+  /**
+   * Get a user-friendly label for weekend exclusion setting
+   */
   const weekendExclusionLabel = (sub: Subscription): string | null => {
     const setting = resolveWeekendExclusion(sub);
     if (setting === "both") return "• Weekends excluded";
@@ -269,8 +300,11 @@ export default function OrdersScreen() {
           if (isWeekendExcludedForDate(today, subscription)) continue;
           if (isSkipped) continue;
 
-          // Get meal details
-          const meal = featuredMeals.find((m) => m.id === subscription.mealId);
+          // Get meal details from db (correct per meal id)
+          let meal = mealsMap[subscription.mealId];
+          if (!meal) {
+            meal = await db.getMealById(subscription.mealId) ?? undefined;
+          }
           if (!meal) continue;
 
           // Get add-ons
@@ -281,9 +315,10 @@ export default function OrdersScreen() {
             ...subscriptionAddOns,
             ...additionalAddOnsForDate,
           ];
+          const addOnSource = availableAddOns.length > 0 ? availableAddOns : addOns;
           const addOnNames = allAddOnIds
             .map((addOnId) => {
-              const addOn = addOns.find((a) => a.id === addOnId);
+              const addOn = addOnSource.find((a) => a.id === addOnId);
               return addOn ? addOn.name : "";
             })
             .filter(Boolean);
@@ -334,6 +369,7 @@ export default function OrdersScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await Promise.all([
+      loadMealsMap(),
       loadUserSubscriptions(),
       loadTodayOrders(),
       loadAppSettings(),
@@ -409,10 +445,8 @@ export default function OrdersScreen() {
       return;
     }
 
-    // Find the meal details
-    const meal = featuredMeals.find(
-      (m) => m.id === selectedSubscription.mealId
-    );
+    // Find the meal details from db (correct per meal id)
+    const meal = mealsMap[selectedSubscription.mealId];
 
     // Get base add-ons details
     const subscriptionAddOns = selectedSubscription.addOns || [];
@@ -423,9 +457,10 @@ export default function OrdersScreen() {
 
     // Combine all add-ons
     const allAddOnIds = [...subscriptionAddOns, ...additionalAddOnsForDate];
+    const addOnSource = availableAddOns.length > 0 ? availableAddOns : addOns;
     const addOnNames = allAddOnIds
       .map((addOnId) => {
-        const addOn = addOns.find((a) => a.id === addOnId);
+        const addOn = addOnSource.find((a) => a.id === addOnId);
         return addOn ? addOn.name : "";
       })
       .filter(Boolean);
@@ -596,118 +631,42 @@ export default function OrdersScreen() {
     }
   };
 
+  // Using centralized cut-off time utility
   const checkCanSkip = (date: Date): boolean => {
-    console.log("checkCanSkip called for date:", date.toDateString());
-    console.log("appSettings:", appSettings);
-
-    if (!appSettings?.skipCutoffTime) {
-      console.log("No app settings or skip cutoff time");
-      return false;
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const checkDate = new Date(date);
-    checkDate.setHours(0, 0, 0, 0);
-
-    const isToday = checkDate.getTime() === today.getTime();
-    const isFuture = checkDate > today;
-
-    console.log("Date comparison - isToday:", isToday, "isFuture:", isFuture);
-    console.log("Skip cutoff time from settings:", appSettings.skipCutoffTime);
-
-    if (isFuture) {
-      console.log("Future date - can skip");
-      return true;
-    }
-
-    if (isToday) {
-      try {
-        const cutoffTimeStr = appSettings.skipCutoffTime.toString();
-        const [cutoffHour, cutoffMinute] = cutoffTimeStr.split(":").map(Number);
-
-        if (isNaN(cutoffHour) || isNaN(cutoffMinute)) {
-          console.error("Invalid cutoff time format:", cutoffTimeStr);
-          return false;
-        }
-
-        const cutoffTime = new Date();
-        cutoffTime.setHours(cutoffHour, cutoffMinute, 0, 0);
-        const currentTime = new Date();
-
-        console.log("Cutoff time:", cutoffTime.toTimeString());
-        console.log("Current time:", currentTime.toTimeString());
-        console.log("Can skip today:", currentTime < cutoffTime);
-
-        return currentTime < cutoffTime;
-      } catch (error) {
-        console.error("Error parsing skip cutoff time:", error);
-        return false;
-      }
-    }
-
-    console.log("Past date - cannot skip");
-    return false;
+    const { canSkipMeal } = require("@/utils/cutoffTimeUtils");
+    const result = canSkipMeal(date, appSettings);
+    console.log(`[Cut-off Check] Skip meal for ${date.toDateString()}:`, result);
+    return result.canProceed;
   };
 
   const checkCanAddItems = (date: Date): boolean => {
-    console.log("checkCanAddItems called for date:", date.toDateString());
-
-    if (!appSettings?.addOnCutoffTime) {
-      console.log("No app settings or addon cutoff time");
-      return false;
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const checkDate = new Date(date);
-    checkDate.setHours(0, 0, 0, 0);
-
-    const isToday = checkDate.getTime() === today.getTime();
-    const isFuture = checkDate > today;
-
-    console.log("Date comparison - isToday:", isToday, "isFuture:", isFuture);
-    console.log(
-      "AddOn cutoff time from settings:",
-      appSettings.addOnCutoffTime
-    );
-
-    if (isFuture) {
-      console.log("Future date - can add items");
-      return true;
-    }
-
-    if (isToday) {
-      try {
-        const cutoffTimeStr = appSettings.addOnCutoffTime.toString();
-        const [cutoffHour, cutoffMinute] = cutoffTimeStr.split(":").map(Number);
-
-        if (isNaN(cutoffHour) || isNaN(cutoffMinute)) {
-          console.error("Invalid addon cutoff time format:", cutoffTimeStr);
-          return false;
-        }
-
-        const cutoffTime = new Date();
-        cutoffTime.setHours(cutoffHour, cutoffMinute, 0, 0);
-        const currentTime = new Date();
-
-        console.log("Addon cutoff time:", cutoffTime.toTimeString());
-        console.log("Current time:", currentTime.toTimeString());
-        console.log("Can add items today:", currentTime < cutoffTime);
-
-        return currentTime < cutoffTime;
-      } catch (error) {
-        console.error("Error parsing add-on cutoff time:", error);
-        return false;
-      }
-    }
-
-    console.log("Past date - cannot add items");
-    return false;
+    const { canModifyAddOns } = require("@/utils/cutoffTimeUtils");
+    const result = canModifyAddOns(date, appSettings);
+    console.log(`[Cut-off Check] Modify add-ons for ${date.toDateString()}:`, result);
+    return result.canProceed;
   };
 
   const handleSkipMeal = async () => {
     if (!selectedDateDelivery?.subscription) return;
+
+    // Prevent skip if cooking has started (for today's meal)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDateCopy = new Date(selectedDate);
+    selectedDateCopy.setHours(0, 0, 0, 0);
+    
+    if (selectedDateCopy.getTime() === today.getTime()) {
+      const currentHour = new Date().getHours();
+      // If cooking has started (typically after 8 AM), prevent cancellation
+      if (currentHour >= 8 && selectedDateDelivery.status !== "scheduled") {
+        Alert.alert(
+          "Cannot Skip",
+          "This meal cannot be skipped as preparation has already started. Please contact support for assistance.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+    }
 
     const dateStr = selectedDate.toLocaleDateString("en-US", {
       day: "numeric",
@@ -1027,52 +986,79 @@ export default function OrdersScreen() {
           </View>
         )}
 
-        {/* Cutoff Time Information */}
+        {/* Cutoff Time Information - Enhanced with utility */}
         {appSettings &&
           (selectedDateDelivery.canSkip ||
-            selectedDateDelivery.canAddItems) && (
-            <View style={styles.cutoffInfo}>
-              <Clock size={14} color="#6B7280" />
-              <Text style={styles.cutoffText}>
-                {selectedDateDelivery.canSkip &&
-                  appSettings.skipCutoffTime &&
-                  `Skip until ${appSettings.skipCutoffTime}`}
-                {selectedDateDelivery.canSkip &&
-                  selectedDateDelivery.canAddItems &&
-                  " • "}
-                {selectedDateDelivery.canAddItems &&
-                  appSettings.addOnCutoffTime &&
-                  `Add items until ${appSettings.addOnCutoffTime}`}
-              </Text>
+            selectedDateDelivery.canAddItems) && (() => {
+            const { canSkipMeal, canModifyAddOns, getCutoffMessage } = require("@/utils/cutoffTimeUtils");
+            const skipResult = canSkipMeal(selectedDate, appSettings);
+            const addOnResult = canModifyAddOns(selectedDate, appSettings);
+            
+            return (
+              <View style={styles.cutoffInfo}>
+                <Clock size={14} color="#6B7280" />
+                <Text style={styles.cutoffText}>
+                  {skipResult.canProceed && getCutoffMessage(skipResult, "skip")}
+                  {skipResult.canProceed && addOnResult.canProceed && " • "}
+                  {addOnResult.canProceed && getCutoffMessage(addOnResult, "add items")}
+                </Text>
+              </View>
+            );
+          })()}
+
+        {/* Action Buttons - Enhanced with better state management */}
+        {(() => {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const selectedDateCopy = new Date(selectedDate);
+          selectedDateCopy.setHours(0, 0, 0, 0);
+          const isToday = selectedDateCopy.getTime() === today.getTime();
+          const currentHour = new Date().getHours();
+          
+          // Check if cooking has started
+          const cookingStarted = isToday && currentHour >= 8 && selectedDateDelivery.status !== "scheduled";
+          
+          return (
+            <View style={styles.deliveryActions}>
+              {selectedDateDelivery.canSkip ? (
+                <TouchableOpacity
+                  style={[styles.skipButton, cookingStarted && styles.buttonDisabled]}
+                  onPress={handleSkipMeal}
+                  testID="skip-meal-button"
+                  disabled={cookingStarted}
+                >
+                  <XCircle size={16} color={cookingStarted ? "#9CA3AF" : "#EF4444"} />
+                  <Text style={[styles.skipButtonText, cookingStarted && styles.buttonTextDisabled]}>
+                    {cookingStarted ? "Cannot Skip" : "Skip Meal"}
+                  </Text>
+                </TouchableOpacity>
+              ) : !cookingStarted && (
+                <View style={styles.disabledActionInfo}>
+                  <Text style={styles.disabledActionText}>
+                    Skip cut-off time has passed
+                  </Text>
+                </View>
+              )}
+
+              {selectedDateDelivery.canAddItems ? (
+                <TouchableOpacity
+                  style={styles.addButton}
+                  onPress={handleAddMeal}
+                  testID="add-items-button"
+                >
+                  <Plus size={16} color="#48479B" />
+                  <Text style={styles.addButtonText}>Add Items</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.disabledActionInfo}>
+                  <Text style={styles.disabledActionText}>
+                    Add-on cut-off time has passed
+                  </Text>
+                </View>
+              )}
             </View>
-          )}
-
-        {/* Action Buttons - Always show for future dates and today within cutoff */}
-        {(selectedDateDelivery.canSkip || selectedDateDelivery.canAddItems) && (
-          <View style={styles.deliveryActions}>
-            {selectedDateDelivery.canSkip && (
-              <TouchableOpacity
-                style={styles.skipButton}
-                onPress={handleSkipMeal}
-                testID="skip-meal-button"
-              >
-                <XCircle size={16} color="#EF4444" />
-                <Text style={styles.skipButtonText}>Skip Meal</Text>
-              </TouchableOpacity>
-            )}
-
-            {selectedDateDelivery.canAddItems && (
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={handleAddMeal}
-                testID="add-items-button"
-              >
-                <Plus size={16} color="#48479B" />
-                <Text style={styles.addButtonText}>Add Items</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+          );
+        })()}
 
         {/* Debug Info - Remove in production */}
         {__DEV__ && (
@@ -2119,6 +2105,28 @@ const styles = StyleSheet.create({
     color: "#48479B",
     marginLeft: 6,
     fontWeight: "600",
+  },
+  buttonDisabled: {
+    backgroundColor: "#F3F4F6",
+    borderColor: "#D1D5DB",
+    opacity: 0.6,
+  },
+  buttonTextDisabled: {
+    color: "#9CA3AF",
+  },
+  disabledActionInfo: {
+    flex: 1,
+    backgroundColor: "#FEF3C7",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginHorizontal: 4,
+  },
+  disabledActionText: {
+    fontSize: 12,
+    color: "#92400E",
+    textAlign: "center",
+    fontWeight: "500",
   },
   debugInfo: {
     backgroundColor: "#F3F4F6",

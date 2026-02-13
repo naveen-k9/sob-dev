@@ -1098,6 +1098,18 @@ class Database {
     return { nextDate: next, endDateExtended };
   }
 
+  /**
+   * Skip a meal for a specific date
+   * 
+   * This handles:
+   * 1. Adding the date to skippedDates array
+   * 2. Moving any add-ons from skipped date to the next delivery date
+   * 3. Extending subscription end date by 1 delivery day to maintain total count
+   * 
+   * @param subscriptionId - ID of the subscription
+   * @param dateString - Date string in ISO format (YYYY-MM-DD)
+   * @returns true if skip was successful, false otherwise
+   */
   async skipMealForDate(
     subscriptionId: string,
     dateString: string
@@ -1105,30 +1117,38 @@ class Database {
     const subscription = await this.getSubscriptionById(subscriptionId);
     if (!subscription) return false;
 
+    // Check if already skipped
     const existingSkipped = subscription.skippedDates || [];
     if (existingSkipped.includes(dateString)) return true;
 
+    // Add to skipped dates
     const skippedDates = Array.from(
       new Set([...(subscription.skippedDates || []), dateString])
     );
 
+    // Move any additional add-ons from skipped date to next delivery date
     const additionalAddOns = {
       ...(subscription.additionalAddOns || {}),
     } as Record<string, string[]>;
     const movedAddOns = additionalAddOns[dateString] || [];
+    
     if (movedAddOns.length > 0) {
+      // Find the next valid delivery date
       const nextMeta = this.getNextDeliveryDate(
         subscription,
         new Date(dateString)
       );
       const nextStr = nextMeta.nextDate.toISOString().split("T")[0];
       const existingNext = additionalAddOns[nextStr] || [];
+      
+      // Merge add-ons to next date (avoid duplicates)
       additionalAddOns[nextStr] = Array.from(
         new Set<string>([...existingNext, ...movedAddOns])
       );
       delete additionalAddOns[dateString];
     }
 
+    // Calculate new end date (extend by 1 delivery day to maintain total deliveries)
     let newEndDate = new Date(subscription.endDate);
     const skipDate = new Date(dateString);
     skipDate.setHours(0, 0, 0, 0);
@@ -1139,13 +1159,10 @@ class Database {
     subEnd.setHours(0, 0, 0, 0);
 
     const isWithin = skipDate >= subStart && skipDate <= subEnd;
-    const isWeekend = skipDate.getDay() === 0 || skipDate.getDay() === 6;
-    const weekendSetting = subscription.weekendExclusion;
 
-    if (
-      isWithin &&
-      (!this.isExcludedDay(subscription, skipDate) || !isWeekend)
-    ) {
+    // Only extend end date if the skip is within the original subscription period
+    if (isWithin && !this.isExcludedDay(subscription, skipDate)) {
+      // Extend by one valid delivery day (skip weekends if needed)
       do {
         newEndDate.setDate(newEndDate.getDate() + 1);
       } while (this.isExcludedDay(subscription, newEndDate));
@@ -1350,28 +1367,70 @@ class Database {
   async addWalletTransaction(
     transactionData: Omit<WalletTransaction, "id" | "createdAt">
   ): Promise<WalletTransaction> {
-    const transactions = (await this.getItem("walletTransactions")) || [];
-    const newTransaction: WalletTransaction = {
-      ...transactionData,
-      id: Date.now().toString(),
-      createdAt: new Date(),
-    };
-    transactions.push(newTransaction);
-    await this.setItem("walletTransactions", transactions);
+    try {
+      // Validate transaction data
+      if (!transactionData.userId) {
+        throw new Error("User ID is required for wallet transaction");
+      }
+      if (transactionData.amount <= 0) {
+        throw new Error("Transaction amount must be greater than 0");
+      }
+      if (!["credit", "debit"].includes(transactionData.type)) {
+        throw new Error("Transaction type must be either 'credit' or 'debit'");
+      }
 
-    // Update user wallet balance
-    const user = await this.getUserById(transactionData.userId);
-    if (user) {
+      // Get current user to verify they exist and check balance for debits
+      const user = await this.getUserById(transactionData.userId);
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      // For debit transactions, verify sufficient balance
+      if (transactionData.type === "debit") {
+        if (user.walletBalance < transactionData.amount) {
+          throw new Error(
+            `Insufficient wallet balance. Available: ₹${user.walletBalance}, Required: ₹${transactionData.amount}`
+          );
+        }
+      }
+
+      const transactions = (await this.getItem("walletTransactions")) || [];
+      const newTransaction: WalletTransaction = {
+        ...transactionData,
+        id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        createdAt: new Date(),
+      };
+      transactions.push(newTransaction);
+      await this.setItem("walletTransactions", transactions);
+
+      // Update user wallet balance atomically
       const newBalance =
         transactionData.type === "credit"
           ? user.walletBalance + transactionData.amount
           : user.walletBalance - transactionData.amount;
-      await this.updateUser(user.id, {
+      
+      const updatedUser = await this.updateUser(user.id, {
         walletBalance: Math.max(0, newBalance),
       });
-    }
 
-    return newTransaction;
+      if (!updatedUser) {
+        // Rollback transaction if user update fails
+        const rollbackTransactions = transactions.filter(
+          (t) => t.id !== newTransaction.id
+        );
+        await this.setItem("walletTransactions", rollbackTransactions);
+        throw new Error("Failed to update user wallet balance");
+      }
+
+      console.log(
+        `[Wallet] ${transactionData.type === "credit" ? "Credited" : "Debited"} ₹${transactionData.amount} ${transactionData.type === "credit" ? "to" : "from"} user ${user.name}'s wallet. New balance: ₹${newBalance}`
+      );
+
+      return newTransaction;
+    } catch (error) {
+      console.error("[Wallet] Transaction failed:", error);
+      throw error;
+    }
   }
 
   // Serviceable Location methods
@@ -1910,6 +1969,7 @@ class Database {
     allowDaySelection?: boolean;
     addonIds?: string[];
     availableTimeSlotIds?: string[];
+    availableWeekTypes?: ("mon-fri" | "mon-sat" | "everyday")[];
     ingredients?: string[];
     allergens?: string[];
   }): Promise<Meal> {
@@ -1951,6 +2011,7 @@ class Database {
       allowDaySelection: mealData.allowDaySelection ?? false,
       addonIds: mealData.addonIds,
       availableTimeSlotIds: mealData.availableTimeSlotIds,
+      availableWeekTypes: mealData.availableWeekTypes,
     };
 
     // Save to Firebase
@@ -2003,11 +2064,11 @@ class Database {
     const plan = await this.getPlanById(subscriptionData.planId);
     const planDays = plan?.days ?? 0;
     const start = new Date(subscriptionData.startDate);
-    const allowedWeekTypes = ["mon-fri", "mon-sat"] as const;
-    const weekType: "mon-fri" | "mon-sat" = allowedWeekTypes.includes(
+    const allowedWeekTypes = ["mon-fri", "mon-sat", "everyday"] as const;
+    const weekType: "mon-fri" | "mon-sat" | "everyday" = allowedWeekTypes.includes(
       subscriptionData.weekType as any
     )
-      ? (subscriptionData.weekType as "mon-fri" | "mon-sat")
+      ? (subscriptionData.weekType as "mon-fri" | "mon-sat" | "everyday")
       : "mon-fri";
     const end = new Date(start);
     let served = 0;
@@ -2015,7 +2076,9 @@ class Database {
       const day = end.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
 
       let isWorkingDay = false;
-      if (weekType === "mon-fri") {
+      if (weekType === "everyday") {
+        isWorkingDay = true;
+      } else if (weekType === "mon-fri") {
         isWorkingDay = day >= 1 && day <= 5; // Mon to Fri
       } else if (weekType === "mon-sat") {
         isWorkingDay = day >= 1 && day <= 6; // Mon to Sat
@@ -2030,6 +2093,13 @@ class Database {
       }
     }
 
+    const weekendExclusion =
+      weekType === "everyday"
+        ? "none"
+        : weekType === "mon-sat"
+          ? "sunday"
+          : "both";
+
     const newSubscription: Subscription = {
       id: Date.now().toString(),
       userId: subscriptionData.userId,
@@ -2040,11 +2110,11 @@ class Database {
       endDate: end,
       deliveryTimeSlot:
         subscriptionData.deliveryTimeSlot ?? "12:00 PM - 1:00 PM",
-      weekendExclusion: "sunday",
-      weekType: ["mon-fri", "mon-sat", "none"].includes(
+      weekendExclusion,
+      weekType: ["mon-fri", "mon-sat", "everyday", "none"].includes(
         subscriptionData?.weekType as any
       )
-        ? (subscriptionData?.weekType as "mon-fri" | "mon-sat" | "none")
+        ? (subscriptionData?.weekType as "mon-fri" | "mon-sat" | "everyday" | "none")
         : "none",
 
       totalAmount: subscriptionData.price,
@@ -2081,6 +2151,70 @@ class Database {
     requests.push(newRequest);
     await this.setItem("notifyRequests", requests);
     return newRequest;
+  }
+
+  async addServiceAreaRequest(
+    requestData: Omit<import("@/types").ServiceAreaRequest, "id">
+  ): Promise<import("@/types").ServiceAreaRequest> {
+    try {
+      const requests =
+        (await this.getItem("serviceAreaRequests")) || [];
+      const newRequest: import("@/types").ServiceAreaRequest = {
+        ...requestData,
+        id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        createdAt: new Date(requestData.createdAt),
+      };
+      requests.push(newRequest);
+      await this.setItem("serviceAreaRequests", requests);
+      
+      console.log("[Database] Service area request added:", newRequest.id);
+      return newRequest;
+    } catch (error) {
+      console.error("[Database] Error adding service area request:", error);
+      throw error;
+    }
+  }
+
+  async getServiceAreaRequests(): Promise<import("@/types").ServiceAreaRequest[]> {
+    try {
+      const requests = (await this.getItem("serviceAreaRequests")) || [];
+      return requests.map((req: any) => ({
+        ...req,
+        createdAt: new Date(req.createdAt),
+        updatedAt: req.updatedAt ? new Date(req.updatedAt) : undefined,
+        contactedAt: req.contactedAt ? new Date(req.contactedAt) : undefined,
+        fulfilledAt: req.fulfilledAt ? new Date(req.fulfilledAt) : undefined,
+      }));
+    } catch (error) {
+      console.error("[Database] Error getting service area requests:", error);
+      return [];
+    }
+  }
+
+  async updateServiceAreaRequest(
+    requestId: string,
+    updates: Partial<import("@/types").ServiceAreaRequest>
+  ): Promise<void> {
+    try {
+      const requests = (await this.getItem("serviceAreaRequests")) || [];
+      const index = requests.findIndex((r: any) => r.id === requestId);
+      
+      if (index === -1) {
+        throw new Error("Service area request not found");
+      }
+
+      requests[index] = {
+        ...requests[index],
+        ...updates,
+        updatedAt: new Date(),
+      };
+
+      await this.setItem("serviceAreaRequests", requests);
+      console.log("[Database] Service area request updated:", requestId);
+    } catch (error) {
+      console.error("[Database] Error updating service area request:", error);
+      throw error;
+    }
   }
 
   async addLocationWithPolygon(locationData: {

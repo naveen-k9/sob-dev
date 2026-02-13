@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -32,16 +32,26 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Meal, AddOn, SubscriptionPlan, TimeSlot } from "@/types";
 import db from "@/db";
 import { addOns, subscriptionPlans } from "@/constants/data";
+import { consumeMealOpenInTrialMode } from "@/lib/mealNavigationIntent";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Dimensions } from "react-native";
 import AddOnsModal from "@/components/AddOnsModal";
 import { Colors } from "@/constants/colors";
 const TOP_BG_HEIGHT = Math.round(Dimensions.get("window").height * 0.36);
-type WeekType = "mon-fri" | "mon-sat";
-type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat";
+type WeekType = "mon-fri" | "mon-sat" | "everyday";
+type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+
+function getParamString(value: string | string[] | undefined): string | null {
+  if (value == null) return null;
+  return Array.isArray(value) ? value[0] ?? null : value;
+}
 
 export default function MealDetailScreen() {
-  const { id, mode, planId } = useLocalSearchParams();
+  const params = useLocalSearchParams<{ id?: string; mode?: string; planId?: string }>();
+  const id = getParamString(params.id) ?? undefined;
+  const mode = getParamString(params.mode) ?? undefined;
+  const planId = getParamString(params.planId) ?? undefined;
+
   const [meal, setMeal] = useState<Meal | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
@@ -50,7 +60,8 @@ export default function MealDetailScreen() {
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(
     null
   );
-  const [isTrialMode, setIsTrialMode] = useState(false);
+  const openInTrialIntentRef = useRef(consumeMealOpenInTrialMode());
+  const [isTrialMode, setIsTrialMode] = useState(() => mode === "trial" || openInTrialIntentRef.current);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(
     null
   );
@@ -60,6 +71,26 @@ export default function MealDetailScreen() {
   const routerInstance = useRouter();
   const [canGoBack, setCanGoBack] = useState(false);
   const [weekType, setWeekType] = useState<WeekType>("mon-fri");
+
+  // Default weekType from meal's first available, or mon-fri
+  const weekTypeOptions: { value: WeekType; label: string }[] = useMemo(() => {
+    const all: { value: WeekType; label: string }[] = [
+      ["mon-fri", "Mon-Fri"],
+      ["mon-sat", "Mon-Sat"],
+      ["everyday", "Every Day"],
+    ].map(([v, l]) => ({ value: v as WeekType, label: l }));
+    if (meal?.availableWeekTypes && meal.availableWeekTypes.length > 0) {
+      return all.filter((o) => meal.availableWeekTypes!.includes(o.value));
+    }
+    return all;
+  }, [meal?.availableWeekTypes]);
+
+  useEffect(() => {
+    if (meal?.availableWeekTypes?.length && !meal.availableWeekTypes.includes(weekType)) {
+      setWeekType(meal.availableWeekTypes[0]);
+    }
+  }, [meal?.availableWeekTypes, weekType]);
+
   const [selectedAddOnDays, setSelectedAddOnDays] = useState<
     Record<string, DayKey[]>
   >({});
@@ -99,19 +130,70 @@ export default function MealDetailScreen() {
             const first =
               active.find((s) => ids.includes(s.id)) ?? active[0] ?? null;
             setSelectedTimeSlot(first ?? null);
-            // Set default selected plan to 6-day dynamic plan
-            setSelectedPlan({
-              id: "dynamic-6",
-              name: "6 Day Plan",
-              duration: 6,
-              originalPrice: mealData.price * 6,
-              discountedPrice: mealData.price * 6,
-              discount: 0,
-              mealsPerDay: 1,
-              description: "Meal price x 6 days",
-              features: ["6 Days", "1 Meal/Day", "Free Delivery"],
-              popular: true,
-            });
+
+            const fromTrialButton = openInTrialIntentRef.current;
+            if (fromTrialButton) {
+              openInTrialIntentRef.current = false;
+              setIsTrialMode(true);
+              setSelectedPlan({
+                id: "dynamic-2",
+                name: "2 Day Plan",
+                duration: 2,
+                originalPrice: mealData.price * 2,
+                discountedPrice: mealData.price * 2,
+                discount: 0,
+                mealsPerDay: 1,
+                description: "Meal price x 2 days",
+                features: ["2 Days", "1 Meal/Day", "Free Delivery"],
+                popular: false,
+              });
+            } else {
+              const urlMode = typeof mode === "string" ? mode : null;
+              if (urlMode === "trial") {
+                setIsTrialMode(true);
+                setSelectedPlan({
+                  id: "dynamic-2",
+                  name: "2 Day Plan",
+                  duration: 2,
+                  originalPrice: mealData.price * 2,
+                  discountedPrice: mealData.price * 2,
+                  discount: 0,
+                  mealsPerDay: 1,
+                  description: "Meal price x 2 days",
+                  features: ["2 Days", "1 Meal/Day", "Free Delivery"],
+                  popular: false,
+                });
+              } else if (urlMode === "subscribe") {
+                setIsTrialMode(false);
+                const planIdStr = typeof planId === "string" ? planId : "6";
+                const duration = parseInt(planIdStr, 10) || 6;
+                setSelectedPlan({
+                  id: `dynamic-${duration}`,
+                  name: `${duration} Day Plan`,
+                  duration,
+                  originalPrice: mealData.price * duration,
+                  discountedPrice: mealData.price * duration,
+                  discount: 0,
+                  mealsPerDay: 1,
+                  description: `Meal price x ${duration} days`,
+                  features: [`${duration} Days`, "1 Meal/Day", "Free Delivery"],
+                  popular: duration === 6 || duration === 15,
+                });
+              } else {
+                setSelectedPlan({
+                  id: "dynamic-6",
+                  name: "6 Day Plan",
+                  duration: 6,
+                  originalPrice: mealData.price * 6,
+                  discountedPrice: mealData.price * 6,
+                  discount: 0,
+                  mealsPerDay: 1,
+                  description: "Meal price x 6 days",
+                  features: ["6 Days", "1 Meal/Day", "Free Delivery"],
+                  popular: true,
+                });
+              }
+            }
           }
         }
       } catch (error) {
@@ -121,49 +203,34 @@ export default function MealDetailScreen() {
       }
     };
     load();
-  }, [id]);
+  }, [id, mode, planId]);
 
-  // Update selected plan when trial mode changes
+  // Update selected plan when trial mode changes (only when meal is loaded)
   useEffect(() => {
+    if (!meal) return;
     const availablePlans = getAvailablePlans();
+    if (availablePlans.length === 0) return;
     if (isTrialMode) {
-      // Shift to 2-day trial plan immediately
       const twoDay = availablePlans.find((p) => p.duration === 2) ?? availablePlans[0];
       setSelectedPlan(twoDay);
     } else {
-      // When trial mode is turned off, immediately prefer the 6-day plan
       const sixDay = availablePlans.find((p) => p.duration === 6) ?? availablePlans[0];
       setSelectedPlan(sixDay);
     }
-  }, [isTrialMode]);
+  }, [isTrialMode, meal]);
 
-  // Apply deep-link params from MealCard: mode=trial|subscribe and planId
+  // Sync trial mode from URL params (e.g. when navigating from 2-Day Trial button)
   useEffect(() => {
-    if (typeof mode === "string" || typeof planId === "string") {
-      console.log("[MealDetail] Incoming params", { mode, planId });
-      if (mode === "trial") {
-        setIsTrialMode(true);
-        const twoDay =
-          subscriptionPlans.find((p) => p.duration === 2) ??
-          subscriptionPlans[0];
-        setSelectedPlan(twoDay);
-      } else if (mode === "subscribe") {
-        setIsTrialMode(false);
-        const basic =
-          subscriptionPlans.find(
-            (p) => p.id === (typeof planId === "string" ? planId : "2")
-          ) ??
-          subscriptionPlans[1] ??
-          subscriptionPlans[0];
-        setSelectedPlan(basic);
-      }
+    if (mode === "trial") {
+      setIsTrialMode(true);
+    } else if (mode === "subscribe") {
+      setIsTrialMode(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, planId]);
+  }, [mode]);
 
   // Dynamic pricing plans based on meal price
   const dynamicPlanDurations = [2, 6, 15, 26];
-  const getAvailablePlans = () => {
+  const getAvailablePlans = useCallback(() => {
     if (!meal) return [];
     // Build plans dynamically
     const plans = dynamicPlanDurations.map((duration, idx) => ({
@@ -180,7 +247,18 @@ export default function MealDetailScreen() {
     }));
     // Show all plans regardless of trial mode
     return plans;
-  };
+  }, [meal]);
+
+  // When opened via 2-Day Trial (mode=trial), ensure 2-day plan is selected and trial mode is on
+  useEffect(() => {
+    if (!meal || mode !== "trial") return;
+    const plans = getAvailablePlans();
+    const twoDay = plans.find((p) => p.duration === 2) ?? plans[0];
+    if (twoDay) {
+      setIsTrialMode(true);
+      setSelectedPlan(twoDay);
+    }
+  }, [meal, mode, getAvailablePlans]);
 
   const handleAddOnToggle = useCallback(
     (addOnId: string) => {
@@ -218,8 +296,11 @@ export default function MealDetailScreen() {
         { key: "thu", label: "Thursday", short: "T" },
         { key: "fri", label: "Friday", short: "F" },
         { key: "sat", label: "Saturday", short: "S" },
+        { key: "sun", label: "Sunday", short: "S" },
       ];
-      return weekType === "mon-fri" ? base.slice(0, 5) : base;
+      if (weekType === "mon-fri") return base.slice(0, 5);
+      if (weekType === "mon-sat") return base.slice(0, 6);
+      return base; // everyday: all 7
     }, [weekType]);
 
   useEffect(() => {
@@ -272,6 +353,13 @@ export default function MealDetailScreen() {
       const current = prev[addOnId] ?? [];
       const has = current.includes(day);
       const next = has ? current.filter((d) => d !== day) : [...current, day];
+      // If user removed all selected days, remove the addon from selection
+      if (next.length === 0) {
+        setSelectedAddOns((ids) => ids.filter((id) => id !== addOnId));
+        const copy = { ...prev };
+        delete copy[addOnId];
+        return copy;
+      }
       return { ...prev, [addOnId]: next };
     });
   }, []);
@@ -292,7 +380,13 @@ export default function MealDetailScreen() {
 
   const calculateTotalPrice = () => {
     if (!meal || !selectedPlan) return 0;
-    const daysPerWeek = isTrialMode ? 2 : weekType === "mon-fri" ? 5 : 6;
+    const daysPerWeek = isTrialMode
+      ? 2
+      : weekType === "everyday"
+        ? 7
+        : weekType === "mon-fri"
+          ? 5
+          : 6;
     const weeks = Math.ceil(selectedPlan.duration / daysPerWeek);
 
     // Base price is always plan duration × meal price
@@ -519,12 +613,7 @@ export default function MealDetailScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Week Type</Text>
             <View style={styles.weekTypeRow}>
-              {(
-                [
-                  ["mon-fri", "Mon-Fri"],
-                  ["mon-sat", "Mon-Sat"],
-                ] as const
-              ).map(([val, label]) => {
+              {weekTypeOptions.map(({ value: val, label }) => {
                 const isSelected = weekType === val;
                 return (
                   <TouchableOpacity

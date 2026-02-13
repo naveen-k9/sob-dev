@@ -1,6 +1,7 @@
 // Light theme colors
 export const LightColors = {
   primary: '#48479B',
+  secondary: '#E85D04', // warm orange for gradients (e.g. primary → secondary)
   accent: '#A3D397',
   background: '#FFFFFF',
   surface: '#FFFFFF',
@@ -18,11 +19,21 @@ export const LightColors = {
   cardBorder: 'rgba(72, 72, 144, 0.1)',
   overlay: 'rgba(0, 0, 0, 0.5)',
   shadow: '#000000',
+  // Meal card (light): lime green glow, off-white surface
+  mealCardSurface: '#F8F8F8',
+  mealCardGlow: 'rgba(144, 238, 144, 0.7)',
+  mealCardTitle: '#1A1A1A',
+  mealCardPrice: '#555555',
+  mealCardTrialBtnBg: '#EBEBEB',
+  mealCardTrialBtnText: '#1A1A1A',
+  mealCardSubscribeBg: '#8A2BE2',
+  mealCardSubscribeText: '#FFFFFF',
 } as const;
 
 // Dark theme colors
 export const DarkColors = {
   primary: '#7B7AD4',
+  secondary: '#F97316', // warm orange for gradients
   accent: '#A3D397',
   background: '#0F0F1A',
   surface: '#1A1A2E',
@@ -40,6 +51,15 @@ export const DarkColors = {
   cardBorder: 'rgba(123, 122, 212, 0.2)',
   overlay: 'rgba(0, 0, 0, 0.7)',
   shadow: '#000000',
+  // Meal card (dark): purple glow, dark surface
+  mealCardSurface: '#1A1A1A',
+  mealCardGlow: 'rgba(138, 43, 226, 0.6)',
+  mealCardTitle: '#FFFFFF',
+  mealCardPrice: '#BEBEBE',
+  mealCardTrialBtnBg: '#E0E0E0',
+  mealCardTrialBtnText: '#1A1A1A',
+  mealCardSubscribeBg: '#8A2BE2',
+  mealCardSubscribeText: '#FFFFFF',
 } as const;
 
 // Default export for backwards compatibility

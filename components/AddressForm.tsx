@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import { router } from 'expo-router';
 import { useLocation } from '@/contexts/LocationContext';
 
 interface AddressFormProps {
@@ -116,8 +117,17 @@ const AddressForm: React.FC<AddressFormProps> = ({ onSubmit, onCancel }) => {
       if (!isServiceable) {
         Alert.alert(
           "Area Not Serviceable Yet",
-          "We're sorry, but we don't deliver to this location yet. We're constantly expanding our service areas.",
-          [{ text: "OK" }]
+          "We're sorry, but we don't deliver to this location yet. We're constantly expanding our service areas. Would you like to get notified when we start serving this area?",
+          [
+            {
+              text: "Get Notified",
+              onPress: () => router.push("/service-area-request"),
+            },
+            {
+              text: "Maybe Later",
+              style: "cancel",
+            },
+          ]
         );
         setIsCheckingServiceability(false);
         return;

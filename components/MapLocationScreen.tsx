@@ -30,10 +30,12 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
   onLocationConfirm,
 }) => {
   const params = useLocalSearchParams();
-  const initialLat = params.latitude
+  const hasParamsCoords = params.latitude && params.longitude;
+  
+  const initialLat = hasParamsCoords
     ? parseFloat(params.latitude as string)
     : 17.385044;
-  const initialLng = params.longitude
+  const initialLng = hasParamsCoords
     ? parseFloat(params.longitude as string)
     : 78.486671;
   const mode = params.mode as string;
@@ -56,14 +58,66 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(!hasParamsCoords);
 
   const mapRef = useRef<MapView | null>(null);
   const searchBarAnimation = useRef(new Animated.Value(0)).current;
 
+  // Get current location if no coordinates provided
   useEffect(() => {
-    // Get address for initial location
-    reverseGeocode(initialLat, initialLng);
-  }, []);
+    const initializeLocation = async () => {
+      if (hasParamsCoords) {
+        // Use provided coordinates
+        reverseGeocode(initialLat, initialLng);
+        return;
+      }
+
+      try {
+        console.log('[MapLocationScreen] Fetching current location...');
+        setIsLoadingLocation(true);
+        
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          console.log('[MapLocationScreen] Location permission denied');
+          reverseGeocode(initialLat, initialLng);
+          setIsLoadingLocation(false);
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        const { latitude, longitude } = location.coords;
+        console.log('[MapLocationScreen] Current location:', latitude, longitude);
+        
+        setMapRegion({
+          latitude,
+          longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        });
+        setSelectedLocation({ latitude, longitude });
+        
+        // Animate to current location
+        mapRef.current?.animateToRegion({
+          latitude,
+          longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        }, 500);
+        
+        reverseGeocode(latitude, longitude);
+      } catch (error) {
+        console.error('[MapLocationScreen] Error getting location:', error);
+        reverseGeocode(initialLat, initialLng);
+      } finally {
+        setIsLoadingLocation(false);
+      }
+    };
+
+    initializeLocation();
+  }, [hasParamsCoords]);
 
   useEffect(() => {
     // Animate search bar
@@ -201,14 +255,21 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
 
   const handleMyLocation = async () => {
     try {
+      setIsLoadingLocation(true);
+      console.log('[MapLocationScreen] Manual location request...');
+      
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permission denied", "Location permission is required");
+        Alert.alert(
+          'Permission Required',
+          'Location permission is needed to detect your current location.'
+        );
+        setIsLoadingLocation(false);
         return;
       }
 
       const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
+        accuracy: Location.Accuracy.Balanced,
       });
 
       const newRegion = {
@@ -224,10 +285,18 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
       });
       setMapRegion(newRegion);
 
-      mapRef.current?.animateToRegion(newRegion, 1000);
+      mapRef.current?.animateToRegion(newRegion, 500);
       reverseGeocode(location.coords.latitude, location.coords.longitude);
+      
+      console.log('[MapLocationScreen] Location updated:', location.coords);
     } catch (error) {
-      Alert.alert("Error", "Failed to get current location");
+      console.error('[MapLocationScreen] Location error:', error);
+      Alert.alert(
+        'Location Error',
+        'Unable to get your current location. Please try again.'
+      );
+    } finally {
+      setIsLoadingLocation(false);
     }
   };
 
@@ -246,6 +315,14 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
           <Ionicons name="search" size={24} color="#000" />
         </TouchableOpacity>
       </View>
+
+      {/* Loading overlay when fetching location */}
+      {isLoadingLocation && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#48479B" />
+          <Text style={styles.loadingText}>Finding your location...</Text>
+        </View>
+      )}
 
       {/* Search Bar */}
       <Animated.View
@@ -327,8 +404,13 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
         <TouchableOpacity
           style={styles.myLocationButton}
           onPress={handleMyLocation}
+          disabled={isLoadingLocation}
         >
-          <Ionicons name="locate" size={24} color="#007AFF" />
+          <Ionicons 
+            name="locate" 
+            size={24} 
+            color={isLoadingLocation ? "#999" : "#007AFF"} 
+          />
         </TouchableOpacity>
       </View>
 
@@ -555,6 +637,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#48479B",
+    fontWeight: "500",
   },
 });
 

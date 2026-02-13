@@ -26,6 +26,7 @@ import {
   FilterIcon,
 } from "lucide-react-native";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "@/contexts/LocationContext";
 import db from "@/db";
 import RazorpayCheckout from "react-native-razorpay";
 import { Colors } from "@/constants/colors";
@@ -35,6 +36,7 @@ import { StatusBar } from "expo-status-bar";
 import { Filter } from "react-native-svg";
 export default function CheckoutScreen() {
   const { user, isGuest, updateUser } = useAuth();
+  const { locationState } = useLocation();
   const { subscriptionData } = useLocalSearchParams();
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
     "card" | "upi" | "wallet" | "razorpay"
@@ -300,28 +302,44 @@ export default function CheckoutScreen() {
     }
   };
 
+  /**
+   * Calculate subscription end date based on start date, duration, and week type
+   * 
+   * Example: 6-day Mon-Fri plan starting Monday will end on next Monday (skipping weekend)
+   * 
+   * @param start - Subscription start date
+   * @param durationDays - Number of delivery days (not calendar days)
+   * @param weekType - Delivery schedule (mon-fri, mon-sat, or everyday)
+   * @returns Calculated end date
+   */
   const computeEndDate = (
     start: Date,
     durationDays: number,
-    weekType: "mon-fri" | "mon-sat"
+    weekType: "mon-fri" | "mon-sat" | "everyday"
   ): Date => {
     const end = new Date(start);
     let served = 0;
 
+    // Loop until we've counted enough delivery days
     while (served < durationDays) {
       const day = end.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
 
+      // Determine if current day is a working/delivery day based on week type
       let isWorkingDay = false;
-      if (weekType === "mon-fri") {
-        isWorkingDay = day >= 1 && day <= 5; // Mon to Fri
+      if (weekType === "everyday") {
+        isWorkingDay = true; // All 7 days
+      } else if (weekType === "mon-fri") {
+        isWorkingDay = day >= 1 && day <= 5; // Mon to Fri only
       } else if (weekType === "mon-sat") {
-        isWorkingDay = day >= 1 && day <= 6; // Mon to Sat
+        isWorkingDay = day >= 1 && day <= 6; // Mon to Sat only
       }
 
+      // Count this day if it's a delivery day
       if (isWorkingDay) {
         served += 1;
       }
 
+      // Move to next day if we haven't served all meals yet
       if (served < durationDays) {
         end.setDate(end.getDate() + 1);
       }
@@ -458,6 +476,22 @@ export default function CheckoutScreen() {
       return;
     }
 
+    // Check if location is serviceable
+    if (!locationState.isLocationServiceable) {
+      Alert.alert(
+        "Area Not Serviceable",
+        "We currently don't deliver to your location. We'll notify you when we expand to your area!",
+        [
+          {
+            text: "Get Notified",
+            onPress: () => router.push("/service-area-request"),
+          },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+      return;
+    }
+
     if (!selectedAddress) {
       Alert.alert(
         "Address Required",
@@ -536,6 +570,30 @@ export default function CheckoutScreen() {
           updatedDetails.weekType
         );
 
+        // Deduct wallet amount if applied (for zero-payment flow)
+        if (user?.id && orderSummary.walletAppliedAmount > 0) {
+          try {
+            await db.addWalletTransaction({
+              userId: user.id,
+              type: "debit",
+              amount: orderSummary.walletAppliedAmount,
+              description: `Subscription payment - ${
+                updatedDetails.meal?.name || "Meal"
+              } (${updatedDetails.plan?.name || ""})`,
+              referenceId: `sub-wallet-${Date.now()}`,
+            });
+            // Refresh user data to reflect new balance
+            const refreshedUser = await db.getUserById(user.id);
+            if (refreshedUser) {
+              await updateUser({ walletBalance: refreshedUser.walletBalance });
+            }
+          } catch (e) {
+            console.error("Wallet debit failed:", e);
+            setPaymentStatus("failed");
+            return;
+          }
+        }
+
         const subscription = {
           userId: user?.id || "guest",
           mealId: updatedDetails.meal.id,
@@ -546,8 +604,15 @@ export default function CheckoutScreen() {
           deliveryTimeSlot: updatedDetails.timeSlot?.time,
           weekType: updatedDetails.weekType,
           weekendExclusion:
-            updatedDetails.weekType === "mon-sat" ? "sunday" : "both",
-          excludeWeekends: updatedDetails.weekType === "mon-sat" ? true : false,
+            updatedDetails.weekType === "everyday"
+              ? "none"
+              : updatedDetails.weekType === "mon-sat"
+                ? "sunday"
+                : "both",
+          excludeWeekends:
+            updatedDetails.weekType === "everyday"
+              ? false
+              : updatedDetails.weekType === "mon-sat",
           status: "active" as const,
           totalAmount: orderSummary.finalAmount,
           paidAmount: orderSummary.finalAmount,
@@ -688,8 +753,15 @@ export default function CheckoutScreen() {
           deliveryTimeSlot: updatedDetails.timeSlot?.time,
           weekType: updatedDetails.weekType,
           weekendExclusion:
-            updatedDetails.weekType === "mon-sat" ? "sunday" : "both",
-          excludeWeekends: updatedDetails.weekType === "mon-sat" ? true : false,
+            updatedDetails.weekType === "everyday"
+              ? "none"
+              : updatedDetails.weekType === "mon-sat"
+                ? "sunday"
+                : "both",
+          excludeWeekends:
+            updatedDetails.weekType === "everyday"
+              ? false
+              : updatedDetails.weekType === "mon-sat",
           status: "active" as const,
           totalAmount: orderSummary.finalAmount,
           paidAmount: orderSummary.finalAmount,
@@ -729,16 +801,26 @@ export default function CheckoutScreen() {
               referenceId: createdSubscriptionId || `sub-${Date.now()}`,
               orderId: createdSubscriptionId,
             });
-            await updateUser({
-              walletBalance: Math.max(
-                0,
-                walletBalance - orderSummary.walletAppliedAmount
-              ),
-            });
+            // The addWalletTransaction method now handles user balance update internally
+            // Refresh user data to reflect new balance
+            const refreshedUser = await db.getUserById(user.id);
+            if (refreshedUser) {
+              await updateUser({ walletBalance: refreshedUser.walletBalance });
+            }
           } catch (e) {
-            console.log("Wallet debit failed", e);
+            console.error("Wallet debit failed:", e);
+            // Show error but don't block subscription creation
+            Alert.alert(
+              "Wallet Error",
+              "There was an issue processing your wallet payment. Please contact support."
+            );
           }
         }
+
+        // Trigger WhatsApp confirmation (production would integrate with WhatsApp Business API)
+        console.log(
+          `[WhatsApp] Sending confirmation to ${user?.phone || recipientPhone} for subscription ${createdSubscriptionId}`
+        );
 
         // Close modal and navigate
         setShowPaymentModal(false);
@@ -796,9 +878,15 @@ export default function CheckoutScreen() {
         deliveryTimeSlot: subscriptionDetails.timeSlot.time,
         weekType: subscriptionDetails.weekType,
         excludeWeekends:
-          subscriptionDetails.weekType === "mon-sat" ? true : false,
+          subscriptionDetails.weekType === "everyday"
+            ? false
+            : subscriptionDetails.weekType === "mon-sat",
         weekendExclusion:
-          subscriptionDetails.weekType === "mon-sat" ? "sunday" : "both",
+          subscriptionDetails.weekType === "everyday"
+            ? "none"
+            : subscriptionDetails.weekType === "mon-sat"
+              ? "sunday"
+              : "both",
         status: "active" as const,
         totalAmount: orderSummary.finalAmount,
         paidAmount: orderSummary.finalAmount,
@@ -1328,17 +1416,36 @@ export default function CheckoutScreen() {
             </Text>
           </View>
           <TouchableOpacity
-            style={styles.placeOrderButton}
+            style={[
+              styles.placeOrderButton,
+              !locationState.isLocationServiceable && styles.placeOrderButtonDisabled,
+            ]}
             onPress={handlePlaceOrder}
+            disabled={!locationState.isLocationServiceable}
           >
             <Text style={styles.placeOrderButtonText}>
-              {isGuest
+              {!locationState.isLocationServiceable
+                ? "Area Not Serviceable"
+                : isGuest
                 ? "Login & Place Order"
                 : orderSummary.payableAmount === 0
                 ? "Activate Now"
                 : "Pay Now"}
             </Text>
           </TouchableOpacity>
+          {!locationState.isLocationServiceable && (
+            <TouchableOpacity
+              style={styles.serviceabilityNote}
+              onPress={() => router.push("/service-area-request")}
+            >
+              <Text style={styles.serviceabilityNoteText}>
+                We don't deliver to your location yet. 
+              </Text>
+              <Text style={styles.serviceabilityLink}>
+                Get notified when we expand →
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Date Picker Modal (EXACT MATCH + DEBUG) */}
@@ -1903,6 +2010,32 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "700",
+  },
+  placeOrderButtonDisabled: {
+    backgroundColor: "#9CA3AF",
+    opacity: 0.6,
+  },
+  serviceabilityNote: {
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#FFF3F0",
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  serviceabilityNoteText: {
+    fontSize: 13,
+    color: "#FF3B30",
+    textAlign: "center",
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  serviceabilityLink: {
+    fontSize: 14,
+    color: "#48479B",
+    textAlign: "center",
+    fontWeight: "600",
+    textDecorationLine: "underline",
   },
   modalOverlay: {
     flex: 1,

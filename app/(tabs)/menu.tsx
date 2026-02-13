@@ -195,10 +195,14 @@ export default function CategoryBrowserScreen() {
     }
   }, [activeCategoryId, allCategories]);
 
+  /**
+   * Main meal filtering logic
+   * Applies category filters, chip filters (quick filters), and advanced modal filters
+   */
   const displayedMeals: Meal[] = useMemo(() => {
     const all: Meal[] = mealsQuery.data ?? [];
 
-    // Filter out invalid meals
+    // Step 1: Filter out invalid or inactive meals
     let validMeals = all.filter(
       (m) =>
         m &&
@@ -209,22 +213,22 @@ export default function CategoryBrowserScreen() {
         !m.isDraft
     );
 
-    // If a category is selected, filter by that category
+    // Step 2: Apply category filter (from horizontal category scroll)
     let list = activeCategoryId
       ? validMeals.filter((m) => {
-        // Check both categoryId and categoryIds array
+        // Check both categoryId (legacy) and categoryIds array (multi-category support)
         const ids = [
           ...(m.categoryIds ?? []),
           ...(m.categoryId ? [m.categoryId] : []),
         ];
 
-        // If the meal is in this category or any of its subcategories
+        // Match if meal belongs to the selected category
         const matches = ids.some((id) => id === activeCategoryId);
         return matches;
       })
-      : validMeals; // If no category selected, show all meals
+      : validMeals; // No category selected = show all valid meals
 
-    // Collect all selected filters from sections
+    // Step 3: Collect all selected filters from advanced filter modal
     const selectedFilters: Record<string, string[]> = {};
     filterSections.forEach((section) => {
       const selected = section.options
@@ -235,7 +239,7 @@ export default function CategoryBrowserScreen() {
       }
     });
 
-    // Apply chip filters (priority filters)
+    // Step 4: Apply quick filter chips (Veg, Non-Veg, Featured, Under ₹300)
     const chipFilters = new Set(
       filterChips.filter((c) => c.selected).map((c) => c.id)
     );
@@ -248,7 +252,7 @@ export default function CategoryBrowserScreen() {
     if (chipFilters.has("under-300"))
       list = list.filter((m) => (m.price ?? 0) < 300);
 
-    // Apply diet filters from modal
+    // Step 5: Apply advanced diet filters from modal (OR logic within diet filters)
     if (selectedFilters.diet) {
       list = list.filter((m) => {
         const filters = selectedFilters.diet;
@@ -263,12 +267,13 @@ export default function CategoryBrowserScreen() {
       });
     }
 
-    // Apply price filters
+    // Step 6: Apply price range filters (OR logic within price filters)
     if (selectedFilters.price) {
       list = list.filter((m) => {
         const price = m.price ?? 0;
         const filters = selectedFilters.price;
 
+        // Return true if meal matches ANY selected price range
         if (filters.includes("under-150") && price < 150) return true;
         if (filters.includes("150-250") && price >= 150 && price < 250)
           return true;
@@ -280,7 +285,7 @@ export default function CategoryBrowserScreen() {
       });
     }
 
-    // Apply rating filters
+    // Step 7: Apply rating filters (minimum rating threshold)
     if (selectedFilters.rating) {
       list = list.filter((m) => {
         const rating = m.rating ?? 0;

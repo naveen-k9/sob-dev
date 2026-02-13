@@ -51,6 +51,8 @@ const LocationService: React.FC<LocationServiceProps> = ({
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [locationPermissionStatus, setLocationPermissionStatus] =
     useState<string>("unknown");
+  const [hasShownNonServiceableMessage, setHasShownNonServiceableMessage] =
+    useAsyncStorage<boolean>("hasShownNonServiceableMessage", false);
 
   // Auto-detect location on component mount (only if not disabled)
   useEffect(() => {
@@ -156,8 +158,10 @@ const LocationService: React.FC<LocationServiceProps> = ({
       setCurrentLocationAddress(currentLocationAddress);
 
       // Show non-serviceable modal if location is not serviceable
-      if (!isServiceable) {
+      // Only show on first launch (persist state to avoid annoying users)
+      if (!isServiceable && !hasShownNonServiceableMessage) {
         setShowNonServiceableModal(true);
+        setHasShownNonServiceableMessage(true);
       }
 
       // Notify parent component
@@ -314,19 +318,19 @@ const LocationService: React.FC<LocationServiceProps> = ({
             </Text>
 
             {currentLocation?.serviceablePolygons.length === 0 &&
-              polygons.length > 0 && (
+              (polygons?.length ?? 0) > 0 && (
                 <View style={styles.serviceableAreasContainer}>
                   <Text style={styles.serviceableAreasTitle}>
                     Available Service Areas:
                   </Text>
-                  {polygons.slice(0, 3).map((polygon) => (
+                  {(polygons ?? []).slice(0, 3).map((polygon) => (
                     <Text key={polygon.id} style={styles.serviceableAreaName}>
                       • {polygon.name}
                     </Text>
                   ))}
-                  {polygons.length > 3 && (
+                  {(polygons ?? []).length > 3 && (
                     <Text style={styles.serviceableAreaName}>
-                      • And {polygons.length - 3} more areas
+                      • And {(polygons ?? []).length - 3} more areas
                     </Text>
                   )}
                 </View>
@@ -334,10 +338,14 @@ const LocationService: React.FC<LocationServiceProps> = ({
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.secondaryButton]}
-                onPress={() => setShowNonServiceableModal(false)}
+                style={[styles.modalButton, styles.notifyButton]}
+                onPress={() => {
+                  setShowNonServiceableModal(false);
+                  router.push("/service-area-request");
+                }}
               >
-                <Text style={styles.secondaryButtonText}>Continue Anyway</Text>
+                <Ionicons name="notifications-outline" size={18} color="#48479B" />
+                <Text style={styles.notifyButtonText}>Notify Me</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -349,6 +357,13 @@ const LocationService: React.FC<LocationServiceProps> = ({
                 </Text>
               </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+              style={styles.continueLink}
+              onPress={() => setShowNonServiceableModal(false)}
+            >
+              <Text style={styles.continueLinkText}>Continue browsing anyway</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -473,6 +488,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#007AFF",
+  },
+  notifyButton: {
+    backgroundColor: "#F8F9FF",
+    borderWidth: 1.5,
+    borderColor: "#48479B",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  notifyButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#48479B",
+  },
+  continueLink: {
+    alignItems: "center",
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  continueLinkText: {
+    fontSize: 14,
+    color: "#8E8E93",
+    textDecorationLine: "underline",
   },
 });
 

@@ -59,6 +59,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
   });
   const [currentAddress, setCurrentAddress] = useState("");
   const [isLoadingAddress, setIsLoadingAddress] = useState(false);
+  const [hasInitializedLocation, setHasInitializedLocation] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -100,6 +101,57 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
       }).start();
     }
   }, [visible]);
+
+  // Auto-detect location when map step is shown
+  useEffect(() => {
+    const initializeMapLocation = async () => {
+      if (currentStep !== 'map' || hasInitializedLocation) return;
+
+      try {
+        console.log('[LocationFlow] Auto-detecting location for map...');
+        setIsLoadingLocation(true);
+        
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          console.log('[LocationFlow] Location permission denied');
+          setIsLoadingLocation(false);
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        const { latitude, longitude } = location.coords;
+        console.log('[LocationFlow] Current location detected:', latitude, longitude);
+        
+        setMapRegion({
+          latitude,
+          longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        });
+        setSelectedLocation({ latitude, longitude });
+        setHasInitializedLocation(true);
+        
+        // Animate map to location
+        mapRef.current?.animateToRegion({
+          latitude,
+          longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        }, 500);
+        
+        reverseGeocode(latitude, longitude);
+      } catch (error) {
+        console.error('[LocationFlow] Error getting location:', error);
+      } finally {
+        setIsLoadingLocation(false);
+      }
+    };
+
+    initializeMapLocation();
+  }, [currentStep, hasInitializedLocation]);
 
   // Utility functions
   const reverseGeocode = async (latitude: number, longitude: number) => {

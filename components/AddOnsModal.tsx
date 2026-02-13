@@ -14,7 +14,7 @@ import { X, Plus, Minus } from 'lucide-react-native';
 import { AddOn } from '@/types';
 import { Colors } from '@/constants/colors';
 
-type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
+type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
 
 interface AddOnsModalProps {
   visible: boolean;
@@ -23,7 +23,7 @@ interface AddOnsModalProps {
   selectedAddOns: string[];
   onToggleAddOn: (addOnId: string) => void;
   planPrice?: number;
-  weekType?: 'mon-fri' | 'mon-sat';
+  weekType?: 'mon-fri' | 'mon-sat' | 'everyday';
   selectedAddOnDays?: Record<string, DayKey[]>;
   onToggleAddOnDay?: (addOnId: string, day: DayKey) => void;
   planDuration?: number;
@@ -48,6 +48,16 @@ export default function AddOnsModal({
         { key: 'mon', label: 'Day 1', short: '1' },
         { key: 'tue', label: 'Day 2', short: '2' },
       ]
+    : weekType === 'everyday'
+    ? [
+        { key: 'mon', label: 'Mon', short: 'M' },
+        { key: 'tue', label: 'Tue', short: 'T' },
+        { key: 'wed', label: 'Wed', short: 'W' },
+        { key: 'thu', label: 'Thu', short: 'T' },
+        { key: 'fri', label: 'Fri', short: 'F' },
+        { key: 'sat', label: 'Sat', short: 'S' },
+        { key: 'sun', label: 'Sun', short: 'S' },
+      ]
     : weekType === 'mon-fri'
     ? [
         { key: 'mon', label: 'Mon', short: 'M' },
@@ -65,15 +75,31 @@ export default function AddOnsModal({
         { key: 'sat', label: 'Sat', short: 'S' },
       ];
 
-  // Calculate add-ons price
+  /**
+   * Calculate total add-ons price
+   * 
+   * Logic:
+   * - If specific days are selected for an add-on, charge for those days only (multiplied by weeks)
+   * - If no days selected (default), charge for all plan days
+   * - For trial mode (2 days), simplified calculation
+   */
   const addOnsPrice = selectedAddOns.reduce((sum, addOnId) => {
     const addOn = addOns.find(a => a.id === addOnId);
     if (!addOn) return sum;
 
     const selectedDaysCount = selectedAddOnDays[addOnId]?.length ?? 0;
-    const daysPerWeek = isTrialMode ? 2 : weekType === 'mon-fri' ? 5 : 6;
+    const daysPerWeek = isTrialMode
+      ? 2
+      : weekType === 'everyday'
+        ? 7
+        : weekType === 'mon-fri'
+          ? 5
+          : 6; // mon-sat
+
     const weeks = Math.ceil(planDuration / daysPerWeek);
 
+    // If no specific days selected, charge for all plan days
+    // If specific days selected, charge for (selected days × weeks) up to plan duration
     const totalDaysForAddon = selectedDaysCount === 0 
       ? planDuration 
       : Math.min(planDuration, weeks * selectedDaysCount);

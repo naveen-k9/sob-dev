@@ -109,6 +109,8 @@ export interface Meal {
   allowDaySelection?: boolean;
   availableTimeSlotIds?: string[];
   addonIds?: string[];
+  /** If set, only these week types are offered for this meal. Otherwise all are shown. */
+  availableWeekTypes?: ("mon-fri" | "mon-sat" | "everyday")[];
 }
 
 export interface AddOn {
@@ -141,7 +143,7 @@ export interface Subscription {
   deliveryTime?: string;
   deliveryTimeSlot?: string;
   excludeWeekends?: boolean;
-  weekType: "none" | "mon-fri" | "mon-sat";
+  weekType: "none" | "mon-fri" | "mon-sat" | "everyday";
   weekendExclusion?: string;
   status: "active" | "paused" | "cancelled" | "completed";
   paymentStatus?: "pending" | "paid" | "failed" | "refunded";
