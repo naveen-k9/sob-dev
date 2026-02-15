@@ -70,13 +70,13 @@ export default function CategoryCard({ category, onPress, isActive = false }: Ca
 const styles = StyleSheet.create({
   container: {
     width: 108,
-    marginRight: 14,
+    marginRight: 9,
     alignItems: 'center',
   },
   imageWrap: {
     padding: 0,
     borderRadius: 60,
-    marginBottom: 6,
+    marginBottom: 3,
   },
   imageWrapActive: {
     borderWidth: 3,
@@ -85,13 +85,13 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   image: {
-    width: 90,
+    width: 108,
     height: 90,
     borderRadius: 60,
   },
   name: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '500',
     textAlign: 'center',
   },
 });

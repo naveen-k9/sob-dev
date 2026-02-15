@@ -439,7 +439,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          {/* <TouchableOpacity
+          <TouchableOpacity
             style={styles.actionItem}
             onPress={handleUseCurrentLocation}
             disabled={isLoadingLocation}
@@ -456,7 +456,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
                 ? "Getting location..."
                 : "Use my Current Location"}
             </Text>
-          </TouchableOpacity> */}
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.actionItem}

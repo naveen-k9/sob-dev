@@ -39,14 +39,7 @@ export default function CategoryCard({ category, onPress, isActive = false }: Ca
       testID={`cat-${category.id}`}
     >
       <Animated.View 
-        style={[
-          styles.imageWrap,
-          { backgroundColor: colors.surface },
-          isActive && [styles.imageWrapActive, { borderColor: colors.accent, backgroundColor: colors.accent }],
-          { 
-            transform: [{ scale: scaleAnim }],
-          }
-        ]}
+        
       >
         <Image source={{ uri: category.image }} style={styles.image} />
       </Animated.View>
@@ -66,15 +59,15 @@ export default function CategoryCard({ category, onPress, isActive = false }: Ca
 
 const styles = StyleSheet.create({
   container: {
-    width: 108,
-    marginRight: 18,
+    width: 126,
+    // marginRight: 9,
     marginLeft: 9,
     alignItems: 'center',
   },
   imageWrap: {
     padding: 0,
     borderRadius: 60,
-    marginBottom: 6,
+    // marginBottom: 6,
   },
   imageWrapActive: {
     borderWidth: 3,
@@ -83,12 +76,12 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   image: {
-    width: 150,
-    height: 108,
+    width: 126,
+    height: 90,
     borderRadius: 60,
   },
   name: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     textAlign: 'center',
   },

@@ -7,6 +7,7 @@ import {
   AddOn,
   Plan,
   Subscription,
+  DeliveryDayLogEntry,
   Order,
   Banner,
   Testimonial,
@@ -889,6 +890,7 @@ class Database {
   async getSubscriptions(): Promise<Subscription[]> {
     try {
       const subs = await fbFetchSubscriptions();
+      await this.setItem("subscriptions", subs);
       return subs;
     } catch (e) {
       console.log(
@@ -1058,6 +1060,86 @@ class Database {
       await this.setItem("subscriptions", subscriptions);
       return subscriptions[index];
     }
+  }
+
+  /**
+   * Update kitchen status for a subscription on a given date.
+   * Persists to Firestore and appends a log entry for the day.
+   */
+  async updateSubscriptionKitchenStatus(
+    subscriptionId: string,
+    dateString: string,
+    status: string,
+    userId?: string
+  ): Promise<Subscription | null> {
+    const subscription = await this.getSubscriptionById(subscriptionId);
+    if (!subscription) return null;
+    const kitchenStatusByDate = {
+      ...(subscription.kitchenStatusByDate || {}),
+      [dateString]: status,
+    };
+    const logEntry: DeliveryDayLogEntry = {
+      type: "kitchen",
+      status,
+      at: new Date().toISOString(),
+      ...(userId ? { userId } : {}),
+    };
+    const existingLogs = subscription.deliveryDayLogs?.[dateString] ?? [];
+    const deliveryDayLogs = {
+      ...(subscription.deliveryDayLogs || {}),
+      [dateString]: [...existingLogs, logEntry],
+    };
+    return this.updateSubscription(subscriptionId, {
+      kitchenStatusByDate,
+      deliveryDayLogs,
+    });
+  }
+
+  /**
+   * Update delivery status for a subscription on a given date.
+   * Appends a log entry for the day. When status is delivery_done,
+   * decrements remainingDeliveries and sets subscription status to
+   * completed when remaining reaches 0.
+   */
+  async updateSubscriptionDeliveryStatus(
+    subscriptionId: string,
+    dateString: string,
+    status: string,
+    userId?: string
+  ): Promise<Subscription | null> {
+    const subscription = await this.getSubscriptionById(subscriptionId);
+    if (!subscription) return null;
+    const deliveryStatusByDate = {
+      ...(subscription.deliveryStatusByDate || {}),
+      [dateString]: status,
+    };
+    const logEntry: DeliveryDayLogEntry = {
+      type: "delivery",
+      status,
+      at: new Date().toISOString(),
+      ...(userId ? { userId } : {}),
+    };
+    const existingLogs = subscription.deliveryDayLogs?.[dateString] ?? [];
+    const deliveryDayLogs = {
+      ...(subscription.deliveryDayLogs || {}),
+      [dateString]: [...existingLogs, logEntry],
+    };
+    const updates: Partial<Subscription> = {
+      deliveryStatusByDate,
+      deliveryDayLogs,
+    };
+    if (status === "delivery_done") {
+      const remaining = Math.max(
+        0,
+        (subscription.remainingDeliveries ?? subscription.totalDeliveries ?? 1) -
+          1
+      );
+      updates.remainingDeliveries = remaining;
+      if (remaining === 0) {
+        updates.status = "completed";
+      }
+    }
+    return this.updateSubscription(subscriptionId, updates);
   }
 
   // Skip and Add-on methods
@@ -1416,7 +1498,7 @@ class Database {
       if (!updatedUser) {
         // Rollback transaction if user update fails
         const rollbackTransactions = transactions.filter(
-          (t) => t.id !== newTransaction.id
+          (t: WalletTransaction) => t.id !== newTransaction.id
         );
         await this.setItem("walletTransactions", rollbackTransactions);
         throw new Error("Failed to update user wallet balance");
@@ -1797,15 +1879,20 @@ class Database {
     assigneeId: string,
     role: "kitchen" | "delivery"
   ): Promise<void> {
-    const subscriptions = await this.getSubscriptions();
-    const index = subscriptions.findIndex((sub) => sub.id === subscriptionId);
-    if (index !== -1) {
-      if (role === "kitchen") {
-        subscriptions[index].assignedKitchenId = assigneeId;
-      } else {
-        subscriptions[index].assignedDeliveryId = assigneeId;
+    const updates: Partial<Subscription> =
+      role === "kitchen"
+        ? { assignedKitchenId: assigneeId }
+        : { assignedDeliveryId: assigneeId };
+    try {
+      await this.updateSubscription(subscriptionId, updates);
+    } catch (e) {
+      console.log("[db] assignSubscription firestore failed, updating local", e);
+      const subscriptions = await this.getSubscriptions();
+      const index = subscriptions.findIndex((sub) => sub.id === subscriptionId);
+      if (index !== -1) {
+        Object.assign(subscriptions[index], updates);
+        await this.setItem("subscriptions", subscriptions);
       }
-      await this.setItem("subscriptions", subscriptions);
     }
   }
 
@@ -2154,12 +2241,12 @@ class Database {
   }
 
   async addServiceAreaRequest(
-    requestData: Omit<import("@/types").ServiceAreaRequest, "id">
-  ): Promise<import("@/types").ServiceAreaRequest> {
+    requestData: Omit<import("@/types").ServiceAreaNotificationRequest, "id">
+  ): Promise<import("@/types").ServiceAreaNotificationRequest> {
     try {
       const requests =
         (await this.getItem("serviceAreaRequests")) || [];
-      const newRequest: import("@/types").ServiceAreaRequest = {
+      const newRequest: import("@/types").ServiceAreaNotificationRequest = {
         ...requestData,
         id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         createdAt: new Date(requestData.createdAt),
@@ -2175,7 +2262,7 @@ class Database {
     }
   }
 
-  async getServiceAreaRequests(): Promise<import("@/types").ServiceAreaRequest[]> {
+  async getServiceAreaRequests(): Promise<import("@/types").ServiceAreaNotificationRequest[]> {
     try {
       const requests = (await this.getItem("serviceAreaRequests")) || [];
       return requests.map((req: any) => ({
@@ -2193,7 +2280,7 @@ class Database {
 
   async updateServiceAreaRequest(
     requestId: string,
-    updates: Partial<import("@/types").ServiceAreaRequest>
+    updates: Partial<import("@/types").ServiceAreaNotificationRequest>
   ): Promise<void> {
     try {
       const requests = (await this.getItem("serviceAreaRequests")) || [];

@@ -88,17 +88,17 @@ export default function MealCard({
     }
 
     return {
-      imageHeight: 110,
-      cardPadding: 12,
-      imageRadius: 10,
-      contentPadTop: 12,
-      contentPadBottom: 12,
-      titleSize: 16,
-      titleLines: 2,
-      ctaHeight: 42,
-      ctaMarginTop: 12,
-      cardWidth: DEFAULT_GRID_CARD_WIDTH,
-      cardMarginBottom: 16,
+      imageHeight: 144,
+        cardPadding: 0,
+        imageRadius: 12,
+        contentPadTop: 9,
+        contentPadBottom: 9,
+        titleSize: 14,
+        titleLines: 2,
+        ctaHeight: 36,
+        ctaMarginTop: 9,
+        cardWidth: 171,
+        cardMarginBottom: 0,
     };
   }, [columns, variant]);
 

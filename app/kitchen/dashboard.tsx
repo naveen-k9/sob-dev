@@ -77,19 +77,25 @@ export default function KitchenDashboard() {
       const mealsById = new Map<string, Meal>();
       meals.forEach((m) => mealsById.set(m.id, m));
 
+      const validKitchenStatuses = ['pending', 'cooking_started', 'cooking_done', 'ready_for_delivery'];
       const list: CookingItem[] = subs
         .filter((s: Subscription) => s.status === 'active')
         .map((s: Subscription) => {
           const u: User | undefined = users.find((us) => us.id === s.userId);
           const m = mealsById.get(s.mealId);
           const addOnIds = (s.additionalAddOns?.[todayStr] ?? []) as string[];
+          const storedKitchenStatus = s.kitchenStatusByDate?.[todayStr];
+          const status =
+            storedKitchenStatus && validKitchenStatuses.includes(storedKitchenStatus)
+              ? (storedKitchenStatus as CookingItem['status'])
+              : 'pending';
           return {
             id: s.id,
             mealName: m?.name ?? `Meal #${s.mealId}`,
             quantity: 1,
             customerName: u?.name ?? 'Customer',
             deliveryTime: s.deliveryTime || s.deliveryTimeSlot || '—',
-            status: 'pending',
+            status,
             addOns: addOnIds,
           };
         });
@@ -116,23 +122,31 @@ export default function KitchenDashboard() {
     await loadFromFirestore();
   };
 
-  const updateOrderStatus = (orderId: string, newStatus: 'pending' | 'cooking_started' | 'cooking_done' | 'ready_for_delivery') => {
-    setCookingList(prev => 
-      prev.map(item => 
+  const updateOrderStatus = async (orderId: string, newStatus: 'pending' | 'cooking_started' | 'cooking_done' | 'ready_for_delivery') => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    try {
+      await db.updateSubscriptionKitchenStatus(orderId, todayStr, newStatus);
+    } catch (e) {
+      console.warn('[kitchen] Failed to persist status', e);
+      Alert.alert('Sync failed', 'Status could not be saved. Check connection and try again.');
+      return;
+    }
+    setCookingList(prev =>
+      prev.map(item =>
         item.id === orderId ? { ...item, status: newStatus } : item
       )
     );
-    
-    // Update stats
-    const updatedStats = { ...stats };
-    if (newStatus === 'cooking_started') {
-      updatedStats.pendingOrders -= 1;
-      updatedStats.cookingOrders += 1;
-    } else if (newStatus === 'ready_for_delivery') {
-      updatedStats.cookingOrders -= 1;
-      updatedStats.readyOrders += 1;
-    }
-    setStats(updatedStats);
+    setStats(prev => {
+      const next = { ...prev };
+      if (newStatus === 'cooking_started') {
+        next.pendingOrders = Math.max(0, prev.pendingOrders - 1);
+        next.cookingOrders += 1;
+      } else if (newStatus === 'ready_for_delivery') {
+        next.cookingOrders = Math.max(0, prev.cookingOrders - 1);
+        next.readyOrders += 1;
+      }
+      return next;
+    });
   };
 
   const markAsReadyForDelivery = (orderId: string) => {
@@ -150,9 +164,9 @@ export default function KitchenDashboard() {
   };
 
   const bulkUpdateStatus = (newStatus: 'cooking_started' | 'cooking_done' | 'ready_for_delivery') => {
-    const statusText = newStatus === 'cooking_started' ? 'Cooking Started' : 
+    const statusText = newStatus === 'cooking_started' ? 'Cooking Started' :
                       newStatus === 'cooking_done' ? 'Cooking Done' : 'Ready for Delivery';
-    
+
     Alert.alert(
       `Mark All as ${statusText}`,
       `Are you sure you want to mark all today's orders as ${statusText.toLowerCase()}?`,
@@ -160,34 +174,28 @@ export default function KitchenDashboard() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm',
-          onPress: () => {
-            setCookingList(prev => 
+          onPress: async () => {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const ids = cookingList.map((i) => i.id);
+            try {
+              await Promise.all(
+                ids.map((id) =>
+                  db.updateSubscriptionKitchenStatus(id, todayStr, newStatus)
+                )
+              );
+            } catch (e) {
+              console.warn('[kitchen] Bulk persist failed', e);
+              Alert.alert('Sync failed', 'Some statuses could not be saved.');
+              return;
+            }
+            setCookingList(prev =>
               prev.map(item => ({ ...item, status: newStatus }))
             );
-            
-            // Update stats based on new status
             const totalOrders = cookingList.length;
-            if (newStatus === 'cooking_started') {
-              setStats(prev => ({
-                ...prev,
-                pendingOrders: 0,
-                cookingOrders: totalOrders,
-                readyOrders: 0
-              }));
-            } else if (newStatus === 'cooking_done') {
-              setStats(prev => ({
-                ...prev,
-                pendingOrders: 0,
-                cookingOrders: totalOrders,
-                readyOrders: 0
-              }));
-            } else if (newStatus === 'ready_for_delivery') {
-              setStats(prev => ({
-                ...prev,
-                pendingOrders: 0,
-                cookingOrders: 0,
-                readyOrders: totalOrders
-              }));
+            if (newStatus === 'cooking_started' || newStatus === 'cooking_done') {
+              setStats({ totalOrders, pendingOrders: 0, cookingOrders: totalOrders, readyOrders: 0 });
+            } else {
+              setStats({ totalOrders, pendingOrders: 0, cookingOrders: 0, readyOrders: totalOrders });
             }
           },
         },

@@ -119,9 +119,14 @@ export default function DeliveryDashboard() {
           const addr =
             u?.addresses?.find?.((a: Address) => a.id === s.addressId) ||
             u?.addresses?.[0];
-          const addOnIds = (s.additionalAddOns?.[todayStr] ?? []) as string[];
-          const addOnSuffix =
-            addOnIds.length > 0 ? ` + ${addOnIds.length} add-on(s)` : "";
+          const storedDeliveryStatus = s.deliveryStatusByDate?.[todayStr];
+          const status =
+            storedDeliveryStatus &&
+            ["packaging", "packaging_done", "delivery_started", "reached", "delivery_done"].includes(
+              storedDeliveryStatus
+            )
+              ? (storedDeliveryStatus as DeliveryOrder["status"])
+              : "packaging";
           return {
             id: s.id,
             customerName: u?.name ?? "Customer",
@@ -132,7 +137,7 @@ export default function DeliveryDashboard() {
             mealName: m?.name ?? `Meal #${s.mealId}`,
             quantity: 1,
             deliveryTime: s.deliveryTime || s.deliveryTimeSlot || "—",
-            status: "packaging",
+            status,
             specialInstructions: s.specialInstructions,
             orderValue: s.totalAmount / (s.totalDeliveries || 1),
             paymentStatus:
@@ -211,8 +216,23 @@ export default function DeliveryDashboard() {
       { text: "Cancel", style: "cancel" },
       {
         text: "Confirm",
-        onPress: () =>
-          updateOrderStatus(orderId, nextStatus as DeliveryOrder["status"]),
+        onPress: async () => {
+          const todayStr = new Date().toISOString().split("T")[0];
+          try {
+            await db.updateSubscriptionDeliveryStatus(
+              orderId,
+              todayStr,
+              nextStatus
+            );
+            updateOrderStatus(orderId, nextStatus as DeliveryOrder["status"]);
+          } catch (e) {
+            console.warn("[delivery] Failed to persist status", e);
+            Alert.alert(
+              "Sync failed",
+              "Status could not be saved. Check connection and try again."
+            );
+          }
+        },
       },
     ]);
   };

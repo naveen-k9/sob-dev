@@ -7,19 +7,32 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Modal,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import db from "@/db";
 import { Subscription, User } from "@/types";
-import { Calendar, Package, Clock } from "lucide-react-native";
+import { Calendar, Package, Clock, Pencil, Check } from "lucide-react-native";
+
+const SUBSCRIPTION_STATUSES: Subscription["status"][] = [
+  "active",
+  "paused",
+  "cancelled",
+  "completed",
+];
 
 export default function AdminSubscriptionsScreen() {
+  const router = useRouter();
   const [subs, setSubs] = useState<Subscription[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [q, setQ] = useState<string>("");
   const [status, setStatus] = useState<"all" | Subscription["status"]>("all");
+  const [editingSub, setEditingSub] = useState<Subscription | null>(null);
+  const [editStatus, setEditStatus] = useState<Subscription["status"]>("active");
+  const [saving, setSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -59,6 +72,38 @@ export default function AdminSubscriptionsScreen() {
     });
   }, [subs, users, q, status]);
 
+  const openEdit = (item: Subscription) => {
+    router.push({ pathname: "/admin/subscription-edit", params: { id: item.id } });
+  };
+
+  const openQuickStatus = (item: Subscription, e: any) => {
+    e?.stopPropagation?.();
+    setEditingSub(item);
+    setEditStatus(item.status);
+  };
+
+  const saveEdit = async () => {
+    if (!editingSub || editStatus === editingSub.status) {
+      setEditingSub(null);
+      return;
+    }
+    setSaving(true);
+    try {
+      await db.updateSubscription(editingSub.id, { status: editStatus });
+      setSubs((prev) =>
+        prev.map((s) =>
+          s.id === editingSub.id ? { ...s, status: editStatus } : s
+        )
+      );
+      setEditingSub(null);
+    } catch (e) {
+      console.error("Failed to update subscription", e);
+      Alert.alert("Error", "Failed to save subscription status");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const renderItem = ({ item }: { item: Subscription }) => {
     const u = users.find((x) => x.id === item.userId);
     const delivered =
@@ -71,7 +116,12 @@ export default function AdminSubscriptionsScreen() {
       });
 
     return (
-      <View style={styles.card} testID={`subscription-${item.id}`}>
+      <TouchableOpacity
+        style={styles.card}
+        testID={`subscription-${item.id}`}
+        onPress={() => openEdit(item)}
+        activeOpacity={0.8}
+      >
         <View style={styles.rowBetween}>
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>
@@ -79,10 +129,14 @@ export default function AdminSubscriptionsScreen() {
             </Text>
             <Text style={styles.subId}>#{item.id.slice(-6)}</Text>
           </View>
-          <View
-            style={[styles.badge, { backgroundColor: badgeColor(item.status) }]}
-          >
-            <Text style={styles.badgeText}>{item.status.toUpperCase()}</Text>
+          <View style={styles.badgeRow}>
+            <TouchableOpacity
+              onPress={(e) => openQuickStatus(item, e)}
+              style={[styles.badge, { backgroundColor: badgeColor(item.status) }]}
+            >
+              <Text style={styles.badgeText}>{item.status.toUpperCase()}</Text>
+            </TouchableOpacity>
+            <Pencil size={16} color="#9CA3AF" style={styles.editIcon} />
           </View>
         </View>
         <View style={styles.metaRow}>
@@ -107,7 +161,7 @@ export default function AdminSubscriptionsScreen() {
           <Text style={styles.amount}>₹{item.totalAmount}</Text>
           <Text style={styles.paid}>Paid: ₹{item.paidAmount ?? 0}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -166,6 +220,74 @@ export default function AdminSubscriptionsScreen() {
             contentContainerStyle={{ paddingBottom: 24 }}
           />
         )}
+
+        <Modal
+          visible={!!editingSub}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setEditingSub(null)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setEditingSub(null)}
+          >
+            <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+              <Text style={styles.modalTitle}>Edit subscription status</Text>
+              {editingSub && (
+                <Text style={styles.modalSubId}>#{editingSub.id.slice(-8)}</Text>
+              )}
+              <View style={styles.statusOptions}>
+                {SUBSCRIPTION_STATUSES.map((s) => (
+                  <TouchableOpacity
+                    key={s}
+                    style={[
+                      styles.statusOption,
+                      editStatus === s && {
+                        backgroundColor: badgeColor(s),
+                        borderColor: badgeColor(s),
+                      },
+                    ]}
+                    onPress={() => setEditStatus(s)}
+                    testID={`edit-status-${s}`}
+                  >
+                    <Text
+                      style={[
+                        styles.statusOptionText,
+                        editStatus === s && styles.statusOptionTextActive,
+                      ]}
+                    >
+                      {s.charAt(0).toUpperCase() + s.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.modalCancel}
+                  onPress={() => setEditingSub(null)}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalSave, saving && styles.modalSaveDisabled]}
+                  onPress={saveEdit}
+                  disabled={saving}
+                  testID="edit-subscription-save"
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Check size={18} color="#fff" />
+                      <Text style={styles.modalSaveText}>Save</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </View>
     </SafeAreaView>
   );
@@ -242,6 +364,51 @@ const styles = StyleSheet.create({
   },
   amount: { color: "#10B981", fontSize: 16, fontWeight: "700" },
   paid: { color: "#9CA3AF", fontSize: 14 },
+  badgeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  editIcon: { opacity: 0.8 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: "#1F2937",
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#374151",
+  },
+  modalTitle: { color: "#fff", fontSize: 18, fontWeight: "700", marginBottom: 4 },
+  modalSubId: { color: "#9CA3AF", fontSize: 12, marginBottom: 16 },
+  statusOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
+  statusOption: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#4B5563",
+  },
+  statusOptionText: { color: "#9CA3AF", fontSize: 14, fontWeight: "600" },
+  statusOptionTextActive: { color: "#fff" },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+  },
+  modalCancel: { paddingVertical: 10, paddingHorizontal: 16 },
+  modalCancelText: { color: "#9CA3AF", fontSize: 16 },
+  modalSave: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#48479B",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+  },
+  modalSaveDisabled: { opacity: 0.6 },
+  modalSaveText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   loading: { flex: 1, justifyContent: "center", alignItems: "center" },
   empty: {
     backgroundColor: "rgba(255,255,255,0.06)",

@@ -814,7 +814,7 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   clearText: { color: "#48479B", fontWeight: "600" },
-  mealGrid: { paddingHorizontal: 16, marginTop: 12 },
+  mealGrid: { paddingHorizontal: 18, marginTop: 0 },
   gridRow: { justifyContent: "space-between" },
   emptyContainer: {
     alignItems: "center",
@@ -861,9 +861,9 @@ const styles = StyleSheet.create({
   retryText: { color: "white", fontWeight: "600" },
   offersRow: { paddingLeft: 20, paddingVertical: 8 },
   horizontalContent: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 11,
     backgroundColor: "#fff",
-    paddingVertical: 9,
+    paddingVertical: 3,
   },
   activeCategoryNameWrap: {
     alignItems: "flex-start",
@@ -882,15 +882,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   centeredSectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '700',
     letterSpacing: 1.5,
     paddingHorizontal: 12,
     textTransform: 'uppercase'
   },
   headerLine: {
     flex: 1,
-    height: 2,
+    height: 1,
     opacity: 0.2,
   },
 });

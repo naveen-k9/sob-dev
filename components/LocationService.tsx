@@ -249,7 +249,7 @@ const LocationService: React.FC<LocationServiceProps> = ({
           style={styles.locationContainer}
           onPress={handleSelectLocation}
         >
-          <Ionicons name="location-outline" size={20} color="#FFFFFF" />
+          {/* <Ionicons name="location-outline" size={20} color="#FFFFFF" /> */}
           <View style={styles.addressTextContainer}>
             <Text style={styles.locationLabel}>Select Location</Text>
             <Text style={styles.locationAddress}>
@@ -272,7 +272,7 @@ const LocationService: React.FC<LocationServiceProps> = ({
         style={styles.locationContainer}
         onPress={handleSelectLocation}
       >
-        <Ionicons name="location" size={27} color="#FFFFFF" />
+        {/* <Ionicons name="location" size={27} color="#FFFFFF" /> */}
         <View style={styles.addressTextContainer}>
           <View style={styles.labelRow}>
             <Text style={styles.locationLabel} numberOfLines={1}>
@@ -375,8 +375,8 @@ const styles = StyleSheet.create({
   locationContainer: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 3,
+    paddingVertical: 3,
     borderRadius: 20,
     backgroundColor: "transparent",
     borderWidth: 0,
@@ -399,9 +399,9 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   locationAddress: {
-    fontSize: 13,
-    fontWeight: "400",
-    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#ffffff",
   },
   locationText: {
     fontSize: 14,

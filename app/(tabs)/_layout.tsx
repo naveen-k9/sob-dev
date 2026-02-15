@@ -1,97 +1,122 @@
 import { Tabs, useRouter } from "expo-router";
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Home, ShoppingBag, Gift, SquareMenu, MapPin } from "lucide-react-native";
+import { TouchableOpacity } from "react-native";
+import { Home, ShoppingBag, Gift, SquareMenu } from "lucide-react-native";
 import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getColors } from "@/constants/colors";
 import { FlipCircle } from "@/components/FlipCircle";
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const TAB_BAR_HEIGHT = 72;
+const CENTER_BUTTON_RAISE = 18;
 
 export default function TabLayout() {
   const { isAdmin, isKitchen, isDelivery } = useAuth();
   const { isDark } = useTheme();
   const colors = getColors(isDark);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: colors.background },
-        tabBarStyle: { 
-          backgroundColor: colors.tabBarBg, 
-          borderTopWidth: 0, 
-          height: 108, 
-          paddingTop: 9, 
-          paddingBottom: 27 
+        tabBarStyle: {
+          height: TAB_BAR_HEIGHT + insets.bottom,
+          paddingTop: 10,
+          paddingBottom: insets.bottom,
+          paddingHorizontal: 8,
+          backgroundColor: colors.surface,
+          borderTopWidth: 0,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          elevation: 8,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: isDark ? 0.35 : 0.9,
+          shadowRadius: 12,
         },
         tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.primary,
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '500' as const },
+        tabBarInactiveTintColor: colors.mutedText,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "600",
+        },
+        tabBarIconStyle: { marginBottom: 0 },
+        tabBarItemStyle: { paddingVertical: 6 },
+        tabBarShowLabel: true,
       }}
     >
-      {/* Left Tab 1 */}
+      {/* Always render all screens to avoid Android "addViewAt: child already has a parent" when auth toggles. Hide customer-only tabs via tabBarButton when not customer. */}
       <Tabs.Screen
         name="index"
         options={{
           title: isAdmin() ? "Dashboard" : isKitchen() ? "Kitchen" : isDelivery() ? "Delivery" : "Home",
-          tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Home color={color} size={focused ? 24 : 22} strokeWidth={2} />
+          ),
         }}
       />
 
-      {/* Left Tab 2 */}
-      {!isAdmin() && !isKitchen() && !isDelivery() && (
-        <Tabs.Screen
-          name="menu"
-          options={{
-            title: "Menu",
-            tabBarIcon: ({ color, size }) => <SquareMenu color={color} size={size} />,
-          }}
-        />
-      )}
+      <Tabs.Screen
+        name="menu"
+        options={{
+          title: "Menu",
+          tabBarIcon: ({ color, focused }) => (
+            <SquareMenu color={color} size={focused ? 24 : 22} strokeWidth={2} />
+          ),
+          tabBarButton: isAdmin() || isKitchen() || isDelivery() ? () => null : undefined,
+        }}
+      />
 
-      {/* Center Tab (FlipCircle) */}
-      {!isAdmin() && !isKitchen() && !isDelivery() && (
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: "",
-            tabBarIcon: () => <FlipCircle />,
-            tabBarButton: (props) => {
-              const { style, ...rest } = props;
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "",
+          tabBarIcon: () => <FlipCircle />,
+          tabBarButton: (props) => {
+            if (isAdmin() || isKitchen() || isDelivery()) return null;
+            const { style, ...rest } = props;
+            const safeProps = { ...rest } as any;
+            return (
+              <TouchableOpacity
+                {...safeProps}
+                style={[
+                  style,
+                  {
+                    top: -CENTER_BUTTON_RAISE,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  },
+                ]}
+                onPress={() => router.push("/help")}
+                activeOpacity={0.8}
+              />
+            );
+          },
+        }}
+      />
 
-              // Remove problematic props like delayLongPress if null
-              const safeProps = { ...rest } as any;
+      <Tabs.Screen
+        name="refer"
+        options={{
+          title: "Refer",
+          tabBarIcon: ({ color, focused }) => (
+            <Gift color={color} size={focused ? 24 : 22} strokeWidth={2} />
+          ),
+          tabBarButton: isAdmin() || isKitchen() || isDelivery() ? () => null : undefined,
+        }}
+      />
 
-              return (
-                <TouchableOpacity
-                  {...safeProps}
-                  style={[style, { top: 9, justifyContent: 'center', alignItems: 'center' }]}
-                  onPress={() => router.push("/help")}
-                />
-              );
-            },
-          }}
-        />
-
-      )}
-
-      {/* Right Tab 1 */}
-       {!isAdmin() && !isKitchen() && !isDelivery() && (
-        <Tabs.Screen
-          name="refer"
-          options={{
-            title: "Refer",
-            tabBarIcon: ({ color, size }) => <Gift color={color} size={size} />,
-          }}
-        />
-      )}
       <Tabs.Screen
         name="orders"
         options={{
           title: "Subscriptions",
-          tabBarIcon: ({ color, size }) => <ShoppingBag color={color} size={size} />,
+          tabBarIcon: ({ color, focused }) => (
+            <ShoppingBag color={color} size={focused ? 24 : 22} strokeWidth={2} />
+          ),
         }}
       />
 

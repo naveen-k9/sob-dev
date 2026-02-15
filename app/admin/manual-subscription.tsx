@@ -57,6 +57,7 @@ export default function ManualSubscription() {
   const [selectedAddOns, setSelectedAddOns] = useState<SelectedAddOn[]>([]);
   const [deliveryTime, setDeliveryTime] = useState('12:00 PM - 2:00 PM');
   const [startDate, setStartDate] = useState(new Date());
+  const [weekType, setWeekType] = useState<Subscription['weekType']>('mon-fri');
   const [excludeWeekends, setExcludeWeekends] = useState(false);
   const [deliveryInstructions, setDeliveryInstructions] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
@@ -67,6 +68,7 @@ export default function ManualSubscription() {
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showAddOnModal, setShowAddOnModal] = useState(false);
   const [showTimeModal, setShowTimeModal] = useState(false);
+  const [showWeekTypeModal, setShowWeekTypeModal] = useState(false);
 
   const timeSlots = [
     '12:00 PM - 2:00 PM',
@@ -192,18 +194,28 @@ export default function ManualSubscription() {
 
   const calculateEndDate = () => {
     if (!selectedPlan) return startDate;
-    
     const endDate = new Date(startDate);
-    let daysToAdd = selectedPlan.days;
-    
-    if (excludeWeekends) {
-      // Add extra days to account for weekends
-      const weekends = Math.floor(selectedPlan.days / 5) * 2;
-      daysToAdd += weekends;
+    const planDays = selectedPlan.days;
+    const skipWeekends = weekType === 'mon-fri' || weekType === 'mon-sat';
+    if (!skipWeekends) {
+      endDate.setDate(endDate.getDate() + planDays - 1);
+      return endDate;
     }
-    
-    endDate.setDate(endDate.getDate() + daysToAdd - 1);
-    return endDate;
+    let added = 0;
+    let cur = new Date(startDate);
+    while (added < planDays) {
+      const d = cur.getDay();
+      const isWeekend = weekType === 'mon-fri' ? (d === 0 || d === 6) : d === 0;
+      if (!isWeekend) added++;
+      if (added < planDays) cur.setDate(cur.getDate() + 1);
+    }
+    return cur;
+  };
+
+  const weekendExclusionFromWeekType = (): string => {
+    if (weekType === 'everyday' || weekType === 'none') return 'none';
+    if (weekType === 'mon-sat') return 'sunday';
+    return 'both';
   };
 
   const createSubscription = async () => {
@@ -218,22 +230,23 @@ export default function ManualSubscription() {
       
       const subscriptionData: Omit<Subscription, 'id' | 'createdAt'> = {
         userId: selectedUser.id,
-        mealId: selectedMeals[0].meal.id, // Primary meal
+        mealId: selectedMeals[0].meal.id,
         planId: selectedPlan.id,
         addOns: selectedAddOns.map(item => item.addOn.id),
         startDate,
         endDate,
         deliveryTime,
-        excludeWeekends,
+        deliveryTimeSlot: deliveryTime,
+        weekType,
+        weekendExclusion: weekendExclusionFromWeekType(),
+        excludeWeekends: weekType === 'mon-fri' || weekType === 'mon-sat',
         addressId: selectedUser.addresses[0]?.id || '',
         specialInstructions: deliveryInstructions,
         totalAmount: totals.total,
-        paidAmount: totals.total, // Assume fully paid for manual subscriptions
+        paidAmount: totals.total,
         status: 'active',
-        weekType: 'mon-fri',
         totalDeliveries: selectedPlan.days,
         remainingDeliveries: selectedPlan.days,
-
       };
 
       await db.createSubscription(subscriptionData);
@@ -494,6 +507,43 @@ export default function ManualSubscription() {
     </Modal>
   );
 
+  const weekTypeOptions: { value: Subscription['weekType']; label: string }[] = [
+    { value: 'mon-fri', label: 'Mon–Fri (weekdays only)' },
+    { value: 'mon-sat', label: 'Mon–Sat (exclude Sunday)' },
+    { value: 'everyday', label: 'Every day' },
+    { value: 'none', label: 'None' },
+  ];
+
+  const renderWeekTypeModal = () => (
+    <Modal visible={showWeekTypeModal} animationType="slide" presentationStyle="pageSheet">
+      <SafeAreaView style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>Delivery days</Text>
+          <TouchableOpacity onPress={() => setShowWeekTypeModal(false)}>
+            <Text style={styles.modalClose}>Done</Text>
+          </TouchableOpacity>
+        </View>
+        <FlatList
+          data={weekTypeOptions}
+          keyExtractor={(item) => item.value}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.modalItem}
+              onPress={() => {
+                setWeekType(item.value);
+                setExcludeWeekends(item.value === 'mon-fri' || item.value === 'mon-sat');
+                setShowWeekTypeModal(false);
+              }}
+            >
+              <Text style={styles.modalItemTitle}>{item.label}</Text>
+              {weekType === item.value && <Check size={20} color="#10B981" />}
+            </TouchableOpacity>
+          )}
+        />
+      </SafeAreaView>
+    </Modal>
+  );
+
   const totals = calculateTotal();
 
   if (loading) {
@@ -615,16 +665,18 @@ export default function ManualSubscription() {
             </TouchableOpacity>
           </View>
 
-          {/* Weekend Exclusion */}
+          {/* Week type (delivery days) */}
           <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Delivery days (week type)</Text>
             <TouchableOpacity
-              style={styles.checkboxContainer}
-              onPress={() => setExcludeWeekends(!excludeWeekends)}
+              style={styles.selector}
+              onPress={() => setShowWeekTypeModal(true)}
             >
-              <View style={[styles.checkbox, excludeWeekends && styles.checkboxChecked]}>
-                {excludeWeekends && <Check size={16} color="white" />}
-              </View>
-              <Text style={styles.checkboxText}>Exclude Weekends</Text>
+              <Calendar size={20} color="#9CA3AF" />
+              <Text style={styles.selectorText}>
+                {weekType === 'mon-fri' ? 'Mon–Fri (weekdays)' : weekType === 'mon-sat' ? 'Mon–Sat' : weekType === 'everyday' ? 'Every day' : 'None'}
+              </Text>
+              <ChevronDown size={20} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
 
@@ -720,6 +772,7 @@ export default function ManualSubscription() {
         {renderPlanModal()}
         {renderAddOnModal()}
         {renderTimeModal()}
+        {renderWeekTypeModal()}
       </LinearGradient>
     </SafeAreaView>
   );

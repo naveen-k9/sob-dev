@@ -11,7 +11,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
   Image,
 } from "react-native";
 import { Dimensions } from "react-native";
@@ -67,6 +66,7 @@ import RoleSelector from "@/components/RoleSelector";
 import { Ionicons } from "@expo/vector-icons";
 import TodayMealSlider from "@/components/TodayMealSlider";
 import SubscriptionNotificationCards from "@/components/SubscriptionNotificationCards";
+import CategoryCardMealTime from "@/components/CategoryCardMealTime";
 
 const TOP_BG_HEIGHT = Math.round(Dimensions.get("window").height * 0.38);
 
@@ -228,7 +228,7 @@ export default function HomeScreen() {
   );
 
   const renderCollectionsGrid = ({ item }: { item: any }) => (
-    <CategorySquareCard
+    <CategoryCardMealTime
       category={item}
       onPress={() => handleCategoryPress(item.id)}
     />
@@ -525,7 +525,7 @@ function CustomerHomeScreen({
         <View style={[styles.topBg, { height: TOP_BG_HEIGHT }]}>
           <ExpoImage
             source={{
-              uri: "https://i0.wp.com/bestgrafix.com/wp-content/uploads/2024/09/Halloween-GIF-7.gif",
+              uri: "https://res.cloudinary.com/dhmdfpanv/image/upload/v1771073219/ban10_gtafpr.gif",
             }}
             style={styles.heroImage}
             contentFit="cover"
@@ -556,8 +556,8 @@ function CustomerHomeScreen({
                 testID="profile-button-sticky"
               >
                 <View style={styles.walletPill} testID="wallet-pill">
-                  <Ionicons name="card-outline" size={27} color="#FFFFFF" />
-                  <Text style={styles.walletText}>0</Text>
+                  <Ionicons name="card-outline" size={27} color="#000000" />
+                  {/* <Text style={styles.walletText}>0</Text> */}
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
@@ -575,6 +575,8 @@ function CustomerHomeScreen({
               <SubscriptionNotificationCards
                 userId={user.id}
                 subscriptions={mySubscriptions}
+                banners={banners}
+                onBannerPress={handleBannerPress}
               />
             </View>
           ) : bannersQuery.isLoading ? (
@@ -703,14 +705,27 @@ function CustomerHomeScreen({
             </View>
           ) : (
             <View style={styles.mealGrid}>
-              <FlatList
-                data={collectionCategories.slice(0, 4)}
-                renderItem={renderCollectionsGrid}
-                keyExtractor={(item) => item.id}
-                numColumns={2}
-                columnWrapperStyle={styles.gridRow}
-                scrollEnabled={false}
-              />
+              {(() => {
+                const list = collectionCategories.slice(0, 6);
+                const rows: Category[][] = [];
+                for (let i = 0; i < list.length; i += 3) {
+                  rows.push(list.slice(i, i + 3));
+                }
+                return rows.map((row, rowIndex) => (
+                  <View
+                    key={`row-${rowIndex}`}
+                    style={[styles.gridRow, { flexDirection: "row" }]}
+                  >
+                    {row.map((category) => (
+                      <CategoryCardMealTime
+                        key={category.id}
+                        category={category}
+                        onPress={() => handleCategoryPress(category.id)}
+                      />
+                    ))}
+                  </View>
+                ));
+              })()}
             </View>
           )}
         </View>
@@ -837,19 +852,27 @@ function CustomerHomeScreen({
             </View>
           ) : (
             <>
-              {collectionCategories.slice(0, 3).map((collection: Category) => {
-                const collectionMeals = (mealsQuery.data ?? [])
-                  .filter(
+              {collectionCategories
+                .slice(0, 3)
+                .filter((collection: Category) => {
+                  const meals = (mealsQuery.data ?? []).filter(
                     (m: Meal) =>
                       (m.categoryIds ?? []).includes(collection.id) ||
                       m.categoryId === collection.id
-                  )
-                  .slice(0, 6);
+                  );
+                  return meals.length > 0;
+                })
+                .map((collection: Category) => {
+                  const collectionMeals = (mealsQuery.data ?? [])
+                    .filter(
+                      (m: Meal) =>
+                        (m.categoryIds ?? []).includes(collection.id) ||
+                        m.categoryId === collection.id
+                    )
+                    .slice(0, 6);
 
-                if (collectionMeals.length === 0) return null;
-
-                return (
-                  <View key={collection.id} style={styles.collectionSlider}>
+                  return (
+                    <View key={collection.id} style={styles.collectionSlider}>
                     <View style={styles.centeredSectionHeader}>
                       <View
                         style={[
@@ -1092,7 +1115,7 @@ const styles = StyleSheet.create({
   walletPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "transparent",
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
     paddingHorizontal: 7,
     paddingVertical: 4,
     borderRadius: 20,
@@ -1107,7 +1130,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginRight: 6,
   },
-  walletText: { color: "#FFFFFF", fontWeight: "600", fontSize: 14 },
+  walletText: { color: "#000000", fontWeight: "600", fontSize: 14 },
   walletPillSticky: {
     flexDirection: "row",
     alignItems: "center",
@@ -1194,14 +1217,14 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center" },
   rowMB6: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
   textLeft: { textAlign: "left" as const },
-  pad20v24: { paddingHorizontal: 20, paddingVertical: 24 },
+  pad20v24: { paddingHorizontal: 18, paddingVertical: 24 },
   pad20: { paddingHorizontal: 20 },
   textMuted: { color: "#E9EAF6" },
   whiteText: { color: "#FFFFFF" },
   errorText: { color: "#EF4444" },
   mt8: { marginTop: 8 },
   bannersRow: { paddingRight: 20 },
-  bannersContainer: { position: "absolute", left: 0, right: 0, bottom: 18 },
+  bannersContainer: { position: "absolute", left: 0, right: 0, bottom: 6 },
   bannerCard: {
     width: 132,
     height: 108,

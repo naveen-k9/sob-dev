@@ -163,6 +163,20 @@ export interface Subscription {
   duration?: number;
   skippedDates?: string[];
   additionalAddOns?: { [date: string]: string[] };
+  /** Per-date kitchen status: pending | cooking_started | cooking_done | ready_for_delivery */
+  kitchenStatusByDate?: Record<string, string>;
+  /** Per-date delivery status: packaging | packaging_done | delivery_started | reached | delivery_done */
+  deliveryStatusByDate?: Record<string, string>;
+  /** Per-day log of kitchen/delivery status changes (date string -> log entries) */
+  deliveryDayLogs?: Record<string, DeliveryDayLogEntry[]>;
+}
+
+/** Single log entry when kitchen or delivery updates status for a date */
+export interface DeliveryDayLogEntry {
+  type: "kitchen" | "delivery";
+  status: string;
+  at: string; // ISO timestamp
+  userId?: string; // optional: kitchen/delivery user who updated
 }
 
 export interface Order {

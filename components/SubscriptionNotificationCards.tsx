@@ -1,16 +1,29 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   Platform,
+  Dimensions,
+  Image,
 } from "react-native";
-import { CheckCircle, Bike, Truck } from "lucide-react-native";
-import { Subscription, Meal, AddOn } from "@/types";
+import { LinearGradient } from "expo-linear-gradient";
+import { Subscription, Meal, AddOn, Banner } from "@/types";
 import db from "@/db";
 import { router } from "expo-router";
+
+type SlideItem =
+  | { type: "status"; id: string; data: NotificationMealItem }
+  | { type: "banner"; id: string; data: Banner };
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const CARD_MARGIN = 16;
+const ITEM_WIDTH = SCREEN_WIDTH;
+const CARD_WIDTH = SCREEN_WIDTH - CARD_MARGIN * 2;
+const AUTO_SLIDE_INTERVAL = 5000;
+const AUTO_RESUME_IDLE_MS = 6000;
 
 interface NotificationMealItem {
   id: string;
@@ -23,11 +36,29 @@ interface NotificationMealItem {
 interface SubscriptionNotificationCardsProps {
   userId: string;
   subscriptions: Subscription[];
+  banners?: Banner[];
+  onBannerPress?: (banner: Banner) => void;
 }
+
+const STATUS_CONFIG: Record<
+  NotificationMealItem["status"],
+  { label: string; accent: string; pillBg: string; pillText: string }
+> = {
+  scheduled: { label: "Scheduled", accent: "#3B82F6", pillBg: "rgba(59, 130, 246, 0.12)", pillText: "#2563EB" },
+  cooking: { label: "Cooking", accent: "#F59E0B", pillBg: "rgba(245, 158, 11, 0.12)", pillText: "#D97706" },
+  ready: { label: "Ready", accent: "#8B5CF6", pillBg: "rgba(139, 92, 246, 0.12)", pillText: "#7C3AED" },
+  out_for_delivery: { label: "On the way", accent: "#EC4899", pillBg: "rgba(236, 72, 153, 0.12)", pillText: "#DB2777" },
+  delivered: { label: "Delivered", accent: "#10B981", pillBg: "rgba(16, 185, 129, 0.12)", pillText: "#059669" },
+};
+
+const CARD_HEIGHT = 88;
+const IMAGE_WIDTH = 72;
 
 export default function SubscriptionNotificationCards({
   userId,
   subscriptions,
+  banners = [],
+  onBannerPress,
 }: SubscriptionNotificationCardsProps) {
   const [items, setItems] = useState<NotificationMealItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,108 +136,216 @@ export default function SubscriptionNotificationCards({
     };
   }, [subscriptions, userId]);
 
-  const handlePress = (item: NotificationMealItem, action: "details" | "track") => {
+  const flatListRef = useRef<FlatList>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const autoSlideTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const handlePress = (item: NotificationMealItem) => {
     router.push("/(tabs)/orders");
   };
 
-  if (loading) {
+  const slides = useMemo<SlideItem[]>(() => {
+    const s = items.map((d) => ({ type: "status" as const, id: d.id, data: d }));
+    const b = (banners || []).map((d) => ({ type: "banner" as const, id: `banner-${d.id}`, data: d }));
+    return [...s, ...b];
+  }, [banners, items]);
+
+  const autoPausedRef = useRef(false);
+  const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const slidesLengthRef = useRef(slides.length);
+  slidesLengthRef.current = slides.length;
+
+  // Auto-loop: only advances when not paused (user not interacting)
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const tick = () => {
+      if (autoPausedRef.current) return;
+      const len = slidesLengthRef.current;
+      if (len <= 1) return;
+      setActiveIndex((prev) => (prev + 1) % len);
+    };
+    autoSlideTimerRef.current = setInterval(tick, AUTO_SLIDE_INTERVAL);
+    return () => {
+      if (autoSlideTimerRef.current) clearInterval(autoSlideTimerRef.current);
+    };
+  }, [slides.length]);
+
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    flatListRef.current?.scrollToIndex({
+      index: activeIndex,
+      animated: true,
+    });
+  }, [activeIndex, slides.length]);
+
+  const handleScrollBegin = () => {
+    autoPausedRef.current = true;
+    if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+  };
+
+  const handleScrollEnd = () => {
+    if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+    resumeTimeoutRef.current = setTimeout(() => {
+      resumeTimeoutRef.current = null;
+      autoPausedRef.current = false;
+    }, AUTO_RESUME_IDLE_MS);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+    };
+  }, []);
+
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: { index: number | null }[] }) => {
+      if (viewableItems.length > 0 && viewableItems[0].index != null) {
+        setActiveIndex(viewableItems[0].index);
+      }
+    }
+  ).current;
+  const viewabilityConfig = useRef({
+    viewAreaCoveragePercentThreshold: 50,
+  }).current;
+
+  if (loading && slides.length === 0) {
     return (
       <View style={styles.container}>
-        <View style={styles.card}>
+        <View style={[styles.card, styles.cardSingle]}>
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </View>
     );
   }
 
-  if (items.length === 0) {
-    return null;
-  }
+  if (slides.length === 0) return null;
 
-  const cardContent = (item: NotificationMealItem) => {
-    const isDelivered = item.status === "delivered";
-    const isOutForDelivery = item.status === "out_for_delivery";
-    const statusLabel = isDelivered
-      ? "Delivered"
-      : isOutForDelivery
-        ? "Out for delivery"
-        : "Scheduled";
-    const buttonLabel = isDelivered ? "View Details" : "Track";
-    const action: "details" | "track" = isDelivered ? "details" : "track";
-
-    const IconComponent = isDelivered
-      ? CheckCircle
-      : isOutForDelivery
-        ? Truck
-        : Bike;
-
+  const renderSlide = ({ item: slide }: { item: SlideItem }) => {
+    if (slide.type === "banner") {
+      const banner = slide.data;
+      return (
+        <TouchableOpacity
+          style={styles.cardWrapper}
+          onPress={() => onBannerPress?.(banner)}
+          activeOpacity={0.92}
+        >
+          <View style={[styles.card, styles.cardBanner]}>
+            <LinearGradient
+              colors={["#FFFFFF", "#FAFAFA"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.cardGradient}
+            >
+              <View style={styles.bannerCardInner}>
+                <View style={styles.bannerImageWrap}>
+                  <Image
+                    source={{ uri: banner.image }}
+                    style={styles.bannerImage}
+                    resizeMode="cover"
+                  />
+                </View>
+                <View style={styles.bannerTextWrap}>
+                  <Text style={styles.title} numberOfLines={1}>
+                    {banner.title}
+                  </Text>
+                  {banner.subtitle ? (
+                    <Text style={styles.subtitle} numberOfLines={1}>
+                      {banner.subtitle}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+    const item = slide.data;
+    const config = STATUS_CONFIG[item.status];
+    const showTime = item.status !== "delivered";
     return (
       <TouchableOpacity
-        key={item.id}
         style={styles.cardWrapper}
-        onPress={() => handlePress(item, action)}
+        onPress={() => handlePress(item)}
         activeOpacity={0.92}
       >
-        <View style={styles.card}>
-          <View style={styles.cardInner}>
-            {/* Top: icon top-left */}
-            <View style={styles.iconContainer}>
-              {isDelivered ? (
-                <View style={styles.iconCircleSuccess}>
-                  <CheckCircle size={14} color="#FFFFFF" />
+        <View style={[styles.card, { borderLeftColor: config.accent }]}>
+          <LinearGradient
+            colors={["#FFFFFF", "#FAFAFA"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.cardGradient}
+          >
+            <View style={styles.cardInner}>
+              <View style={styles.cardMain}>
+                <Text style={styles.title} numberOfLines={1}>
+                  {item.mealName}
+                </Text>
+                <View style={[styles.pill, { backgroundColor: config.pillBg }]}>
+                  <View style={[styles.pillDot, { backgroundColor: config.accent }]} />
+                  <Text style={[styles.pillText, { color: config.pillText }]} numberOfLines={1}>
+                    {config.label}
+                  </Text>
                 </View>
-              ) : (
-                <View style={styles.iconCircleDefault}>
-                  <IconComponent size={14} color="#FFFFFF" />
-                </View>
+              </View>
+              {showTime && (
+                <Text style={styles.time} numberOfLines={1}>
+                  {item.deliveryTime}
+                </Text>
               )}
             </View>
-
-            {/* Title + subtitle block */}
-            <Text style={styles.title} numberOfLines={1}>
-              {statusLabel}: {item.mealName}
-            </Text>
-            {/* <Text style={styles.subtitle}>Meal</Text> */}
-
-            {/* Time */}
-            <Text style={styles.time}>{item.deliveryTime}</Text>
-
-            {/* Spacer: pushes button to bottom */}
-            <View style={styles.spacer} />
-
-            {/* Bottom: primary action right-aligned */}
-            <View style={styles.footer}>
-              <TouchableOpacity
-                style={styles.button}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handlePress(item, action);
-                }}
-              >
-                <Text style={styles.buttonText}>{buttonLabel}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          </LinearGradient>
         </View>
       </TouchableOpacity>
     );
   };
 
+  const isMulti = slides.length > 1;
+
   return (
     <View style={styles.container}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {items.map((item) => cardContent(item))}
-      </ScrollView>
+      {isMulti ? (
+        <>
+          <FlatList
+            ref={flatListRef}
+            data={slides}
+            style={styles.flatList}
+            renderItem={renderSlide}
+            keyExtractor={(item) => item.id}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            decelerationRate="fast"
+            scrollEventThrottle={16}
+            bounces={false}
+            contentContainerStyle={styles.sliderContent}
+            onScrollBeginDrag={handleScrollBegin}
+            onScrollEndDrag={handleScrollEnd}
+            onMomentumScrollEnd={handleScrollEnd}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+            getItemLayout={(_, index) => ({
+              length: ITEM_WIDTH,
+              offset: ITEM_WIDTH * index,
+              index,
+            })}
+            onScrollToIndexFailed={() => {}}
+          />
+          <View style={styles.dots}>
+            {slides.map((_, i) => (
+              <View
+                key={i}
+                style={[styles.dot, i === activeIndex && styles.dotActive]}
+              />
+            ))}
+          </View>
+        </>
+      ) : (
+        renderSlide({ item: slides[0] })
+      )}
     </View>
   );
 }
-
-const CARD_BG = "rgba(32, 32, 42, 0.92)";
-const CARD_WIDTH = 207;
 
 const styles = StyleSheet.create({
   container: {
@@ -214,95 +353,150 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 10,
+    alignItems: "center",
   },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingRight: 20,
-    gap: 8,
+  flatList: {
+    width: ITEM_WIDTH,
+  },
+  sliderContent: {
+    paddingBottom: 6,
   },
   cardWrapper: {
-    marginRight: 8,
+    width: ITEM_WIDTH,
+    alignItems: "center",
+    justifyContent: "center",
   },
   card: {
     width: CARD_WIDTH,
+    minHeight: CARD_HEIGHT,
+    borderRadius: 16,
+    overflow: "hidden",
+    borderLeftWidth: 4,
+    borderLeftColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#0f172a",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  cardBanner: {
+    borderLeftWidth: 0,
+  },
+  cardSingle: {
+    alignSelf: "center",
+  },
+  cardGradient: {
+    flex: 1,
     borderRadius: 12,
     overflow: "hidden",
-    backgroundColor: CARD_BG,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
-    ...(Platform.OS === "ios" && { overflow: "hidden" }),
+    minHeight: CARD_HEIGHT,
   },
   cardInner: {
-    padding: 10,
-    minHeight: 98,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    paddingLeft: 16,
+  },
+  bannerCardInner: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "stretch",
+    minHeight: CARD_HEIGHT,
+  },
+  bannerImageWrap: {
+    width: IMAGE_WIDTH,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+    overflow: "hidden",
+    backgroundColor: "#F1F5F9",
+  },
+  bannerImage: {
+    width: IMAGE_WIDTH,
+    height: "100%",
+    minHeight: CARD_HEIGHT,
+  },
+  bannerTextWrap: {
+    flex: 1,
+    justifyContent: "center",
+    paddingLeft: 14,
+    paddingRight: 16,
+    minWidth: 0,
+  },
+  cardMain: {
+    flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-  },
-  iconContainer: {
-    marginBottom: 6,
-  },
-  iconCircleSuccess: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#22C55E",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  iconCircleDefault: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
+    gap: 12,
+    marginBottom: 8,
   },
   title: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    lineHeight: 16,
-    marginBottom: 1,
-    letterSpacing: 0.1,
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#0F172A",
+    letterSpacing: 0.2,
+    lineHeight: 22,
   },
-  subtitle: {
-    fontSize: 10,
-    color: "rgba(255,255,255,0.6)",
-    marginBottom: 3,
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 20,
+    gap: 5,
+    maxWidth: "48%",
+  },
+  pillDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  pillText: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.3,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
   },
   time: {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.85)",
-    marginBottom: 6,
+    fontSize: 12,
     fontWeight: "500",
+    color: "#64748B",
+    letterSpacing: 0.15,
   },
-  spacer: {
-    flex: 1,
-    minHeight: 4,
+  subtitle: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#64748B",
+    letterSpacing: 0.15,
+    lineHeight: 16,
   },
-  footer: {
+  dots: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "center",
     alignItems: "center",
+    gap: 8,
+    marginTop: 12,
   },
-  button: {
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    minWidth: 72,
-    alignItems: "center",
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#E2E8F0",
   },
-  buttonText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#1F2937",
-    letterSpacing: 0.2,
+  dotActive: {
+    backgroundColor: "#0F172A",
+    width: 18,
+    borderRadius: 3,
   },
   loadingText: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: 12,
-    padding: 12,
+    color: "#64748B",
+    fontSize: 13,
+    padding: 16,
   },
 });
