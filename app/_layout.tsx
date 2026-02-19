@@ -78,6 +78,7 @@ function RootLayoutNav() {
       <Stack.Screen name="checkout" options={{ headerShown: false }} />
       <Stack.Screen name="admin/dashboard" options={{ headerShown: false }} />
       <Stack.Screen name="admin/subscriptions" options={{ headerShown: false }} />
+      <Stack.Screen name="admin/test-notifications" options={{ headerShown: false }} />
       <Stack.Screen name="kitchen/dashboard" options={{ headerShown: false }} />
       <Stack.Screen name="delivery/dashboard" options={{ headerShown: false }} />
       <Stack.Screen name="wallet" options={{ headerShown: false }} />
@@ -89,7 +90,8 @@ function RootLayoutNav() {
       <Stack.Screen name="corporate-catering" options={{ headerShown: false }} />
       <Stack.Screen name="nutritionist" options={{ headerShown: false }} />
       <Stack.Screen name="notifications" options={{ headerShown: false }} />
-      <Stack.Screen name="acknowledgment/[orderId]" options={{ title: 'Delivery Acknowledgment' }} />
+      <Stack.Screen name="acknowledgment/[orderId]" options={{ headerShown: false }} />
+      <Stack.Screen name="acknowledgment/subscription/[subscriptionId]" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
     </Stack>
   );

@@ -23,7 +23,7 @@ npx expo run:android
 app/build.gradle (dependencies)
 implementation project(':react-native-razorpay')
 
-AndroidManifest.xml (above activity) <meta-data android:name="com.google.android.geo.API_KEY" android:value="AIzaSyAz5QXMfoHQLZ_ZpWWqE_7OUrAIaYPSmi4"/>
+AndroidManifest.xml (above activity) <meta-data android:name="com.google.android.geo.API_KEY" android:value="AIzaSyBaN44a3-lWDxZQsrawo7CftO1ebY-EqHY"/>AIzaSyAz5QXMfoHQLZ_ZpWWqE_7OUrAIaYPSmi4
 
 To refresh the Gradle cache
 ./gradlew clean

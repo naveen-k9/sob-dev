@@ -455,6 +455,29 @@ export default function KitchenDashboard() {
             </View>
           </View>
 
+          {/* Aggregated Meal Summary */}
+          {cookingList.length > 0 && (
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Meal Summary</Text>
+              </View>
+              {aggregateForCSV(cookingList).map((row) => (
+                <View key={row.Meal} style={styles.aggCard}>
+                  <View style={styles.aggLeft}>
+                    <ChefHat size={18} color="#F59E0B" />
+                    <Text style={styles.aggMeal}>{row.Meal}</Text>
+                  </View>
+                  <View style={styles.aggRight}>
+                    <View style={styles.aggQtyBadge}>
+                      <Text style={styles.aggQtyText}>×{row.Quantity}</Text>
+                    </View>
+                    {row.AddOns ? <Text style={styles.aggAddOns}>{row.AddOns}</Text> : null}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* Cooking List */}
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
@@ -466,8 +489,9 @@ export default function KitchenDashboard() {
             
             {cookingList.map((item) => {
               const StatusIcon = getStatusIcon(item.status);
+              const statusColor = getStatusColor(item.status);
               return (
-                <View key={item.id} style={styles.orderCard}>
+                <View key={item.id} style={[styles.orderCard, { borderLeftColor: statusColor, borderLeftWidth: 4 }]}>
                   <View style={styles.orderHeader}>
                     <View style={styles.orderInfo}>
                       <Text style={styles.mealName}>{item.mealName}</Text>
@@ -475,11 +499,15 @@ export default function KitchenDashboard() {
                       <Text style={styles.deliveryTime}>Delivery: {item.deliveryTime}</Text>
                     </View>
                     <View style={styles.orderStatus}>
-                      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-                        <StatusIcon size={16} color="white" />
-                        <Text style={styles.statusText}>{item.status.toUpperCase()}</Text>
+                      <View style={[styles.statusBadge, { backgroundColor: statusColor + "22" }]}>
+                        <StatusIcon size={14} color={statusColor} />
+                        <Text style={[styles.statusText, { color: statusColor }]}>
+                          {item.status.replace(/_/g, ' ').toUpperCase()}
+                        </Text>
                       </View>
-                      <Text style={styles.quantity}>Qty: {item.quantity}</Text>
+                      <View style={styles.qtyBadge}>
+                        <Text style={styles.quantity}>×{item.quantity}</Text>
+                      </View>
                     </View>
                   </View>
                   
@@ -662,21 +690,21 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
     marginBottom: 4,
+    gap: 4,
   },
   statusText: {
-    color: 'white',
     fontSize: 10,
-    fontWeight: '600',
-    marginLeft: 4,
+    fontWeight: '700',
+    marginLeft: 2,
   },
   quantity: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    fontWeight: '500',
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '900',
   },
   addOnsContainer: {
     marginBottom: 12,
@@ -728,6 +756,56 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
+  },
+  aggCard: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  aggLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  aggMeal: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  aggRight: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  aggQtyBadge: {
+    backgroundColor: '#F59E0B',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  aggQtyText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  aggAddOns: {
+    color: '#9CA3AF',
+    fontSize: 11,
+    maxWidth: 140,
+    textAlign: 'right',
+  },
+  qtyBadge: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: 4,
+    alignSelf: 'flex-end',
   },
   exportContainer: {
     flexDirection: 'row',

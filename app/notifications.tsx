@@ -6,21 +6,21 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
-import {
-  Bell,
-  X,
-  Trash2,
-  Clock,
-  Package,
-  Truck,
-  Gift,
-} from "lucide-react-native";
+import { Bell, X, Trash2, Clock, Package, Truck, Gift, ChevronRight } from "lucide-react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import db from "@/db";
 import { Notification } from "@/types";
+
+const TYPE_CONFIG: Record<string, { color: string; bg: string; Icon: any }> = {
+  order:    { color: "#48479B", bg: "#EEF2FF", Icon: Package },
+  delivery: { color: "#E53935", bg: "#FEF2F2", Icon: Truck },
+  promotion:{ color: "#8B5CF6", bg: "#F5F3FF", Icon: Gift },
+  system:   { color: "#F59E0B", bg: "#FFFBEB", Icon: Bell },
+};
 
 export default function NotificationsScreen() {
   const { user } = useAuth();
@@ -31,252 +31,158 @@ export default function NotificationsScreen() {
   const loadNotifications = useCallback(async () => {
     if (!user) return;
     try {
-      const userNotifications = await db.getNotifications(user.id);
+      const list = await db.getNotifications(user.id);
       setNotifications(
-        userNotifications.sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        )
+        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       );
-    } catch (error) {
-      console.error("Error loading notifications:", error);
+    } catch (e) {
+      console.error("Error loading notifications:", e);
     } finally {
       setLoading(false);
     }
   }, [user]);
 
-  const createSampleNotifications = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      const existingNotifications = await db.getNotifications(user.id);
-      if (existingNotifications.length > 0) return; // Don't create duplicates
-
-      const sampleNotifications = [
-        {
-          userId: user.id,
-          title: "Cooking Started!",
-          message:
-            "Your Grilled Chicken Bowl is being prepared in our kitchen.",
-          type: "order" as const,
-          isRead: false,
-          data: { subscriptionId: "1", status: "preparing" },
-        },
-        {
-          userId: user.id,
-          title: "Out for Delivery",
-          message:
-            "Your Paneer Tikka Bowl is on its way! Expected delivery in 20 minutes.",
-          type: "delivery" as const,
-          isRead: false,
-          data: { subscriptionId: "2", deliveryPersonId: "1" },
-        },
-        {
-          userId: user.id,
-          title: "Meal Delivered",
-          message: "Your Vegan Buddha Bowl has been delivered successfully.",
-          type: "delivery" as const,
-          isRead: true,
-          data: { subscriptionId: "3", status: "delivered" },
-        },
-        {
-          userId: user.id,
-          title: "Special Offer!",
-          message: "Get 25% off on your next subscription. Limited time offer!",
-          type: "promotion" as const,
-          isRead: false,
-          data: { offerCode: "SAVE25", validUntil: "2024-12-31" },
-        },
-        {
-          userId: user.id,
-          title: "Streak Reward Earned!",
-          message:
-            "Congratulations! You&apos;ve earned ₹50 for maintaining a 7-day streak.",
-          type: "system" as const,
-          isRead: false,
-          data: { rewardAmount: 50, streakCount: 7 },
-        },
-      ];
-
-      for (const notification of sampleNotifications) {
-        await db.createNotification(notification);
-      }
-
-      await loadNotifications();
-    } catch (error) {
-      console.error("Error creating sample notifications:", error);
-    }
+  useEffect(() => {
+    if (user) loadNotifications();
   }, [user, loadNotifications]);
 
-  useEffect(() => {
-    if (user) {
-      loadNotifications();
-      // Create some sample notifications for demo
-      createSampleNotifications();
-    }
-  }, [user, loadNotifications, createSampleNotifications]);
-
-  const dismissNotification = async (notificationId: string) => {
-    try {
-      await db.deleteNotification(notificationId);
-      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-    } catch (error) {
-      console.error("Error dismissing notification:", error);
-    }
+  const dismiss = async (id: string) => {
+    await db.deleteNotification(id);
+    setNotifications((p) => p.filter((n) => n.id !== id));
   };
 
-  const clearAllNotifications = () => {
-    Alert.alert(
-      "Clear All Notifications",
-      "Are you sure you want to clear all notifications?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear All",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await db.clearUserNotifications(user?.id ?? "");
-              setNotifications([]);
-            } catch (error) {
-              console.error("Error clearing notifications:", error);
-              Alert.alert(
-                "Error",
-                "Failed to clear notifications. Please try again."
-              );
-            }
-          },
+  const clearAll = () => {
+    Alert.alert("Clear all notifications?", "", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clear All",
+        style: "destructive",
+        onPress: async () => {
+          await db.clearUserNotifications(user?.id ?? "");
+          setNotifications([]);
         },
-      ]
-    );
-  };
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case "order":
-        return <Package size={20} color="#48479B" />;
-      case "delivery":
-        return <Truck size={20} color="#10B981" />;
-      case "promotion":
-        return <Gift size={20} color="#8B5CF6" />;
-      case "system":
-        return <Bell size={20} color="#48479B" />;
-      default:
-        return <Bell size={20} color="#666" />;
-    }
+      },
+    ]);
   };
 
   const formatTime = (date: Date) => {
-    const now = new Date();
-    const notificationDate = new Date(date);
-    const diffInMinutes = Math.floor(
-      (now.getTime() - notificationDate.getTime()) / (1000 * 60)
-    );
-
-    if (diffInMinutes < 1) return "Just now";
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
-    return `${Math.floor(diffInMinutes / 1440)}d ago`;
+    const diff = Math.floor((Date.now() - new Date(date).getTime()) / 60000);
+    if (diff < 1) return "Just now";
+    if (diff < 60) return `${diff}m ago`;
+    if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
+    return `${Math.floor(diff / 1440)}d ago`;
   };
 
-  const onPressNotification = async (item: Notification) => {
-    try {
-      if (!item.isRead) {
-        await db.markNotificationAsRead(item.id);
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
-        );
-      }
-      const hasAck =
-        item?.data?.status === "waiting_for_ack" &&
-        typeof item?.data?.orderId === "string";
-      if (hasAck) {
-        router.push({
-          pathname: "/acknowledgment/[orderId]",
-          params: { orderId: item.data.orderId },
-        });
-      }
-    } catch (e) {
-      console.log("onPressNotification error", e);
+  const onPress = async (item: Notification) => {
+    if (!item.isRead) {
+      await db.markNotificationAsRead(item.id);
+      setNotifications((p) => p.map((n) => (n.id === item.id ? { ...n, isRead: true } : n)));
+    }
+    const d = item.data as any;
+    if (d?.screen) {
+      router.push(d.screen);
+    } else if (d?.status === "waiting_for_ack" && d?.orderId) {
+      router.push({ pathname: "/acknowledgment/[orderId]", params: { orderId: d.orderId } });
+    } else if (d?.subscriptionId && d?.dateString && d?.status === "waiting_for_ack") {
+      router.push({
+        pathname: "/acknowledgment/subscription/[subscriptionId]",
+        params: { subscriptionId: d.subscriptionId, date: d.dateString },
+      });
     }
   };
 
-  const renderNotification = ({ item }: { item: Notification }) => (
-    <TouchableOpacity
-      testID={`notification-${item.id}`}
-      activeOpacity={0.8}
-      onPress={() => onPressNotification(item)}
-      style={[styles.notificationCard, !item.isRead && styles.unreadCard]}
-    >
-      <View style={styles.notificationHeader}>
-        <View style={styles.iconContainer}>
-          {getNotificationIcon(item.type)}
-        </View>
-        <View style={styles.notificationContent}>
-          <Text style={styles.notificationTitle}>{item.title}</Text>
-          <Text style={styles.notificationMessage}>{item.message}</Text>
-          <View style={styles.timeContainer}>
-            <Clock size={12} color="#999" />
-            <Text style={styles.timeText}>{formatTime(item.createdAt)}</Text>
-          </View>
-        </View>
-        <TouchableOpacity
-          testID={`dismiss-${item.id}`}
-          style={styles.dismissButton}
-          onPress={() => dismissNotification(item.id)}
-        >
-          <X size={16} color="#999" />
-        </TouchableOpacity>
-      </View>
-      {!item.isRead && <View style={styles.unreadIndicator} />}
-    </TouchableOpacity>
-  );
+  const renderItem = ({ item }: { item: Notification }) => {
+    const cfg = TYPE_CONFIG[item.type] || TYPE_CONFIG.system;
+    const Icon = cfg.Icon;
+    const isActionable =
+      (item.data as any)?.screen ||
+      ((item.data as any)?.status === "waiting_for_ack");
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <Bell size={64} color="#DDD" />
-      <Text style={styles.emptyTitle}>No Notifications</Text>
-      <Text style={styles.emptyDescription}>
-        You&apos;re all caught up! We&apos;ll notify you about your orders and
-        special offers.
-      </Text>
-    </View>
-  );
+    return (
+      <TouchableOpacity
+        testID={`notification-${item.id}`}
+        activeOpacity={0.75}
+        onPress={() => onPress(item)}
+        style={[styles.card, !item.isRead && styles.cardUnread]}
+      >
+        {!item.isRead && <View style={[styles.unreadBar, { backgroundColor: cfg.color }]} />}
+
+        <View style={styles.cardInner}>
+          <View style={[styles.iconWrap, { backgroundColor: cfg.bg }]}>
+            <Icon size={20} color={cfg.color} />
+          </View>
+
+          <View style={styles.cardContent}>
+            <View style={styles.cardTop}>
+              <Text style={[styles.cardTitle, !item.isRead && styles.cardTitleBold]} numberOfLines={2}>
+                {item.title}
+              </Text>
+              {isActionable && <ChevronRight size={16} color="#9CA3AF" />}
+            </View>
+            <Text style={styles.cardMsg} numberOfLines={3}>{item.message}</Text>
+            <View style={styles.cardMeta}>
+              <Clock size={11} color="#9CA3AF" />
+              <Text style={styles.cardTime}>{formatTime(item.createdAt)}</Text>
+              {!item.isRead && (
+                <View style={[styles.dot, { backgroundColor: cfg.color }]} />
+              )}
+            </View>
+          </View>
+
+          <TouchableOpacity
+            testID={`dismiss-${item.id}`}
+            onPress={() => dismiss(item.id)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <X size={15} color="#D1D5DB" />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Stack.Screen
-        options={{
-          title: "Notifications",
-          headerStyle: { backgroundColor: "#48479B" },
-          headerTintColor: "white",
-          headerTitleStyle: { fontWeight: "bold" },
-          headerRight: () =>
-            notifications.length > 0 ? (
-              <TouchableOpacity
-                onPress={clearAllNotifications}
-                style={styles.clearAllButton}
-              >
-                <Trash2 size={20} color="white" />
-                <Text style={styles.clearAllText}>Clear All</Text>
-              </TouchableOpacity>
-            ) : null,
-        }}
-      />
+    <SafeAreaView style={styles.safe} edges={["top"]}>
+      <Stack.Screen options={{ headerShown: false }} />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerTitle}>Notifications</Text>
+          {unreadCount > 0 && (
+            <Text style={styles.headerSub}>{unreadCount} unread</Text>
+          )}
+        </View>
+        {notifications.length > 0 && (
+          <TouchableOpacity onPress={clearAll} style={styles.clearBtn}>
+            <Trash2 size={16} color="#E53935" />
+            <Text style={styles.clearText}>Clear all</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading notifications...</Text>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#E53935" />
+        </View>
+      ) : notifications.length === 0 ? (
+        <View style={styles.empty}>
+          <View style={styles.emptyIcon}>
+            <Bell size={36} color="#9CA3AF" />
+          </View>
+          <Text style={styles.emptyTitle}>You're all caught up!</Text>
+          <Text style={styles.emptySub}>
+            We'll notify you about orders, deliveries, and special offers.
+          </Text>
         </View>
       ) : (
         <FlatList
           data={notifications}
-          renderItem={renderNotification}
+          renderItem={renderItem}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={
-            notifications.length === 0 ? styles.emptyList : styles.list
-          }
-          ListEmptyComponent={renderEmptyState}
+          contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -285,121 +191,55 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8F9FA",
-  },
-  clearAllButton: {
+  safe: { flex: 1, backgroundColor: "#F8F9FA" },
+  header: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
   },
-  clearAllText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 4,
+  headerTitle: { fontSize: 22, fontWeight: "800", color: "#111" },
+  headerSub: { fontSize: 13, color: "#E53935", fontWeight: "600", marginTop: 2 },
+  clearBtn: { flexDirection: "row", alignItems: "center", gap: 5, padding: 8 },
+  clearText: { fontSize: 13, color: "#E53935", fontWeight: "600" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  list: { padding: 16, gap: 10 },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    overflow: "hidden",
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    fontSize: 16,
-    color: "#666",
-  },
-  list: {
-    padding: 16,
-  },
-  emptyList: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 40,
-  },
-  notificationCard: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#F0F0F0",
-    position: "relative",
-  },
-  unreadCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: "#48479B",
+  cardUnread: {
     backgroundColor: "#FFFBF8",
+    elevation: 2,
+    shadowOpacity: 0.08,
   },
-  notificationHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+  unreadBar: { height: 3, width: "100%" },
+  cardInner: { flexDirection: "row", alignItems: "flex-start", padding: 14, gap: 12 },
+  iconWrap: { width: 42, height: 42, borderRadius: 21, justifyContent: "center", alignItems: "center" },
+  cardContent: { flex: 1, gap: 4 },
+  cardTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 4 },
+  cardTitle: { flex: 1, fontSize: 14, fontWeight: "500", color: "#374151", lineHeight: 20 },
+  cardTitleBold: { fontWeight: "700", color: "#111" },
+  cardMsg: { fontSize: 13, color: "#6B7280", lineHeight: 18 },
+  cardMeta: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+  cardTime: { fontSize: 11, color: "#9CA3AF" },
+  dot: { width: 6, height: 6, borderRadius: 3, marginLeft: 4 },
+  empty: { flex: 1, justifyContent: "center", alignItems: "center", padding: 40, gap: 12 },
+  emptyIcon: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center", alignItems: "center",
   },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F8F9FA",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  notificationContent: {
-    flex: 1,
-  },
-  notificationTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 4,
-  },
-  notificationMessage: {
-    fontSize: 14,
-    color: "#666",
-    lineHeight: 20,
-    marginBottom: 8,
-  },
-  timeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  timeText: {
-    fontSize: 12,
-    color: "#999",
-    marginLeft: 4,
-  },
-  dismissButton: {
-    padding: 4,
-  },
-  unreadIndicator: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#48479B",
-  },
-  emptyContainer: {
-    alignItems: "center",
-    paddingVertical: 60,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyDescription: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    lineHeight: 24,
-    paddingHorizontal: 40,
-  },
+  emptyTitle: { fontSize: 18, fontWeight: "700", color: "#111" },
+  emptySub: { fontSize: 14, color: "#6B7280", textAlign: "center", lineHeight: 20 },
 });

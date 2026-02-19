@@ -47,16 +47,8 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
 
   // Map state
-  const [mapRegion, setMapRegion] = useState<Region>({
-    latitude: 17.385044,
-    longitude: 78.486671,
-    latitudeDelta: 0.005,
-    longitudeDelta: 0.005,
-  });
-  const [selectedLocation, setSelectedLocation] = useState({
-    latitude: 17.385044,
-    longitude: 78.486671,
-  });
+  const [mapRegion, setMapRegion] = useState<Region | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [currentAddress, setCurrentAddress] = useState("");
   const [isLoadingAddress, setIsLoadingAddress] = useState(false);
   const [hasInitializedLocation, setHasInitializedLocation] = useState(false);
@@ -327,6 +319,10 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
 
   const handleSaveAddress = async () => {
     if (!validateForm()) return;
+    if (!selectedLocation) {
+      Alert.alert("Error", "Please select a location on the map first.");
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -559,17 +555,38 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
         </TouchableOpacity>
       </View>
 
+      {/* Loading location */}
+      {isLoadingLocation && (
+        <View style={styles.locationLoading}>
+          <ActivityIndicator size="large" color="#E53935" />
+          <Text style={styles.locationLoadingText}>Finding your location…</Text>
+        </View>
+      )}
+
       {/* Map */}
+      {mapRegion && (
+      <>
       <View style={styles.mapContainer}>
         <MapView
           ref={mapRef}
           style={styles.map}
           region={mapRegion}
           onPress={handleMapPress}
+          onRegionChangeComplete={(r) => setMapRegion(r)}
           showsUserLocation={true}
           showsMyLocationButton={false}
         >
-          <Marker coordinate={selectedLocation} />
+          {selectedLocation && (
+          <Marker
+            coordinate={selectedLocation}
+            draggable
+            onDragEnd={(e) => {
+              const { latitude, longitude } = e.nativeEvent.coordinate;
+              setSelectedLocation({ latitude, longitude });
+              reverseGeocode(latitude, longitude);
+            }}
+          />
+          )}
         </MapView>
 
         {/* Center Pin Overlay */}
@@ -601,18 +618,15 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
         </View>
 
         <View style={styles.addressDetails}>
-          <Text style={styles.addressTitle}>
-            {currentAddress || "Balaji Nagar Main Road"}
-          </Text>
-          <Text style={styles.addressSubtitle}>
-            Kukatpally, APHB Colony, Hyderabad
+          <Text style={styles.addressTitle} numberOfLines={2}>
+            {isLoadingAddress ? "Getting address…" : (currentAddress || "Move the pin to your location")}
           </Text>
         </View>
 
         <TouchableOpacity
-          style={styles.confirmButton}
+          style={[styles.confirmButton, (!selectedLocation || isLoadingAddress) && styles.confirmButtonDisabled]}
           onPress={handleConfirmLocation}
-          disabled={isLoadingAddress}
+          disabled={!selectedLocation || isLoadingAddress}
         >
           {isLoadingAddress ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
@@ -621,6 +635,8 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
           )}
         </TouchableOpacity>
       </View>
+      </>
+      )}
     </>
   );
 
@@ -639,6 +655,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Map Preview */}
+        {mapRegion && selectedLocation && (
         <View style={styles.mapPreviewContainer}>
           <MapView
             style={styles.mapPreview}
@@ -655,12 +672,12 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
             <Text style={styles.changeButtonText}>Change</Text>
           </TouchableOpacity>
         </View>
+        )}
 
         {/* Location Info */}
         <View style={styles.locationInfo}>
-          <Text style={styles.locationTitle}>APHB Colony</Text>
-          <Text style={styles.locationSubtitle}>
-            Kukatpally, APHB Colony, Hyderabad
+          <Text style={styles.locationTitle} numberOfLines={2}>
+            {currentAddress || "Selected Location"}
           </Text>
         </View>
 
@@ -830,7 +847,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
           visible={showSearchModal}
           onClose={() => setShowSearchModal(false)}
           onLocationSelect={handleSearchLocationSelect}
-          initialQuery="Naveen"
+          initialQuery=""
         />
       </View>
     </Modal>
@@ -1070,16 +1087,38 @@ const styles = StyleSheet.create({
     color: "#8E8E93",
   },
   confirmButton: {
-    backgroundColor: "#FF3B30",
-    borderRadius: 12,
+    backgroundColor: "#E53935",
+    borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
+    elevation: 3,
+    shadowColor: "#E53935",
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  confirmButtonDisabled: {
+    backgroundColor: "#9CA3AF",
+    elevation: 0,
+    shadowOpacity: 0,
   },
   confirmButtonText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#FFFFFF",
+  },
+  locationLoading: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+    padding: 32,
+  },
+  locationLoadingText: {
+    fontSize: 15,
+    color: "#6B7280",
+    fontWeight: "500",
   },
   mapPreviewContainer: {
     height: 200,

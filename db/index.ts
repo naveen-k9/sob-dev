@@ -1008,6 +1008,10 @@ class Database {
           "Your order was cancelled. If this is a mistake, contact support.";
       }
       if (notifTitle) {
+        const notifData: Record<string, any> = { orderId: id, status };
+        if (status === "waiting_for_ack") {
+          notifData.screen = `/acknowledgment/${id}`;
+        }
         await this.createNotification({
           userId,
           title: notifTitle,
@@ -1019,7 +1023,7 @@ class Database {
               ? "delivery"
               : "order",
           isRead: false,
-          data: { orderId: id, status },
+          data: notifData,
         });
       }
       if (status === "waiting_for_ack") {
@@ -1139,7 +1143,51 @@ class Database {
         updates.status = "completed";
       }
     }
-    return this.updateSubscription(subscriptionId, updates);
+    const result = await this.updateSubscription(subscriptionId, updates);
+
+    // Notify the customer about delivery status changes
+    const customerUserId = subscription.userId;
+    if (customerUserId) {
+      if (status === "delivery_started") {
+        await this.createNotification({
+          userId: customerUserId,
+          title: "Out for Delivery 🚴",
+          message: "Your meal is on the way! Sit tight.",
+          type: "delivery",
+          isRead: false,
+          data: { subscriptionId, dateString, status: "delivery_started" },
+        });
+      } else if (status === "delivery_done") {
+        await this.createNotification({
+          userId: customerUserId,
+          title: "Meal Delivered!",
+          message: "Your meal has been delivered. Tap to confirm receipt.",
+          type: "delivery",
+          isRead: false,
+          data: {
+            subscriptionId,
+            dateString,
+            status: "waiting_for_ack",
+            screen: `/acknowledgment/subscription/${subscriptionId}?date=${dateString}`,
+          },
+        });
+      }
+    }
+
+    return result;
+  }
+
+  async markSubscriptionDeliveryReceived(
+    subscriptionId: string,
+    dateString: string
+  ): Promise<Subscription | null> {
+    const subscription = await this.getSubscriptionById(subscriptionId);
+    if (!subscription) return null;
+    const ackByDate = {
+      ...(subscription.deliveryAckByDate || {}),
+      [dateString]: true,
+    };
+    return this.updateSubscription(subscriptionId, { deliveryAckByDate: ackByDate });
   }
 
   // Skip and Add-on methods
@@ -1677,6 +1725,7 @@ class Database {
             data: {
               orderId: r.orderId,
               status: "waiting_for_ack",
+              screen: `/acknowledgment/${r.orderId}`,
               reminder: r.seq,
             },
           });
@@ -3048,7 +3097,7 @@ class Database {
       freeDeliveryAbove: 499,
       orderCutoffTime: "10:00",
       skipCutoffTime: "09:00",
-      addOnCutoffTime: "08:00",
+      addOnCutoffTime: "07:00",
       kitchenStartTime: "08:30",
       deliveryStartTime: "09:00",
       supportPhone: "+919999999999",

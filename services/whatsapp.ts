@@ -600,6 +600,64 @@ export async function verifyWhatsAppConfiguration(): Promise<{
   }
 }
 
+/**
+ * Send Add-On Purchase Notification via WhatsApp
+ */
+export async function sendAddonPurchaseNotification(
+  phoneNumber: string,
+  details: {
+    customerName: string;
+    addonNames: string[];
+    date: string;
+    totalAmount: string;
+    subscriptionId: string;
+  }
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  try {
+    const formattedPhone = phoneNumber.replace(/[^0-9]/g, "");
+    const addonList = details.addonNames.join(", ");
+
+    const response = await whatsappClient.post(
+      `/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to: formattedPhone,
+        type: "template",
+        template: {
+          name: "addon_purchased",
+          language: { code: "en" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: details.customerName },
+                { type: "text", text: addonList },
+                { type: "text", text: details.date },
+                { type: "text", text: `₹${details.totalAmount}` },
+              ],
+            },
+          ],
+        },
+      }
+    );
+
+    return {
+      success: true,
+      messageId: response.data.messages?.[0]?.id,
+    };
+  } catch (error: any) {
+    console.error(
+      "WhatsApp Addon Notification Error:",
+      error.response?.data || error.message
+    );
+    return {
+      success: false,
+      error:
+        error.response?.data?.error?.message || "Failed to send addon notification",
+    };
+  }
+}
+
 export default {
   sendWhatsAppOTP,
   sendOrderNotification,
@@ -608,5 +666,6 @@ export default {
   sendPromotionalMessage,
   sendDailyMenuUpdate,
   sendWalletCreditNotification,
+  sendAddonPurchaseNotification,
   verifyWhatsAppConfiguration,
 };

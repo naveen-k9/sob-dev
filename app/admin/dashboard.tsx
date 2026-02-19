@@ -267,7 +267,7 @@ export default function AdminDashboard() {
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [cutoffTimes, setCutoffTimes] = useState({
     skipCutoffTime: "09:00",
-    addOnCutoffTime: "08:00",
+    addOnCutoffTime: "07:00",
   });
   const [showStaffDrawer, setShowStaffDrawer] = useState(false);
   const [selectedSubscriptionId, setSelectedSubscriptionId] =
@@ -958,6 +958,15 @@ export default function AdminDashboard() {
       color: "#8B5CF6",
       onPress: () => router.push("/admin/service-area-requests" as any),
       group: "Operations",
+    },
+    {
+      id: "23",
+      title: "Notification Tester",
+      description: "Manually trigger delivery status, push & WhatsApp for any user",
+      icon: Megaphone,
+      color: "#E53935",
+      onPress: () => router.push("/admin/test-notifications" as any),
+      group: "Primary",
     },
   ];
 

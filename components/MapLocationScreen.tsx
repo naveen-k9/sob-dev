@@ -30,27 +30,24 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
   onLocationConfirm,
 }) => {
   const params = useLocalSearchParams();
-  const hasParamsCoords = params.latitude && params.longitude;
-  
-  const initialLat = hasParamsCoords
-    ? parseFloat(params.latitude as string)
-    : 17.385044;
-  const initialLng = hasParamsCoords
-    ? parseFloat(params.longitude as string)
-    : 78.486671;
+  const hasParamsCoords = !!(params.latitude && params.longitude);
+
+  const initialLat = hasParamsCoords ? parseFloat(params.latitude as string) : null;
+  const initialLng = hasParamsCoords ? parseFloat(params.longitude as string) : null;
   const mode = params.mode as string;
 
-  const [mapRegion, setMapRegion] = useState<Region>({
-    latitude: initialLat,
-    longitude: initialLng,
-    latitudeDelta: 0.005,
-    longitudeDelta: 0.005,
-  });
-
-  const [selectedLocation, setSelectedLocation] = useState({
-    latitude: initialLat,
-    longitude: initialLng,
-  });
+  // No default coordinates – map starts empty and locates device
+  const [mapRegion, setMapRegion] = useState<Region | null>(
+    hasParamsCoords && initialLat !== null && initialLng !== null
+      ? { latitude: initialLat, longitude: initialLng, latitudeDelta: 0.005, longitudeDelta: 0.005 }
+      : null
+  );
+  const [selectedLocation, setSelectedLocation] = useState<{ latitude: number; longitude: number } | null>(
+    hasParamsCoords && initialLat !== null && initialLng !== null
+      ? { latitude: initialLat, longitude: initialLng }
+      : null
+  );
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
 
   const [currentAddress, setCurrentAddress] = useState("");
   const [isLoadingAddress, setIsLoadingAddress] = useState(false);
@@ -66,20 +63,17 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
   // Get current location if no coordinates provided
   useEffect(() => {
     const initializeLocation = async () => {
-      if (hasParamsCoords) {
-        // Use provided coordinates
+      if (hasParamsCoords && initialLat !== null && initialLng !== null) {
         reverseGeocode(initialLat, initialLng);
         return;
       }
 
       try {
-        console.log('[MapLocationScreen] Fetching current location...');
         setIsLoadingLocation(true);
-        
+
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          console.log('[MapLocationScreen] Location permission denied');
-          reverseGeocode(initialLat, initialLng);
+        if (status !== "granted") {
+          setLocationPermissionDenied(true);
           setIsLoadingLocation(false);
           return;
         }
@@ -89,28 +83,19 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
         });
 
         const { latitude, longitude } = location.coords;
-        console.log('[MapLocationScreen] Current location:', latitude, longitude);
-        
-        setMapRegion({
-          latitude,
-          longitude,
-          latitudeDelta: 0.005,
-          longitudeDelta: 0.005,
-        });
+
+        const region = { latitude, longitude, latitudeDelta: 0.005, longitudeDelta: 0.005 };
+        setMapRegion(region);
         setSelectedLocation({ latitude, longitude });
-        
-        // Animate to current location
-        mapRef.current?.animateToRegion({
-          latitude,
-          longitude,
-          latitudeDelta: 0.005,
-          longitudeDelta: 0.005,
-        }, 500);
+
+        mapRef.current?.animateToRegion(region, 500);
         
         reverseGeocode(latitude, longitude);
       } catch (error) {
         console.error('[MapLocationScreen] Error getting location:', error);
-        reverseGeocode(initialLat, initialLng);
+        if (initialLat !== null && initialLng !== null) {
+          reverseGeocode(initialLat, initialLng);
+        }
       } finally {
         setIsLoadingLocation(false);
       }
@@ -163,11 +148,7 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
   const handleMapPress = (event: any) => {
     const { latitude, longitude } = event.nativeEvent.coordinate;
     setSelectedLocation({ latitude, longitude });
-    setMapRegion((prev) => ({
-      ...prev,
-      latitude,
-      longitude,
-    }));
+    setMapRegion((prev) => prev ? { ...prev, latitude, longitude } : { latitude, longitude, latitudeDelta: 0.005, longitudeDelta: 0.005 });
     reverseGeocode(latitude, longitude);
   };
 
@@ -179,16 +160,22 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
 
     try {
       setIsSearching(true);
-      // Using Expo Location for geocoding
-      const results = await Location.geocodeAsync(query + ", Hyderabad, India");
+      const results = await Location.geocodeAsync(query);
 
-      const formattedResults = results.map((result, index) => ({
-        id: index.toString(),
-        title: query,
-        description: "Hyderabad, Telangana, India",
-        latitude: result.latitude,
-        longitude: result.longitude,
-      }));
+      const formattedResults = await Promise.all(
+        results.map(async (result, index) => {
+          let description = query;
+          try {
+            const rev = await Location.reverseGeocodeAsync({ latitude: result.latitude, longitude: result.longitude });
+            if (rev.length > 0) {
+              description = [rev[0].street, rev[0].district, rev[0].city, rev[0].region]
+                .filter(Boolean)
+                .join(", ") || query;
+            }
+          } catch {}
+          return { id: index.toString(), title: query, description, latitude: result.latitude, longitude: result.longitude };
+        })
+      );
 
       setSearchResults(formattedResults);
     } catch (error) {
@@ -227,14 +214,10 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
   };
 
   const handleConfirmLocation = () => {
+    if (!selectedLocation) return;
     if (onLocationConfirm) {
-      onLocationConfirm({
-        ...selectedLocation,
-        address: currentAddress,
-      });
+      onLocationConfirm({ ...selectedLocation, address: currentAddress });
     }
-
-    // Navigate to add address form
     router.push({
       pathname: "/location/add-address",
       params: {
@@ -316,11 +299,25 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
         </TouchableOpacity>
       </View>
 
+      {/* Permission denied state */}
+      {locationPermissionDenied && !mapRegion && (
+        <View style={styles.permissionDenied}>
+          <Ionicons name="location-outline" size={48} color="#9CA3AF" />
+          <Text style={styles.permissionTitle}>Location Access Required</Text>
+          <Text style={styles.permissionSubtitle}>
+            Please enable location permission to pick your delivery address on the map.
+          </Text>
+          <TouchableOpacity style={styles.permissionBtn} onPress={handleMyLocation}>
+            <Text style={styles.permissionBtnText}>Enable Location</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Loading overlay when fetching location */}
       {isLoadingLocation && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#48479B" />
-          <Text style={styles.loadingText}>Finding your location...</Text>
+          <ActivityIndicator size="large" color="#E53935" />
+          <Text style={styles.loadingText}>Finding your location…</Text>
         </View>
       )}
 
@@ -376,21 +373,32 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
       </Animated.View>
 
       {/* Map */}
+      {mapRegion && (
+      <>
       <View style={styles.mapContainer}>
         <MapView
           ref={mapRef}
           style={styles.map}
           region={mapRegion}
           onPress={handleMapPress}
-          onRegionChangeComplete={setMapRegion}
+          onRegionChangeComplete={(r) => setMapRegion(r)}
           showsUserLocation={true}
           showsMyLocationButton={false}
         >
+          {selectedLocation && (
           <Marker
             coordinate={selectedLocation}
             title="Selected Location"
             description={currentAddress}
+            draggable
+            onDragEnd={(e) => {
+              const { latitude, longitude } = e.nativeEvent.coordinate;
+              setSelectedLocation({ latitude, longitude });
+              setMapRegion((prev) => prev ? { ...prev, latitude, longitude } : { latitude, longitude, latitudeDelta: 0.005, longitudeDelta: 0.005 });
+              reverseGeocode(latitude, longitude);
+            }}
           />
+          )}
         </MapView>
 
         {/* Center Pin Overlay */}
@@ -416,6 +424,7 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
 
       {/* Address Info */}
       <View style={styles.addressInfoContainer}>
+
         <View style={styles.deliveryInfo}>
           <View style={styles.deliveryBadge}>
             <Text style={styles.deliveryText}>
@@ -428,19 +437,16 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
         </View>
 
         <View style={styles.addressDetails}>
-          <Text style={styles.addressTitle}>
-            {currentAddress || "Balaji Nagar Main Road"}
-          </Text>
-          <Text style={styles.addressSubtitle}>
-            Kukatpally, APHB Colony, Hyderabad
+          <Text style={styles.addressTitle} numberOfLines={2}>
+            {isLoadingAddress ? "Getting address…" : (currentAddress || "Move the pin to your location")}
           </Text>
         </View>
 
         {/* Confirm Button */}
         <TouchableOpacity
-          style={styles.confirmButton}
+          style={[styles.confirmButton, (!selectedLocation || isLoadingAddress) && styles.confirmButtonDisabled]}
           onPress={handleConfirmLocation}
-          disabled={isLoadingAddress}
+          disabled={!selectedLocation || isLoadingAddress}
         >
           {isLoadingAddress ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
@@ -449,6 +455,8 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
           )}
         </TouchableOpacity>
       </View>
+      </>
+      )}
     </SafeAreaView>
   );
 };
@@ -627,16 +635,57 @@ const styles = StyleSheet.create({
     color: "#8E8E93",
   },
   confirmButton: {
-    backgroundColor: "#FF3B30",
-    borderRadius: 12,
+    backgroundColor: "#E53935",
+    borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
+    elevation: 3,
+    shadowColor: "#E53935",
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  confirmButtonDisabled: {
+    backgroundColor: "#9CA3AF",
+    elevation: 0,
+    shadowOpacity: 0,
   },
   confirmButtonText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#FFFFFF",
+  },
+  permissionDenied: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+    gap: 12,
+  },
+  permissionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111",
+    textAlign: "center",
+  },
+  permissionSubtitle: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  permissionBtn: {
+    marginTop: 8,
+    backgroundColor: "#E53935",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+  },
+  permissionBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
   },
   loadingOverlay: {
     position: "absolute",

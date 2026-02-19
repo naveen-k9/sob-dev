@@ -167,6 +167,7 @@ export interface Subscription {
   kitchenStatusByDate?: Record<string, string>;
   /** Per-date delivery status: packaging | packaging_done | delivery_started | reached | delivery_done */
   deliveryStatusByDate?: Record<string, string>;
+  deliveryAckByDate?: Record<string, boolean>;
   /** Per-day log of kitchen/delivery status changes (date string -> log entries) */
   deliveryDayLogs?: Record<string, DeliveryDayLogEntry[]>;
 }

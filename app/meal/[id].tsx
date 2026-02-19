@@ -1071,11 +1071,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   mealName: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
+    fontSize: 26,
+    fontWeight: "900",
+    color: "#111",
     flex: 1,
     marginRight: 16,
+    letterSpacing: -0.5,
   },
   ratingContainer: {
     flexDirection: "row",
@@ -1103,9 +1104,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   price: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#48479B",
+    fontSize: 26,
+    fontWeight: "900",
+    color: "#E53935",
   },
   originalPrice: {
     fontSize: 18,
@@ -1155,8 +1156,8 @@ const styles = StyleSheet.create({
   },
   nutritionValue: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#48479B",
+    fontWeight: "900",
+    color: "#E53935",
   },
   nutritionLabel: {
     fontSize: 12,
@@ -1182,9 +1183,9 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
   },
   selectedMealType: {
-    color: "#48479B",
-    borderColor: "#48479B",
-    backgroundColor: "rgba(163, 211, 151, 0.27)",
+    color: "#E53935",
+    borderColor: "#E53935",
+    backgroundColor: "#FEF2F2",
   },
   mealTypeText: {
     fontSize: 14,
@@ -1203,14 +1204,14 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   selectedPlan: {
-    borderColor: "#48479B",
-    backgroundColor: "rgba(163, 211, 151, 0.27)",
+    borderColor: "#E53935",
+    backgroundColor: "#FEF2F2",
   },
   popularBadge: {
     position: "absolute",
     top: -8,
     right: 16,
-    backgroundColor: "#48479B",
+    backgroundColor: "#E53935",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -1603,15 +1604,21 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   proceedButton: {
-    backgroundColor: "#48479B",
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: "#E53935",
+    paddingVertical: 17,
+    borderRadius: 14,
     alignItems: "center",
+    elevation: 4,
+    shadowColor: "#E53935",
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
   },
   proceedButtonText: {
     color: "white",
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "800",
+    letterSpacing: 0.2,
   },
   drawerContainer: {
     flex: 1,

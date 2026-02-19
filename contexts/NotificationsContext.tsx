@@ -1,6 +1,7 @@
 import createContextHook from "@nkzw/create-context-hook";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform, Alert } from "react-native";
+import { router } from "expo-router";
 import * as Notifications from "expo-notifications";
 import db from "@/db";
 import { Notification } from "@/types";
@@ -15,7 +16,6 @@ import {
 // Configure notification behavior
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
     shouldShowBanner: true,
@@ -130,9 +130,29 @@ export const [NotificationsProvider, useNotifications] = createContextHook(
         if (token) {
           setExpoPushToken(token);
 
-          // Save token to user profile
-          if (user && token !== user.pushToken) {
-            await updateUser({ pushToken: token });
+          // Always save token if missing or changed
+          if (user && (!user.pushToken || token !== user.pushToken)) {
+            try {
+              await updateUser({ pushToken: token });
+              console.log("[PushNotif] Token saved for user:", user.id);
+            } catch (e) {
+              console.log("[PushNotif] Failed to save push token:", e);
+            }
+          }
+        } else if (user && !user.pushToken) {
+          // No token received – likely no permission. Request explicitly.
+          try {
+            const { status } = await Notifications.requestPermissionsAsync();
+            if (status === "granted") {
+              const retryToken = await registerForPushNotificationsAsync();
+              if (retryToken) {
+                setExpoPushToken(retryToken);
+                await updateUser({ pushToken: retryToken });
+                console.log("[PushNotif] Token saved on retry for user:", user.id);
+              }
+            }
+          } catch (e) {
+            console.log("[PushNotif] Token retry failed:", e);
           }
         }
 
@@ -156,11 +176,12 @@ export const [NotificationsProvider, useNotifications] = createContextHook(
 
             const data = response.notification.request.content.data;
 
-            // Handle navigation based on notification type
-            // You can integrate with your navigation here
-            if (data.screen) {
-              console.log("Navigate to:", data.screen);
-              // Example: navigation.navigate(data.screen as any);
+            if (data?.screen) {
+              try {
+                router.push(data.screen as any);
+              } catch (navErr) {
+                console.log("Push notification nav error:", navErr);
+              }
             }
           }
         );

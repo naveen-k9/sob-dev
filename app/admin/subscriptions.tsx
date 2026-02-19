@@ -311,7 +311,7 @@ function badgeColor(status: Subscription["status"]): string {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#0B1220" },
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
-  title: { color: "white", fontSize: 22, fontWeight: "700", marginBottom: 12 },
+  title: { color: "white", fontSize: 24, fontWeight: "900", marginBottom: 12 },
   filters: { marginBottom: 12 },
   searchBox: {
     backgroundColor: "rgba(255,255,255,0.08)",
@@ -348,10 +348,10 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 8,
   },
-  name: { color: "white", fontSize: 16, fontWeight: "600" },
-  subId: { color: "#9CA3AF", fontSize: 12 },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
-  badgeText: { color: "white", fontSize: 10, fontWeight: "700" },
+  name: { color: "white", fontSize: 16, fontWeight: "800" },
+  subId: { color: "#6B7280", fontSize: 11 },
+  badge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  badgeText: { color: "white", fontSize: 10, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5 },
   metaRow: { flexDirection: "row", alignItems: "center", marginTop: 4 },
   metaText: { marginLeft: 8, color: "#9CA3AF", fontSize: 14 },
   footer: {
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.1)",
   },
-  amount: { color: "#10B981", fontSize: 16, fontWeight: "700" },
+  amount: { color: "#10B981", fontSize: 17, fontWeight: "900" },
   paid: { color: "#9CA3AF", fontSize: 14 },
   badgeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   editIcon: { opacity: 0.8 },

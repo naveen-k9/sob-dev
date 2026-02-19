@@ -28,6 +28,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "@/contexts/LocationContext";
 import db from "@/db";
+import { notifySubscriptionUpdate } from "@/utils/notificationTemplates";
 import RazorpayCheckout from "react-native-razorpay";
 import { Colors } from "@/constants/colors";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -638,6 +639,19 @@ export default function CheckoutScreen() {
             createdSubscriptionId
           );
 
+          // Notify via push + WhatsApp
+          if (user?.id) {
+            notifySubscriptionUpdate(
+              { userId: user.id, name: user.name || "Customer", phone: user.phone || "", pushToken: user.pushToken },
+              {
+                planName: updatedDetails.plan?.name || "Meal Plan",
+                status: "activated",
+                startDate: new Date(updatedDetails.startDate).toLocaleDateString(),
+                endDate: updatedDetails.endDate ? new Date(updatedDetails.endDate).toLocaleDateString() : undefined,
+              }
+            ).catch(() => {});
+          }
+
           // Update wallet transaction with subscription ID if available
           if (
             createdSubscriptionId &&
@@ -784,6 +798,16 @@ export default function CheckoutScreen() {
           const createdSubscription = await db.createSubscription(subscription);
           createdSubscriptionId = createdSubscription.id;
           console.log("Subscription created with ID:", createdSubscriptionId);
+          if (user?.id) {
+            notifySubscriptionUpdate(
+              { userId: user.id, name: user.name || "Customer", phone: user.phone || "", pushToken: user.pushToken },
+              {
+                planName: subscriptionDetails?.plan?.name || "Meal Plan",
+                status: "activated",
+                startDate: new Date(subscriptionDetails?.startDate || Date.now()).toLocaleDateString(),
+              }
+            ).catch(() => {});
+          }
         } catch (error) {
           console.error("Error creating subscription:", error);
         }
@@ -906,6 +930,16 @@ export default function CheckoutScreen() {
       try {
         await db.createSubscription(subscription);
         console.log("Subscription created successfully on retry");
+        if (user?.id) {
+          notifySubscriptionUpdate(
+            { userId: user.id, name: user.name || "Customer", phone: user.phone || "", pushToken: user.pushToken },
+            {
+              planName: subscriptionDetails?.plan?.name || "Meal Plan",
+              status: "activated",
+              startDate: new Date(subscriptionDetails?.startDate || Date.now()).toLocaleDateString(),
+            }
+          ).catch(() => {});
+        }
       } catch (error) {
         console.error("Error creating subscription on retry:", error);
       }
@@ -1744,10 +1778,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: "700",
-    color: "#333",
-    marginBottom: 12,
+    color: "#111",
+    marginBottom: 10,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -1779,10 +1815,15 @@ const styles = StyleSheet.create({
   },
   addressCard: {
     backgroundColor: "white",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
   },
   addressContent: {
     flex: 1,
@@ -1812,8 +1853,13 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     backgroundColor: "white",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
   },
   summaryRow: {
     flexDirection: "row",
@@ -1851,9 +1897,9 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   totalValue: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#48479B",
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#E53935",
   },
   promoContainer: {
     flexDirection: "row",
@@ -1903,8 +1949,8 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
   },
   selectedPaymentMethod: {
-    borderColor: "#48479B",
-    backgroundColor: "rgba(163, 211, 151, 0.27)",
+    borderColor: "#E53935",
+    backgroundColor: "#FEF2F2",
   },
   walletRow: {
     backgroundColor: "white",
@@ -1916,8 +1962,8 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
   },
   walletRowActive: {
-    borderColor: "#48479B",
-    backgroundColor: "rgba(163, 211, 151, 0.27)",
+    borderColor: "#E53935",
+    backgroundColor: "#FEF2F2",
   },
   checkbox: {
     width: 22,
@@ -2001,15 +2047,21 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   placeOrderButton: {
-    backgroundColor: "#48479B",
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: "#E53935",
+    paddingVertical: 17,
+    borderRadius: 14,
     alignItems: "center",
+    elevation: 4,
+    shadowColor: "#E53935",
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
   },
   placeOrderButtonText: {
     color: "white",
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "800",
+    letterSpacing: 0.2,
   },
   placeOrderButtonDisabled: {
     backgroundColor: "#9CA3AF",

@@ -1,6 +1,5 @@
-import React from "react";
-import SelectLocationScreen from "@/components/SelectLocationScreen";
+import { Redirect } from "expo-router";
 
-export default function LocationSelectPage() {
-  return <SelectLocationScreen />;
+export default function LocationIndexPage() {
+  return <Redirect href="/location/select" />;
 }

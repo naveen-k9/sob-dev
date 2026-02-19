@@ -33,7 +33,7 @@ import {
   ArrowRight,
 } from "lucide-react-native";
 import { useAuth } from "@/contexts/AuthContext";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { getUserSubscriptions, addOns } from "@/constants/data";
 import { Subscription, Meal, AddOn, AppSettings, Order } from "@/types";
 import db from "@/db";
@@ -41,6 +41,8 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import RazorpayCheckout from "react-native-razorpay";
+import { sendAddonPurchaseNotification } from "@/services/whatsapp";
 
 interface CalendarDay {
   date: Date;
@@ -108,6 +110,7 @@ interface TodayOrder {
 
 export default function OrdersScreen() {
   const { user, isGuest } = useAuth();
+  const params = useLocalSearchParams<{ action?: string; subscriptionId?: string }>();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
@@ -184,19 +187,18 @@ export default function OrdersScreen() {
     }
   }, [user, mealsMap]);
 
-  // Debug logging
+  // Handle deep-link from TodayMealSlider "Add Items" button
   useEffect(() => {
-    console.log("=== DEBUG INFO ===");
-    console.log("selectedDateDelivery:", selectedDateDelivery);
-    console.log("selectedDate:", selectedDate.toDateString());
-    console.log("appSettings:", appSettings);
-    console.log("userSubscriptions:", userSubscriptions.length);
-    if (selectedDateDelivery) {
-      console.log("canSkip:", selectedDateDelivery.canSkip);
-      console.log("canAddItems:", selectedDateDelivery.canAddItems);
+    if (params.action === "addItems" && params.subscriptionId && userSubscriptions.length > 0) {
+      const sub = userSubscriptions.find((s) => s.id === params.subscriptionId);
+      if (sub) {
+        setSelectedPlanId(sub.id);
+        setSelectedDate(new Date());
+        setSelectedAddOns([]);
+        setShowAddOnModal(true);
+      }
     }
-    console.log("==================");
-  }, [selectedDateDelivery, selectedDate, appSettings, userSubscriptions]);
+  }, [params.action, params.subscriptionId, userSubscriptions]);
 
   const loadUserSubscriptions = async () => {
     if (user) {
@@ -735,43 +737,120 @@ export default function OrdersScreen() {
   };
 
   const handleConfirmAddOns = async () => {
-    if (!selectedDateDelivery?.subscription || selectedAddOns.length === 0) {
+    const subscription =
+      selectedDateDelivery?.subscription ||
+      userSubscriptions.find((s) => s.id === selectedPlanId);
+
+    if (!subscription || selectedAddOns.length === 0) {
       Alert.alert("Error", "Please select at least one add-on");
       return;
     }
-    setShowPaymentModal(true);
-    setPaymentStatus("processing");
-    setTimeout(async () => {
-      const success = Math.random() > 0.1;
-      if (!user?.id) {
+    if (!user?.id) {
+      Alert.alert("Error", "You must be logged in to add items");
+      return;
+    }
+
+    const total = getSelectedAddOnsTotal();
+    const dateString = selectedDate.toISOString().split("T")[0];
+
+    // --- Razorpay payment ---
+    try {
+      setShowPaymentModal(true);
+      setPaymentStatus("processing");
+
+      const razorpayKey =
+        process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID ?? "rzp_test_RFSonKoJy6tEEL";
+
+      // 1. Create server-side Razorpay order
+      const orderResp = await fetch(
+        "https://sameoldbox.com/wp-json/razorpay/v1/create-order",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: Math.round(total * 100),
+            currency: "INR",
+            receipt: `addon_${subscription.id}_${Date.now()}`,
+            notes: { description: `Add-ons for ${dateString}` },
+          }),
+        }
+      );
+
+      if (!orderResp.ok) {
         setPaymentStatus("failed");
+        Alert.alert("Payment Error", "Could not create payment order. Please try again.");
         return;
       }
-      if (success) {
-        try {
-          const dateString = selectedDate.toISOString().split("T")[0];
-          await db.purchaseAddOnsForDate(
-            selectedDateDelivery!.subscription!.id,
-            dateString,
-            selectedAddOns,
-            user.id
-          );
-          await loadUserSubscriptions();
-          loadSelectedDateDelivery();
-          setPaymentStatus("success");
-          setTimeout(() => {
-            setShowPaymentModal(false);
-            setShowAddOnModal(false);
-            setSelectedAddOns([]);
-          }, 1500);
-        } catch (error) {
-          console.error("Error purchasing add-ons:", error);
+
+      const orderData = await orderResp.json();
+
+      // 2. Open Razorpay checkout
+      const options = {
+        description: `Add-ons for ${dateString}`,
+        image: "https://i.imgur.com/3g7nmJC.jpg",
+        currency: "INR",
+        key: razorpayKey,
+        amount: `${Math.round(total * 100)}`,
+        name: "SOB",
+        order_id: orderData.id,
+        prefill: {
+          email: user.email ?? "",
+          contact: user.phone ?? "",
+          name: user.name ?? "Customer",
+        },
+        theme: { color: "#E53935" },
+      };
+
+      RazorpayCheckout.open(options)
+        .then(async (data: { razorpay_payment_id: string }) => {
+          // 3. Save add-ons in DB
+          try {
+            await db.purchaseAddOnsForDate(
+              subscription.id,
+              dateString,
+              selectedAddOns,
+              user.id
+            );
+
+            // 4. Send WhatsApp notification
+            if (user.phone) {
+              const addonNames = selectedAddOns.map((id) => {
+                const a = availableAddOns.find((ao) => ao.id === id);
+                return a?.name ?? id;
+              });
+              sendAddonPurchaseNotification(user.phone, {
+                customerName: user.name ?? "Customer",
+                addonNames,
+                date: new Date(dateString).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "long",
+                }),
+                totalAmount: String(total),
+                subscriptionId: subscription.id,
+              }).catch((e) => console.log("[WhatsApp addon] error:", e));
+            }
+
+            await loadUserSubscriptions();
+            loadSelectedDateDelivery();
+            setPaymentStatus("success");
+            setTimeout(() => {
+              setShowPaymentModal(false);
+              setShowAddOnModal(false);
+              setSelectedAddOns([]);
+            }, 1500);
+          } catch (err) {
+            console.error("Error saving add-ons after payment:", err);
+            setPaymentStatus("failed");
+          }
+        })
+        .catch((error: any) => {
+          console.log("[Razorpay addon] cancelled/failed:", error);
           setPaymentStatus("failed");
-        }
-      } else {
-        setPaymentStatus("failed");
-      }
-    }, 2000);
+        });
+    } catch (e) {
+      console.error("handleConfirmAddOns error:", e);
+      setPaymentStatus("failed");
+    }
   };
 
   const renderCalendarDay = (day: CalendarDay, index: number) => {
@@ -1060,27 +1139,6 @@ export default function OrdersScreen() {
           );
         })()}
 
-        {/* Debug Info - Remove in production */}
-        {__DEV__ && (
-          <View style={styles.debugInfo}>
-            <Text style={styles.debugText}>Debug Info:</Text>
-            <Text style={styles.debugText}>
-              canSkip: {selectedDateDelivery.canSkip ? "true" : "false"}
-            </Text>
-            <Text style={styles.debugText}>
-              canAddItems: {selectedDateDelivery.canAddItems ? "true" : "false"}
-            </Text>
-            <Text style={styles.debugText}>
-              Current Time: {new Date().toTimeString()}
-            </Text>
-            <Text style={styles.debugText}>
-              Skip Cutoff: {appSettings?.skipCutoffTime || "N/A"}
-            </Text>
-            <Text style={styles.debugText}>
-              AddOn Cutoff: {appSettings?.addOnCutoffTime || "N/A"}
-            </Text>
-          </View>
-        )}
       </View>
     );
   };
@@ -1738,8 +1796,9 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: "#48479B",
-    paddingVertical: 24,
+    paddingVertical: 20,
     paddingHorizontal: 20,
+    paddingBottom: 24,
   },
   headerContent: {
     alignItems: "center",
@@ -1750,14 +1809,15 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
+    fontSize: 26,
+    fontWeight: "900",
     color: "white",
-    marginLeft: 12,
+    marginLeft: 10,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 16,
-    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.75)",
     fontWeight: "500",
   },
   legend: {
@@ -2003,9 +2063,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   deliveryTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#111827",
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#111",
     marginBottom: 4,
   },
   deliveryStatus: {
@@ -2037,17 +2097,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   addOnChip: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#FEF3C7",
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#FDE68A",
   },
   addOnChipText: {
-    fontSize: 13,
-    color: "#4B5563",
-    fontWeight: "500",
+    fontSize: 12,
+    color: "#92400E",
+    fontWeight: "700",
   },
   addOnsText: {
     fontSize: 14,
