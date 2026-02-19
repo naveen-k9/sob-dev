@@ -9,6 +9,8 @@ import {
   Alert,
   FlatList,
   RefreshControl,
+  TextInput,
+  Image,
 } from "react-native";
 import {
   ShoppingBag,
@@ -22,15 +24,12 @@ import {
   Calendar,
   MapPin,
   X,
-  CalendarDays,
-  Sparkles,
   Package,
   ChefHat,
-  Navigation,
-  Phone,
-  Eye,
-  Filter,
-  ArrowRight,
+  ArrowLeft,
+  Pencil,
+  Wallet,
+  CreditCard,
 } from "lucide-react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { router, useLocalSearchParams } from "expo-router";
@@ -84,32 +83,9 @@ interface DeliveryDetails {
   address?: string;
 }
 
-interface TodayOrder {
-  id: string;
-  subscriptionId: string;
-  customerName: string;
-  customerPhone: string;
-  mealName: string;
-  mealImage?: string;
-  addOns: string[];
-  deliveryTime: string;
-  status:
-    | "cooking_started"
-    | "cooking_done"
-    | "ready_for_delivery"
-    | "packaging_done"
-    | "delivery_started"
-    | "reached"
-    | "delivery_done";
-  kitchenStaff?: string;
-  deliveryPerson?: string;
-  address?: string;
-  estimatedTime?: string;
-  orderDate: string;
-}
 
 export default function OrdersScreen() {
-  const { user, isGuest } = useAuth();
+  const { user, isGuest, updateUser } = useAuth();
   const params = useLocalSearchParams<{ action?: string; subscriptionId?: string }>();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -125,18 +101,14 @@ export default function OrdersScreen() {
   const [availableAddOns, setAvailableAddOns] = useState<AddOn[]>([]);
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-  const [todayOrders, setTodayOrders] = useState<TodayOrder[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [viewMode, setViewMode] = useState<"calendar" | "today">("today");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
   const [paymentStatus, setPaymentStatus] = useState<
     "processing" | "success" | "failed" | null
   >(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
-    "upi" | "card" | "wallet"
-  >("upi");
   const [mealsMap, setMealsMap] = useState<Record<string, Meal>>({});
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [editingPlanNames, setEditingPlanNames] = useState<Record<string, string>>({});
 
   const handleLoginPrompt = () => {
     router.push("/auth/login");
@@ -161,7 +133,6 @@ export default function OrdersScreen() {
       loadUserSubscriptions();
       loadAppSettings();
       loadAvailableAddOns();
-      loadTodayOrders();
     }
   }, [user]);
 
@@ -179,13 +150,6 @@ export default function OrdersScreen() {
       loadSelectedDateDelivery();
     }
   }, [user, currentDate, userSubscriptions, selectedDate, selectedPlanId, mealsMap]);
-
-  // Re-load today orders when meals map is populated so meal names resolve correctly
-  useEffect(() => {
-    if (user && Object.keys(mealsMap).length > 0) {
-      loadTodayOrders();
-    }
-  }, [user, mealsMap]);
 
   // Handle deep-link from TodayMealSlider "Add Items" button
   useEffect(() => {
@@ -277,106 +241,72 @@ export default function OrdersScreen() {
     }
   };
 
-  const loadTodayOrders = async () => {
-    try {
-      const subscriptions = await db.getAllSubscriptions();
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayString = today.toISOString().split("T")[0];
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([loadMealsMap(), loadUserSubscriptions(), loadAppSettings()]);
+    setRefreshing(false);
+  };
 
-      const orders: TodayOrder[] = [];
+  // ── Plan name helpers ────────────────────────────────────────────────────
+  const getPlanDisplayName = (sub: Subscription, index: number): string => {
+    if (editingPlanNames[sub.id] !== undefined) return editingPlanNames[sub.id];
+    // Use stored planName only if it's not just the auto-generated "X Day Plan"
+    if (sub.planName && !/^\d+ Day Plan$/.test(sub.planName.trim())) {
+      return sub.planName;
+    }
+    const baseName = sub.customerName || user?.name || "User";
+    return `${baseName}'s Plan ${index + 1}`;
+  };
 
-      for (const subscription of subscriptions) {
-        if (subscription.status !== "active") continue;
-
-        const subStart = new Date(subscription.startDate);
-        const subEnd = new Date(subscription.endDate);
-        subStart.setHours(0, 0, 0, 0);
-        subEnd.setHours(0, 0, 0, 0);
-
-        // Check if today is within subscription period
-        if (today >= subStart && today <= subEnd) {
-          const isSkipped =
-            subscription.skippedDates?.includes(todayString) || false;
-
-          if (isWeekendExcludedForDate(today, subscription)) continue;
-          if (isSkipped) continue;
-
-          // Get meal details from db (correct per meal id)
-          let meal = mealsMap[subscription.mealId];
-          if (!meal) {
-            meal = await db.getMealById(subscription.mealId) ?? undefined;
-          }
-          if (!meal) continue;
-
-          // Get add-ons
-          const subscriptionAddOns = subscription.addOns || [];
-          const additionalAddOnsForDate =
-            subscription.additionalAddOns?.[todayString] || [];
-          const allAddOnIds = [
-            ...subscriptionAddOns,
-            ...additionalAddOnsForDate,
-          ];
-          const addOnSource = availableAddOns.length > 0 ? availableAddOns : addOns;
-          const addOnNames = allAddOnIds
-            .map((addOnId) => {
-              const addOn = addOnSource.find((a) => a.id === addOnId);
-              return addOn ? addOn.name : "";
-            })
-            .filter(Boolean);
-
-          // Determine status based on time and random assignment for demo
-          const currentHour = new Date().getHours();
-          let status: TodayOrder["status"] = "cooking_started";
-
-          if (currentHour >= 11) status = "cooking_done";
-          if (currentHour >= 12) status = "ready_for_delivery";
-          if (currentHour >= 13) status = "delivery_started";
-          if (currentHour >= 14) status = "delivery_done";
-
-          const order: TodayOrder = {
-            id: `order-${subscription.id}-${todayString}`,
-            subscriptionId: subscription.id,
-            customerName: subscription.customerName || "Customer",
-            customerPhone: subscription.phone || "+91 98765 43210",
-            mealName: meal.name,
-            mealImage: meal.images[0],
-            addOns: addOnNames,
-            deliveryTime:
-              subscription.deliveryTimeSlot ||
-              subscription.deliveryTime ||
-              "12:00 PM - 1:00 PM",
-            status,
-            kitchenStaff: subscription.assignedKitchenId
-              ? "Chef Ramesh"
-              : undefined,
-            deliveryPerson: subscription.assignedDeliveryId
-              ? "Ravi Kumar"
-              : undefined,
-            address: "Koramangala, Bangalore",
-            estimatedTime: "12:30 PM",
-            orderDate: todayString,
-          };
-
-          orders.push(order);
-        }
+  const handleSavePlanName = async (subId: string) => {
+    const name = editingPlanNames[subId];
+    if (name !== undefined && name.trim()) {
+      try {
+        await db.updateSubscription(subId, { planName: name.trim() });
+        await loadUserSubscriptions();
+      } catch (e) {
+        console.error("Error updating plan name:", e);
       }
+    }
+    setEditingPlanId(null);
+  };
 
-      setTodayOrders(orders);
-    } catch (error) {
-      console.error("Error loading today orders:", error);
+  const getAddOnByName = (name: string): AddOn | undefined =>
+    (availableAddOns.length > 0 ? availableAddOns : addOns).find(
+      (a) => a.name === name
+    );
+
+  const getDeliveryStatusColor = (status: DeliveryDetails["status"]): string => {
+    switch (status) {
+      case "delivered":
+      case "delivery_done": return "#10B981";
+      case "out_for_delivery":
+      case "delivery_started":
+      case "reached": return "#48479B";
+      case "cooking_started":
+      case "preparing": return "#F59E0B";
+      case "cooking_done":
+      case "ready_for_delivery":
+      case "packaging_done": return "#06B6D4";
+      default: return "#6B7280";
     }
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await Promise.all([
-      loadMealsMap(),
-      loadUserSubscriptions(),
-      loadTodayOrders(),
-      loadAppSettings(),
-    ]);
-    setRefreshing(false);
+  const getDeliveryStatusLabel = (status: DeliveryDetails["status"]): string => {
+    switch (status) {
+      case "delivered":
+      case "delivery_done": return "Delivered";
+      case "out_for_delivery": return "Out for Delivery";
+      case "delivery_started": return "On the Way";
+      case "reached": return "Nearby";
+      case "cooking_started": return "Cooking";
+      case "cooking_done": return "Cooked";
+      case "ready_for_delivery": return "Ready";
+      case "packaging_done": return "Packed";
+      case "preparing": return "Preparing";
+      case "scheduled": return "Scheduled";
+      default: return "Scheduled";
+    }
   };
 
   const loadSelectedDateDelivery = () => {
@@ -736,11 +666,76 @@ export default function OrdersScreen() {
     });
   };
 
+  const _saveAddOnsAfterPayment = async (
+    subscription: Subscription,
+    dateString: string,
+    total: number
+  ) => {
+    await db.purchaseAddOnsForDate(subscription.id, dateString, selectedAddOns, user!.id);
+    if (user?.phone) {
+      const addonNames = selectedAddOns.map((id) => {
+        const a = availableAddOns.find((ao) => ao.id === id);
+        return a?.name ?? id;
+      });
+      sendAddonPurchaseNotification(user.phone, {
+        customerName: user.name ?? "Customer",
+        addonNames,
+        date: new Date(dateString).toLocaleDateString("en-IN", { day: "numeric", month: "long" }),
+        totalAmount: String(total),
+        subscriptionId: subscription.id,
+      }).catch((e) => console.log("[WhatsApp addon] error:", e));
+    }
+    await loadUserSubscriptions();
+    loadSelectedDateDelivery();
+    setPaymentStatus("success");
+    setTimeout(() => {
+      setShowPaymentModal(false);
+      setShowAddOnModal(false);
+      setSelectedAddOns([]);
+    }, 1500);
+  };
+
+  const handleWalletPayment = async () => {
+    const subscription =
+      selectedDateDelivery?.subscription ||
+      userSubscriptions.find((s) => s.id === selectedPlanId);
+    if (!subscription || selectedAddOns.length === 0 || !user?.id) return;
+
+    const total = getSelectedAddOnsTotal();
+    const walletBal = user.walletBalance ?? 0;
+    if (walletBal < total) {
+      Alert.alert(
+        "Insufficient Balance",
+        `Your wallet balance (₹${walletBal.toFixed(2)}) is less than the total (₹${total}).`
+      );
+      return;
+    }
+
+    setShowPaymentModal(true);
+    setPaymentStatus("processing");
+    const dateString = selectedDate.toISOString().split("T")[0];
+    try {
+      await db.addWalletTransaction({
+        userId: user.id,
+        type: "debit",
+        amount: total,
+        description: `Add-ons for ${dateString}`,
+        orderId: subscription.id,
+        referenceId: `addon_wallet_${subscription.id}_${Date.now()}`,
+      });
+      // Reflect updated balance in auth context
+      if (updateUser) updateUser({ walletBalance: walletBal - total });
+      await _saveAddOnsAfterPayment(subscription, dateString, total);
+    } catch (err: any) {
+      console.error("Wallet payment error:", err);
+      setPaymentStatus("failed");
+    }
+  };
+
   const handleConfirmAddOns = async () => {
     const subscription =
       selectedDateDelivery?.subscription ||
       userSubscriptions.find((s) => s.id === selectedPlanId);
-
     if (!subscription || selectedAddOns.length === 0) {
       Alert.alert("Error", "Please select at least one add-on");
       return;
@@ -753,15 +748,11 @@ export default function OrdersScreen() {
     const total = getSelectedAddOnsTotal();
     const dateString = selectedDate.toISOString().split("T")[0];
 
-    // --- Razorpay payment ---
+    setShowPaymentModal(true);
+    setPaymentStatus("processing");
     try {
-      setShowPaymentModal(true);
-      setPaymentStatus("processing");
-
       const razorpayKey =
         process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID ?? "rzp_test_RFSonKoJy6tEEL";
-
-      // 1. Create server-side Razorpay order
       const orderResp = await fetch(
         "https://sameoldbox.com/wp-json/razorpay/v1/create-order",
         {
@@ -778,13 +769,10 @@ export default function OrdersScreen() {
 
       if (!orderResp.ok) {
         setPaymentStatus("failed");
-        Alert.alert("Payment Error", "Could not create payment order. Please try again.");
         return;
       }
 
       const orderData = await orderResp.json();
-
-      // 2. Open Razorpay checkout
       const options = {
         description: `Add-ons for ${dateString}`,
         image: "https://i.imgur.com/3g7nmJC.jpg",
@@ -802,42 +790,9 @@ export default function OrdersScreen() {
       };
 
       RazorpayCheckout.open(options)
-        .then(async (data: { razorpay_payment_id: string }) => {
-          // 3. Save add-ons in DB
+        .then(async () => {
           try {
-            await db.purchaseAddOnsForDate(
-              subscription.id,
-              dateString,
-              selectedAddOns,
-              user.id
-            );
-
-            // 4. Send WhatsApp notification
-            if (user.phone) {
-              const addonNames = selectedAddOns.map((id) => {
-                const a = availableAddOns.find((ao) => ao.id === id);
-                return a?.name ?? id;
-              });
-              sendAddonPurchaseNotification(user.phone, {
-                customerName: user.name ?? "Customer",
-                addonNames,
-                date: new Date(dateString).toLocaleDateString("en-IN", {
-                  day: "numeric",
-                  month: "long",
-                }),
-                totalAmount: String(total),
-                subscriptionId: subscription.id,
-              }).catch((e) => console.log("[WhatsApp addon] error:", e));
-            }
-
-            await loadUserSubscriptions();
-            loadSelectedDateDelivery();
-            setPaymentStatus("success");
-            setTimeout(() => {
-              setShowPaymentModal(false);
-              setShowAddOnModal(false);
-              setSelectedAddOns([]);
-            }, 1500);
+            await _saveAddOnsAfterPayment(subscription, dateString, total);
           } catch (err) {
             console.error("Error saving add-ons after payment:", err);
             setPaymentStatus("failed");
@@ -967,115 +922,141 @@ export default function OrdersScreen() {
 
       return (
         <View style={styles.noDeliveryContainer}>
-          <Text style={styles.noDeliveryText}>
-            No orders scheduled for this day
-          </Text>
+          <Package size={40} color="#D1D5DB" />
+          <Text style={styles.noDeliveryText}>No delivery on this day</Text>
           {canAddProducts && (
-            <TouchableOpacity
-              style={styles.addProductButton}
-              onPress={handleAddMeal}
-            >
-              <Text style={styles.addProductButtonText}>Add Products</Text>
+            <TouchableOpacity style={styles.addProductButton} onPress={handleAddMeal}>
+              <Plus size={16} color="#fff" />
+              <Text style={styles.addProductButtonText}>Add Items</Text>
             </TouchableOpacity>
           )}
         </View>
       );
     }
 
+    const statusColor = getDeliveryStatusColor(selectedDateDelivery.status);
+    const statusLabel = getDeliveryStatusLabel(selectedDateDelivery.status);
+    const meal = selectedDateDelivery.subscription
+      ? mealsMap[selectedDateDelivery.subscription.mealId]
+      : null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selDay = new Date(selectedDate);
+    selDay.setHours(0, 0, 0, 0);
+    const isToday = selDay.getTime() === today.getTime();
+    const currentHour = new Date().getHours();
+    const cookingStarted =
+      isToday && currentHour >= 8 && selectedDateDelivery.status !== "scheduled";
+
     return (
-      <View style={styles.deliveryContainer}>
-        <View style={styles.deliveryHeader}>
-          <View style={styles.mealInfo}>
-            {selectedDateDelivery.mealImage && (
-              <View style={styles.mealImageContainer}>
-                <Text style={styles.mealImagePlaceholder}>🍽️</Text>
+      <View style={styles.richDeliveryCard}>
+        {/* Status stripe */}
+        <View style={[styles.richStatusStripe, { backgroundColor: statusColor }]} />
+
+        <View style={styles.richCardBody}>
+          {/* Top: meal image + name + status badge */}
+          <View style={styles.richCardTopRow}>
+            {meal?.images?.[0] ? (
+              <Image
+                source={{ uri: meal.images[0] }}
+                style={styles.richMealImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[styles.richMealImage, styles.richMealImagePlaceholder]}>
+                <Text style={{ fontSize: 28 }}>🍽️</Text>
               </View>
             )}
-            <View style={styles.mealDetails}>
-              <Text style={styles.deliveryTitle}>
+            <View style={styles.richMealInfo}>
+              <Text style={styles.richMealName} numberOfLines={2}>
                 {selectedDateDelivery.mealName}
               </Text>
-              <Text style={styles.deliveryTime}>
-                {selectedDateDelivery.deliveryTime}
+              <View style={styles.richTimeRow}>
+                <Clock size={13} color="#9CA3AF" />
+                <Text style={styles.richDeliveryTime}>
+                  {selectedDateDelivery.deliveryTime}
+                </Text>
+              </View>
+              {selectedDateDelivery.subscription?.customerName && (
+                <Text style={styles.richCustomerName}>
+                  For: {selectedDateDelivery.subscription.customerName}
+                </Text>
+              )}
+            </View>
+            <View style={[styles.richStatusBadge, { backgroundColor: statusColor + "22" }]}>
+              <View style={[styles.richStatusDot, { backgroundColor: statusColor }]} />
+              <Text style={[styles.richStatusText, { color: statusColor }]}>
+                {statusLabel}
               </Text>
             </View>
           </View>
-          <View style={styles.deliveryStatus}>
-            {selectedDateDelivery.status === "delivered" && (
-              <CheckCircle size={20} color="#10B981" />
-            )}
-            {selectedDateDelivery.status === "out_for_delivery" && (
-              <Truck size={20} color="#48479B" />
-            )}
-            {selectedDateDelivery.status === "preparing" && (
-              <Clock size={20} color="#F59E0B" />
-            )}
-            {selectedDateDelivery.status === "scheduled" && (
-              <Calendar size={20} color="#6B7280" />
-            )}
-            <Text style={styles.deliveryStatusText}>
-              {selectedDateDelivery.status === "delivered" && "Delivered"}
-              {selectedDateDelivery.status === "out_for_delivery" &&
-                "Out for Delivery"}
-              {selectedDateDelivery.status === "preparing" && "Preparing"}
-              {selectedDateDelivery.status === "scheduled" && "Scheduled"}
-            </Text>
-          </View>
-        </View>
 
-        {selectedDateDelivery.addOns.length > 0 && (
-          <View style={styles.addOnsContainer}>
-            <Text style={styles.addOnsTitle}>Add-ons:</Text>
-            <View style={styles.addOnsListContainer}>
-              {selectedDateDelivery.addOns.map((addOnName, index) => (
-                <View key={index} style={styles.addOnChip}>
-                  <Text style={styles.addOnChipText}>• {addOnName}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {selectedDateDelivery.status === "out_for_delivery" &&
-          selectedDateDelivery.deliveryPerson && (
-            <View style={styles.trackingContainer}>
-              <MapPin size={16} color="#6B7280" />
-              <Text style={styles.trackingText}>
-                {selectedDateDelivery.deliveryPerson} • ETA:{" "}
-                {selectedDateDelivery.estimatedTime}
-              </Text>
+          {/* Add-ons with images */}
+          {selectedDateDelivery.addOns.length > 0 && (
+            <View style={styles.richAddOnsSection}>
+              <Text style={styles.richAddOnsLabel}>Add-ons</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.richAddOnsScroll}
+              >
+                {selectedDateDelivery.addOns.map((name, i) => {
+                  const ao = getAddOnByName(name);
+                  return (
+                    <View key={i} style={styles.richAddOnChip}>
+                      {ao?.image ? (
+                        <Image
+                          source={{ uri: ao.image }}
+                          style={styles.richAddOnImage}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={[styles.richAddOnImage, styles.richAddOnImagePlaceholder]}>
+                          <Text style={{ fontSize: 14 }}>🥗</Text>
+                        </View>
+                      )}
+                      <Text style={styles.richAddOnName} numberOfLines={1}>
+                        {name}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
             </View>
           )}
 
-        {selectedDateDelivery.subscription && (
-          <View style={styles.subscriptionInfo}>
-            <Text style={styles.subscriptionTitle}>Subscription Details</Text>
-            <Text style={styles.subscriptionText}>
-              Plan:{" "}
-              {selectedDateDelivery.subscription.planName || "Custom Plan"}
-            </Text>
-            <Text style={styles.subscriptionText}>
-              Duration: {selectedDateDelivery.subscription.duration} days
-            </Text>
-            {weekendExclusionLabel(selectedDateDelivery.subscription) && (
-              <Text style={styles.subscriptionText}>
-                {weekendExclusionLabel(selectedDateDelivery.subscription)}
-              </Text>
-            )}
-          </View>
-        )}
+          {/* Delivery / kitchen staff */}
+          {(selectedDateDelivery.deliveryPerson || selectedDateDelivery.subscription?.assignedKitchenId) && (
+            <View style={styles.richStaffRow}>
+              {selectedDateDelivery.subscription?.assignedKitchenId && (
+                <View style={styles.richStaffItem}>
+                  <ChefHat size={13} color="#9CA3AF" />
+                  <Text style={styles.richStaffText}>Chef Ramesh</Text>
+                </View>
+              )}
+              {selectedDateDelivery.deliveryPerson && (
+                <View style={styles.richStaffItem}>
+                  <Truck size={13} color="#9CA3AF" />
+                  <Text style={styles.richStaffText}>
+                    {selectedDateDelivery.deliveryPerson}
+                    {selectedDateDelivery.estimatedTime
+                      ? ` • ETA ${selectedDateDelivery.estimatedTime}`
+                      : ""}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
 
-        {/* Cutoff Time Information - Enhanced with utility */}
-        {appSettings &&
-          (selectedDateDelivery.canSkip ||
-            selectedDateDelivery.canAddItems) && (() => {
+          {/* Cutoff hint */}
+          {appSettings && (selectedDateDelivery.canSkip || selectedDateDelivery.canAddItems) && (() => {
             const { canSkipMeal, canModifyAddOns, getCutoffMessage } = require("@/utils/cutoffTimeUtils");
             const skipResult = canSkipMeal(selectedDate, appSettings);
             const addOnResult = canModifyAddOns(selectedDate, appSettings);
-            
             return (
               <View style={styles.cutoffInfo}>
-                <Clock size={14} color="#6B7280" />
+                <Clock size={12} color="#9CA3AF" />
                 <Text style={styles.cutoffText}>
                   {skipResult.canProceed && getCutoffMessage(skipResult, "skip")}
                   {skipResult.canProceed && addOnResult.canProceed && " • "}
@@ -1085,136 +1066,45 @@ export default function OrdersScreen() {
             );
           })()}
 
-        {/* Action Buttons - Enhanced with better state management */}
-        {(() => {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const selectedDateCopy = new Date(selectedDate);
-          selectedDateCopy.setHours(0, 0, 0, 0);
-          const isToday = selectedDateCopy.getTime() === today.getTime();
-          const currentHour = new Date().getHours();
-          
-          // Check if cooking has started
-          const cookingStarted = isToday && currentHour >= 8 && selectedDateDelivery.status !== "scheduled";
-          
-          return (
-            <View style={styles.deliveryActions}>
-              {selectedDateDelivery.canSkip ? (
-                <TouchableOpacity
-                  style={[styles.skipButton, cookingStarted && styles.buttonDisabled]}
-                  onPress={handleSkipMeal}
-                  testID="skip-meal-button"
-                  disabled={cookingStarted}
-                >
-                  <XCircle size={16} color={cookingStarted ? "#9CA3AF" : "#EF4444"} />
-                  <Text style={[styles.skipButtonText, cookingStarted && styles.buttonTextDisabled]}>
-                    {cookingStarted ? "Cannot Skip" : "Skip Meal"}
-                  </Text>
-                </TouchableOpacity>
-              ) : !cookingStarted && (
-                <View style={styles.disabledActionInfo}>
-                  <Text style={styles.disabledActionText}>
-                    Skip cut-off time has passed
-                  </Text>
-                </View>
-              )}
+          {/* Action buttons */}
+          <View style={styles.richActionRow}>
+            {selectedDateDelivery.canSkip ? (
+              <TouchableOpacity
+                style={[styles.richSkipBtn, cookingStarted && styles.richBtnDisabled]}
+                onPress={handleSkipMeal}
+                testID="skip-meal-button"
+                disabled={cookingStarted}
+              >
+                <XCircle size={15} color={cookingStarted ? "#9CA3AF" : "#EF4444"} />
+                <Text style={[styles.richSkipBtnText, cookingStarted && { color: "#9CA3AF" }]}>
+                  {cookingStarted ? "Can't Skip" : "Skip Meal"}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.richDisabledNote}>
+                <Text style={styles.richDisabledNoteText}>Skip cut-off passed</Text>
+              </View>
+            )}
 
-              {selectedDateDelivery.canAddItems ? (
-                <TouchableOpacity
-                  style={styles.addButton}
-                  onPress={handleAddMeal}
-                  testID="add-items-button"
-                >
-                  <Plus size={16} color="#48479B" />
-                  <Text style={styles.addButtonText}>Add Items</Text>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.disabledActionInfo}>
-                  <Text style={styles.disabledActionText}>
-                    Add-on cut-off time has passed
-                  </Text>
-                </View>
-              )}
-            </View>
-          );
-        })()}
-
+            {selectedDateDelivery.canAddItems ? (
+              <TouchableOpacity
+                style={styles.richAddBtn}
+                onPress={handleAddMeal}
+                testID="add-items-button"
+              >
+                <Plus size={15} color="#fff" />
+                <Text style={styles.richAddBtnText}>Add Items</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.richDisabledNote}>
+                <Text style={styles.richDisabledNoteText}>Add-on cut-off passed</Text>
+              </View>
+            )}
+          </View>
+        </View>
       </View>
     );
   };
-
-  const getTodayOrderStatusColor = (status: TodayOrder["status"]) => {
-    switch (status) {
-      case "cooking_started":
-        return "#F59E0B";
-      case "cooking_done":
-        return "#10B981";
-      case "ready_for_delivery":
-        return "#48479B";
-      case "packaging_done":
-        return "#8B5CF6";
-      case "delivery_started":
-        return "#06B6D4";
-      case "reached":
-        return "#84CC16";
-      case "delivery_done":
-        return "#22C55E";
-      default:
-        return "#6B7280";
-    }
-  };
-
-  const getStatusIcon = (status: TodayOrder["status"]) => {
-    switch (status) {
-      case "cooking_started":
-        return <ChefHat size={16} color={getTodayOrderStatusColor(status)} />;
-      case "cooking_done":
-        return (
-          <CheckCircle size={16} color={getTodayOrderStatusColor(status)} />
-        );
-      case "ready_for_delivery":
-        return <Package size={16} color={getTodayOrderStatusColor(status)} />;
-      case "packaging_done":
-        return <Package size={16} color={getTodayOrderStatusColor(status)} />;
-      case "delivery_started":
-        return <Truck size={16} color={getTodayOrderStatusColor(status)} />;
-      case "reached":
-        return (
-          <Navigation size={16} color={getTodayOrderStatusColor(status)} />
-        );
-      case "delivery_done":
-        return (
-          <CheckCircle size={16} color={getTodayOrderStatusColor(status)} />
-        );
-      default:
-        return <Clock size={16} color={getTodayOrderStatusColor(status)} />;
-    }
-  };
-
-  const getStatusText = (status: TodayOrder["status"]) => {
-    switch (status) {
-      case "cooking_started":
-        return "Cooking Started";
-      case "cooking_done":
-        return "Cooking Done";
-      case "ready_for_delivery":
-        return "Ready for Delivery";
-      case "packaging_done":
-        return "Packaging Done";
-      case "delivery_started":
-        return "Delivery Started";
-      case "reached":
-        return "Reached";
-      case "delivery_done":
-        return "Delivered";
-      default:
-        return "Scheduled";
-    }
-  };
-
-  const filteredTodayOrders = todayOrders.filter(
-    (order) => statusFilter === "all" || order.status === statusFilter
-  );
 
   if (isGuest || !user) {
     return (
@@ -1240,340 +1130,222 @@ export default function OrdersScreen() {
     );
   }
 
-  const renderTodayOrderCard = ({ item }: { item: TodayOrder }) => (
-    <View style={styles.orderCard}>
-      <View style={styles.orderHeader}>
-        <View style={styles.orderInfo}>
-          <Text style={styles.orderCustomerName}>{item.customerName}</Text>
-          <Text style={styles.orderPhone}>{item.customerPhone}</Text>
-        </View>
-        <View style={styles.orderStatus}>
-          {getStatusIcon(item.status)}
-          <Text
-            style={[
-              styles.orderStatusText,
-              { color: getTodayOrderStatusColor(item.status) },
-            ]}
-          >
-            {getStatusText(item.status)}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.orderMealInfo}>
-        <View style={styles.mealImageContainer}>
-          <Text style={styles.mealImagePlaceholder}>🍽️</Text>
-        </View>
-        <View style={styles.mealDetails}>
-          <Text style={styles.orderMealName}>{item.mealName}</Text>
-          <Text style={styles.orderDeliveryTime}>{item.deliveryTime}</Text>
-          {item.addOns.length > 0 && (
-            <Text style={styles.orderAddOns}>
-              Add-ons: {item.addOns.join(", ")}
-            </Text>
-          )}
-        </View>
-      </View>
-
-      {item.address && (
-        <View style={styles.orderAddress}>
-          <MapPin size={14} color="#6B7280" />
-          <Text style={styles.orderAddressText}>{item.address}</Text>
-        </View>
-      )}
-
-      {(item.kitchenStaff || item.deliveryPerson) && (
-        <View style={styles.orderStaff}>
-          {item.kitchenStaff && (
-            <View style={styles.staffInfo}>
-              <ChefHat size={14} color="#6B7280" />
-              <Text style={styles.staffText}>Kitchen: {item.kitchenStaff}</Text>
-            </View>
-          )}
-          {item.deliveryPerson && (
-            <View style={styles.staffInfo}>
-              <Truck size={14} color="#6B7280" />
-              <Text style={styles.staffText}>
-                Delivery: {item.deliveryPerson}
-              </Text>
-            </View>
-          )}
-        </View>
-      )}
-
-      <View style={styles.orderActions}>
-        <TouchableOpacity style={styles.trackButton}>
-          <Eye size={16} color="#48479B" />
-          <Text style={styles.trackButtonText}>Track Order</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.callButton}>
-          <Phone size={16} color="#10B981" />
-          <Text style={styles.callButtonText}>Call Customer</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
   const insets = useSafeAreaInsets();
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <View style={styles.screenHeader}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => router.back()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <ArrowLeft size={22} color="#111827" />
+        </TouchableOpacity>
+        <View style={styles.screenHeaderText}>
+          <Text style={styles.screenHeaderTitle}>My Orders</Text>
+          <Text style={styles.screenHeaderSub}>
+            {userSubscriptions.length} active plan
+            {userSubscriptions.length !== 1 ? "s" : ""}
+          </Text>
+        </View>
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <View style={styles.headerTitleContainer}>
-              <CalendarDays size={28} color="white" />
-              <Text style={styles.headerTitle}>
-                {viewMode === "today" ? "Today's Orders" : "My Meal Plans"}
-              </Text>
-            </View>
-            <Text style={styles.headerSubtitle}>
-              {viewMode === "today"
-                ? `${
-                    filteredTodayOrders.length
-                  } orders for ${new Date().toLocaleDateString("en-US", {
-                    day: "numeric",
-                    month: "long",
-                  })}`
-                : "Manage your subscription calendars"}
-            </Text>
-          </View>
-        </View>
+        {/* ── Active Plans ─────────────────────────────────────────── */}
+        {userSubscriptions.length > 0 ? (
+          <View style={styles.plansSection}>
+            <Text style={styles.plansSectionTitle}>Active Plans</Text>
+            {userSubscriptions.map((sub, index) => {
+              const isSelected = selectedPlanId === sub.id;
+              const isEditing = editingPlanId === sub.id;
+              const displayName = getPlanDisplayName(sub, index);
+              const daysRemaining = Math.max(
+                0,
+                Math.ceil(
+                  (new Date(sub.endDate).getTime() - Date.now()) /
+                    (1000 * 60 * 60 * 24)
+                )
+              );
+              const accentColor = [
+                "#48479B",
+                "#10B981",
+                "#F59E0B",
+                "#E53935",
+              ][index % 4];
+              const mealForPlan = mealsMap[sub.mealId];
 
-        {/* View Mode Toggle */}
-        <View style={styles.viewModeContainer}>
-          <View style={styles.viewModeToggle}>
-            <TouchableOpacity
-              style={[
-                styles.viewModeButton,
-                viewMode === "today" && styles.viewModeButtonActive,
-              ]}
-              onPress={() => setViewMode("today")}
-            >
-              <Text
-                style={[
-                  styles.viewModeButtonText,
-                  viewMode === "today" && styles.viewModeButtonTextActive,
-                ]}
-              >
-                Today's Orders
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.viewModeButton,
-                viewMode === "calendar" && styles.viewModeButtonActive,
-              ]}
-              onPress={() => setViewMode("calendar")}
-            >
-              <Text
-                style={[
-                  styles.viewModeButtonText,
-                  viewMode === "calendar" && styles.viewModeButtonTextActive,
-                ]}
-              >
-                Calendar View
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {viewMode === "today" ? (
-          <>
-            {/* Status Filter */}
-            <View style={styles.filterContainer}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.filterScroll}
-              >
-                {[
-                  { key: "all", label: "All Orders" },
-                  { key: "cooking_started", label: "Cooking" },
-                  { key: "cooking_done", label: "Ready" },
-                  { key: "delivery_started", label: "Out for Delivery" },
-                  { key: "delivery_done", label: "Delivered" },
-                ].map((filter) => (
-                  <TouchableOpacity
-                    key={filter.key}
-                    style={[
-                      styles.filterChip,
-                      statusFilter === filter.key && styles.filterChipActive,
-                    ]}
-                    onPress={() => setStatusFilter(filter.key)}
-                  >
-                    <Text
-                      style={[
-                        styles.filterChipText,
-                        statusFilter === filter.key &&
-                          styles.filterChipTextActive,
-                      ]}
-                    >
-                      {filter.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            {/* Today's Orders List */}
-            <View style={styles.ordersContainer}>
-              {filteredTodayOrders.length > 0 ? (
-                <FlatList
-                  data={filteredTodayOrders}
-                  renderItem={renderTodayOrderCard}
-                  keyExtractor={(item) => item.id}
-                  scrollEnabled={false}
-                  showsVerticalScrollIndicator={false}
-                />
-              ) : (
-                <View style={styles.noOrdersContainer}>
-                  <Package size={48} color="#D1D5DB" />
-                  <Text style={styles.noOrdersTitle}>No Orders Found</Text>
-                  <Text style={styles.noOrdersText}>
-                    {statusFilter === "all"
-                      ? "No orders scheduled for today"
-                      : `No orders with status "${statusFilter.replace(
-                          "_",
-                          " "
-                        )}"`}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </>
-        ) : (
-          <>
-            {/* Plan Tabs */}
-            {userSubscriptions.length > 0 && (
-              <View style={styles.planTabsContainer}>
-                <Text style={styles.planTabsTitle}>Active Plans</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.planTabsScroll}
+              return (
+                <TouchableOpacity
+                  key={sub.id}
+                  style={[
+                    styles.planCard,
+                    isSelected && styles.planCardSelected,
+                    isSelected && { borderColor: accentColor },
+                  ]}
+                  onPress={() => setSelectedPlanId(sub.id)}
+                  activeOpacity={0.85}
                 >
-                  {userSubscriptions.map((subscription, index) => (
-                    <TouchableOpacity
-                      key={subscription.id}
-                      style={[
-                        styles.planTab,
-                        selectedPlanId === subscription.id &&
-                          styles.planTabSelected,
-                      ]}
-                      onPress={() => setSelectedPlanId(subscription.id)}
-                    >
-                      <View style={styles.planTabHeader}>
-                        <Package
-                          size={16}
-                          color={
-                            selectedPlanId === subscription.id
-                              ? "#48479B"
-                              : "#6B7280"
+                  <View
+                    style={[styles.planCardAccent, { backgroundColor: accentColor }]}
+                  />
+                  <View style={styles.planCardBody}>
+                    {/* Name row */}
+                    <View style={styles.planCardTopRow}>
+                      {isEditing ? (
+                        <TextInput
+                          style={styles.planCardNameInput}
+                          value={editingPlanNames[sub.id] ?? displayName}
+                          onChangeText={(v) =>
+                            setEditingPlanNames((p) => ({ ...p, [sub.id]: v }))
                           }
+                          onBlur={() => handleSavePlanName(sub.id)}
+                          autoFocus
+                          returnKeyType="done"
+                          onSubmitEditing={() => handleSavePlanName(sub.id)}
                         />
-                        <Text
-                          style={[
-                            styles.planTabName,
-                            selectedPlanId === subscription.id &&
-                              styles.planTabNameSelected,
-                          ]}
+                      ) : (
+                        <TouchableOpacity
+                          style={styles.planCardNameRow}
+                          onLongPress={() => {
+                            setEditingPlanId(sub.id);
+                            setEditingPlanNames((p) => ({
+                              ...p,
+                              [sub.id]: displayName,
+                            }));
+                          }}
+                          activeOpacity={0.7}
                         >
-                          {subscription.planName || `Plan ${index + 1}`}
-                        </Text>
-                      </View>
-                      <Text
-                        style={[
-                          styles.planTabDuration,
-                          selectedPlanId === subscription.id &&
-                            styles.planTabDurationSelected,
-                        ]}
-                      >
-                        {subscription.duration} days •{" "}
-                        {subscription.deliveryTimeSlot ||
-                          subscription.deliveryTime}
-                      </Text>
+                          <Text style={styles.planCardName} numberOfLines={1}>
+                            {displayName}
+                          </Text>
+                          <Pencil size={12} color="#9CA3AF" style={{ marginLeft: 6 }} />
+                        </TouchableOpacity>
+                      )}
                       <View
                         style={[
-                          styles.planTabStatus,
+                          styles.planStatusBadge,
                           {
                             backgroundColor:
-                              subscription.status === "active"
-                                ? "#10B981"
-                                : "#6B7280",
+                              sub.status === "active" ? "#D1FAE5" : "#F3F4F6",
                           },
                         ]}
                       >
-                        <Text style={styles.planTabStatusText}>
-                          {subscription.status === "active"
-                            ? "Active"
-                            : "Inactive"}
+                        <View
+                          style={[
+                            styles.planStatusDot,
+                            {
+                              backgroundColor:
+                                sub.status === "active" ? "#10B981" : "#9CA3AF",
+                            },
+                          ]}
+                        />
+                        <Text
+                          style={[
+                            styles.planStatusText,
+                            {
+                              color:
+                                sub.status === "active" ? "#065F46" : "#6B7280",
+                            },
+                          ]}
+                        >
+                          {sub.status === "active" ? "Active" : sub.status}
                         </Text>
                       </View>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
+                    </View>
 
-            {/* Legend */}
-            <View style={styles.legend}>
-              <Text style={styles.legendTitle}>Status Legend</Text>
-              <View style={styles.legendItems}>
-                <View style={styles.legendItem}>
-                  <View
-                    style={[styles.legendDot, { backgroundColor: "#10B981" }]}
-                  />
-                  <Text style={styles.legendText}>Delivered</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View
-                    style={[styles.legendDot, { backgroundColor: "#48479B" }]}
-                  />
-                  <Text style={styles.legendText}>Upcoming</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View
-                    style={[styles.legendDot, { backgroundColor: "#F59E0B" }]}
-                  />
-                  <Text style={styles.legendText}>Weekend/Vacation</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View
-                    style={[styles.legendDot, { backgroundColor: "#6B7280" }]}
-                  />
-                  <Text style={styles.legendText}>Skipped</Text>
-                </View>
-              </View>
-            </View>
+                    {/* Meal name */}
+                    {mealForPlan && (
+                      <Text style={styles.planCardMealName} numberOfLines={1}>
+                        🍽 {mealForPlan.name}
+                      </Text>
+                    )}
 
-            {/* Calendar Navigation */}
-            {selectedPlanId && (
-              <View style={styles.calendarHeader}>
+                    {/* Stats */}
+                    <View style={styles.planCardStatsRow}>
+                      <View style={styles.planCardStat}>
+                        <Text style={[styles.planCardStatValue, { color: accentColor }]}>
+                          {sub.duration}
+                        </Text>
+                        <Text style={styles.planCardStatLabel}>days</Text>
+                      </View>
+                      <View style={styles.planCardStatDivider} />
+                      <View style={styles.planCardStat}>
+                        <Text
+                          style={[
+                            styles.planCardStatValue,
+                            { color: daysRemaining > 0 ? "#10B981" : "#EF4444" },
+                          ]}
+                        >
+                          {daysRemaining}
+                        </Text>
+                        <Text style={styles.planCardStatLabel}>remaining</Text>
+                      </View>
+                      <View style={styles.planCardStatDivider} />
+                      <View style={styles.planCardStat}>
+                        <Text
+                          style={styles.planCardStatValue}
+                          numberOfLines={1}
+                        >
+                          {sub.deliveryTimeSlot || sub.deliveryTime || "–"}
+                        </Text>
+                        <Text style={styles.planCardStatLabel}>slot</Text>
+                      </View>
+                    </View>
+
+                    {/* Date range */}
+                    <Text style={styles.planCardDateRange}>
+                      {new Date(sub.startDate).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                      })}{" "}
+                      →{" "}
+                      {new Date(sub.endDate).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={styles.emptyPlansContainer}>
+            <Package size={52} color="#D1D5DB" />
+            <Text style={styles.emptyPlansTitle}>No Active Plans</Text>
+            <Text style={styles.emptyPlansText}>
+              Subscribe to a meal plan to start tracking deliveries
+            </Text>
+          </View>
+        )}
+
+        {/* ── Calendar ─────────────────────────────────────────────── */}
+        {selectedPlanId && (
+          <>
+            {/* Legend + Navigation */}
+            <View style={styles.calendarSection}>
+              <View style={styles.calendarNav}>
                 <TouchableOpacity
                   style={styles.navButton}
                   onPress={() => navigateMonth("prev")}
                 >
                   <ChevronLeft size={20} color="#6B7280" />
                 </TouchableOpacity>
-                <View style={styles.monthYearContainer}>
-                  <Text style={styles.monthYear}>
-                    {currentDate.toLocaleDateString("en-US", {
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </Text>
-                  <Text style={styles.monthSubtext}>
-                    {userSubscriptions.find((sub) => sub.id === selectedPlanId)
-                      ?.planName || "Selected Plan"}
-                  </Text>
-                </View>
+                <Text style={styles.monthYear}>
+                  {currentDate.toLocaleDateString("en-US", {
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </Text>
                 <TouchableOpacity
                   style={styles.navButton}
                   onPress={() => navigateMonth("next")}
@@ -1581,12 +1353,24 @@ export default function OrdersScreen() {
                   <ChevronRight size={20} color="#6B7280" />
                 </TouchableOpacity>
               </View>
-            )}
 
-            {/* Calendar Grid */}
-            {selectedPlanId && (
+              {/* Legend */}
+              <View style={styles.legendRow}>
+                {[
+                  { color: "#10B981", label: "Delivered" },
+                  { color: "#48479B", label: "Upcoming" },
+                  { color: "#F59E0B", label: "Weekend" },
+                  { color: "#6B7280", label: "Skipped" },
+                ].map((l) => (
+                  <View key={l.label} style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: l.color }]} />
+                    <Text style={styles.legendText}>{l.label}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* Calendar grid */}
               <View style={styles.calendar}>
-                {/* Day Headers */}
                 <View style={styles.dayHeaders}>
                   {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map(
                     (day) => (
@@ -1596,137 +1380,228 @@ export default function OrdersScreen() {
                     )
                   )}
                 </View>
-
-                {/* Calendar Days */}
                 <View style={styles.calendarGrid}>
                   {calendarDays.map(renderCalendarDay)}
                 </View>
               </View>
-            )}
+            </View>
 
-            {/* Selected Date Details */}
-            {selectedPlanId && (
-              <View style={styles.selectedDateContainer}>
-                <View style={styles.selectedDateHeader}>
-                  <View style={styles.selectedDateTitleContainer}>
-                    <Text style={styles.selectedDateTitle}>
-                      {selectedDate.toLocaleDateString("en-US", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      })}
-                    </Text>
-                    <Text style={styles.selectedDateWeekday}>
-                      {selectedDate.toLocaleDateString("en-US", {
-                        weekday: "long",
-                      })}
+            {/* ── Selected Date Delivery Card ───────────────────────── */}
+            <View style={styles.selectedDateSection}>
+              <View style={styles.selectedDateHeader}>
+                <View>
+                  <Text style={styles.selectedDateTitle}>
+                    {selectedDate.toLocaleDateString("en-US", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                    })}
+                  </Text>
+                  <Text style={styles.selectedDateWeekday}>
+                    {selectedDate.toLocaleDateString("en-US", { year: "numeric" })}
+                  </Text>
+                </View>
+                {selectedDateDelivery && selectedDateDelivery.status !== "scheduled" && (
+                  <View
+                    style={[
+                      styles.selectedDateBadge,
+                      {
+                        backgroundColor:
+                          getDeliveryStatusColor(selectedDateDelivery.status) + "22",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.selectedDateBadgeText,
+                        { color: getDeliveryStatusColor(selectedDateDelivery.status) },
+                      ]}
+                    >
+                      {getDeliveryStatusLabel(selectedDateDelivery.status)}
                     </Text>
                   </View>
-                  {selectedDateDelivery && (
-                    <View style={styles.selectedDateBadge}>
-                      <Sparkles size={14} color="#48479B" />
-                      <Text style={styles.selectedDateBadgeText}>
-                        Scheduled
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                {renderSelectedDateDelivery()}
+                )}
               </View>
-            )}
+
+              {renderSelectedDateDelivery()}
+            </View>
           </>
         )}
+
+        <View style={{ height: 32 }} />
       </ScrollView>
 
-      {/* Add-On Selection Modal */}
+      {/* Add-On Selection Modal – bottom-sheet style */}
       <Modal
         visible={showAddOnModal}
         animationType="slide"
-        presentationStyle="pageSheet"
+        transparent={true}
+        onRequestClose={() => setShowAddOnModal(false)}
+        statusBarTranslucent
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add Items</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowAddOnModal(false)}
-            >
-              <X size={24} color="#374151" />
-            </TouchableOpacity>
-          </View>
+        <View style={styles.addonSheetOverlay}>
+          {/* Backdrop */}
+          <TouchableOpacity
+            style={styles.addonSheetBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowAddOnModal(false)}
+          />
 
-          <ScrollView style={styles.modalContent}>
-            <Text style={styles.modalDescription}>
-              Select additional items for{" "}
-              {selectedDate.toLocaleDateString("en-US", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-            </Text>
+          {/* Close Button – centred above sheet */}
+          <TouchableOpacity
+            style={styles.addonSheetCloseBtn}
+            onPress={() => setShowAddOnModal(false)}
+            activeOpacity={0.8}
+          >
+            <X size={22} color="#fff" />
+          </TouchableOpacity>
 
-            <FlatList
-              data={availableAddOns}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.addOnItem,
-                    selectedAddOns.includes(item.id) &&
-                      styles.addOnItemSelected,
-                  ]}
-                  onPress={() => handleAddOnSelection(item.id)}
-                >
-                  <View style={styles.addOnInfo}>
-                    <Text style={styles.addOnName}>{item.name}</Text>
-                    <Text style={styles.addOnDescription}>
-                      {item.description}
-                    </Text>
-                    <Text style={styles.addOnPrice}>₹{item.price}</Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.addOnCheckbox,
-                      selectedAddOns.includes(item.id) &&
-                        styles.addOnCheckboxSelected,
-                    ]}
-                  >
-                    {selectedAddOns.includes(item.id) && (
-                      <CheckCircle size={20} color="white" />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              )}
-              scrollEnabled={false}
-            />
-
-            {selectedAddOns.length > 0 && (
-              <View style={styles.selectedSummary}>
-                <Text style={styles.selectedSummaryTitle}>
-                  Selected Items ({selectedAddOns.length})
+          {/* Sheet */}
+          <View style={styles.addonSheet}>
+            {/* Header */}
+            <View style={styles.addonSheetHeader}>
+              <View style={styles.addonSheetHeaderIcon}>
+                <Text style={{ fontSize: 26 }}>🍱</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.addonSheetTitle}>
+                  Add Items{" "}
+                  <Text style={{ color: "#6B7280", fontWeight: "600" }}>
+                    ({availableAddOns.length})
+                  </Text>
                 </Text>
-                <Text style={styles.selectedSummaryTotal}>
-                  Total: ₹{getSelectedAddOnsTotal()}
+                <Text style={styles.addonSheetSubtitle}>
+                  {selectedDate.toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
                 </Text>
               </View>
-            )}
+            </View>
 
-            <TouchableOpacity
-              style={[
-                styles.confirmButton,
-                selectedAddOns.length === 0 && styles.confirmButtonDisabled,
-              ]}
-              onPress={handleConfirmAddOns}
-              disabled={selectedAddOns.length === 0}
+            {/* Add-on list */}
+            <ScrollView
+              style={styles.addonSheetScroll}
+              contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
+              showsVerticalScrollIndicator={false}
             >
-              <Text style={styles.confirmButtonText}>
-                Pay ₹{getSelectedAddOnsTotal()} for {selectedAddOns.length} Item
-                {selectedAddOns.length !== 1 ? "s" : ""}
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </SafeAreaView>
+              {availableAddOns.map((item) => {
+                const selected = selectedAddOns.includes(item.id);
+                return (
+                  <View
+                    key={item.id}
+                    style={[styles.addonCard, selected && styles.addonCardSelected]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.addonCardName}>{item.name}</Text>
+                      <Text style={styles.addonCardDesc} numberOfLines={1}>
+                        {item.description}
+                      </Text>
+                      <Text style={styles.addonCardPrice}>₹{item.price}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.addonToggleBtn,
+                        selected && styles.addonToggleBtnRemove,
+                      ]}
+                      onPress={() => handleAddOnSelection(item.id)}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.addonToggleBtnText,
+                          selected && { color: "#fff" },
+                        ]}
+                      >
+                        {selected ? "Remove" : "Add"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </ScrollView>
+
+            {/* Footer */}
+            <View style={styles.addonSheetFooter}>
+              {/* Summary row */}
+              <View style={styles.addonSummaryRow}>
+                <Text style={styles.addonSummaryLabel}>
+                  {selectedAddOns.length > 0
+                    ? `${selectedAddOns.length} item${selectedAddOns.length > 1 ? "s" : ""} selected`
+                    : "No items selected"}
+                </Text>
+                <Text style={styles.addonSummaryTotal}>
+                  ₹{getSelectedAddOnsTotal()}
+                </Text>
+              </View>
+
+              {/* Payment buttons */}
+              {selectedAddOns.length > 0 && (() => {
+                const total = getSelectedAddOnsTotal();
+                const walletBal = user?.walletBalance ?? 0;
+                const canUseWallet = walletBal >= total;
+                return (
+                  <View style={styles.addonPaymentRow}>
+                    {/* Wallet button */}
+                    <TouchableOpacity
+                      style={[
+                        styles.addonPayBtn,
+                        styles.addonPayBtnWallet,
+                        !canUseWallet && styles.addonPayBtnDisabled,
+                      ]}
+                      onPress={handleWalletPayment}
+                      disabled={!canUseWallet}
+                      activeOpacity={0.8}
+                    >
+                      <Wallet
+                        size={16}
+                        color={canUseWallet ? "#fff" : "#9CA3AF"}
+                      />
+                      <View style={{ marginLeft: 6 }}>
+                        <Text
+                          style={[
+                            styles.addonPayBtnLabel,
+                            !canUseWallet && styles.addonPayBtnLabelDisabled,
+                          ]}
+                        >
+                          Pay with Wallet
+                        </Text>
+                        <Text
+                          style={[
+                            styles.addonPayBtnSub,
+                            !canUseWallet && { color: "#EF4444" },
+                          ]}
+                        >
+                          {canUseWallet
+                            ? `Balance: ₹${walletBal.toFixed(0)}`
+                            : `Low balance: ₹${walletBal.toFixed(0)}`}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* Razorpay button */}
+                    <TouchableOpacity
+                      style={[styles.addonPayBtn, styles.addonPayBtnRazorpay]}
+                      onPress={handleConfirmAddOns}
+                      activeOpacity={0.8}
+                    >
+                      <CreditCard size={16} color="#fff" />
+                      <View style={{ marginLeft: 6 }}>
+                        <Text style={styles.addonPayBtnLabel}>
+                          UPI / Card
+                        </Text>
+                        <Text style={styles.addonPayBtnSub}>
+                          Net Banking
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })()}
+            </View>
+          </View>
+        </View>
       </Modal>
 
       {/* Payment Modal for Add-ons */}
@@ -1737,8 +1612,7 @@ export default function OrdersScreen() {
               <>
                 <Text style={styles.modalTitle}>Processing Payment</Text>
                 <Text style={styles.modalSubtitle}>
-                  Collecting payment via {selectedPaymentMethod.toUpperCase()}
-                  ...
+                  Processing your payment...
                 </Text>
               </>
             )}
@@ -1789,11 +1663,413 @@ export default function OrdersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: "#F4F6FA",
   },
   scrollView: {
     flex: 1,
   },
+  // ── New screen header ──────────────────────────────────────────────
+  screenHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+    gap: 12,
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  screenHeaderText: {
+    flex: 1,
+  },
+  screenHeaderTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#111827",
+    letterSpacing: -0.3,
+  },
+  screenHeaderSub: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    marginTop: 1,
+  },
+  // ── Active Plans section ───────────────────────────────────────────
+  plansSection: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 4,
+  },
+  plansSectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#9CA3AF",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 12,
+  },
+  planCard: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  planCardSelected: {
+    shadowOpacity: 0.14,
+    elevation: 6,
+  },
+  planCardAccent: {
+    width: 5,
+    alignSelf: "stretch",
+  },
+  planCardBody: {
+    flex: 1,
+    padding: 14,
+  },
+  planCardTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  planCardNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: 8,
+  },
+  planCardName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111827",
+    flex: 1,
+  },
+  planCardNameInput: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111827",
+    borderBottomWidth: 1.5,
+    borderBottomColor: "#48479B",
+    paddingVertical: 2,
+    marginRight: 8,
+  },
+  planStatusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+    gap: 4,
+  },
+  planStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  planStatusText: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "capitalize",
+  },
+  planCardMealName: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 10,
+    fontWeight: "500",
+  },
+  planCardStatsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  planCardStat: {
+    flex: 1,
+    alignItems: "center",
+  },
+  planCardStatValue: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  planCardStatLabel: {
+    fontSize: 10,
+    color: "#9CA3AF",
+    marginTop: 2,
+    fontWeight: "500",
+  },
+  planCardStatDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: "#E5E7EB",
+    marginHorizontal: 4,
+  },
+  planCardDateRange: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    fontWeight: "500",
+  },
+  emptyPlansContainer: {
+    alignItems: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 32,
+  },
+  emptyPlansTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#374151",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyPlansText: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  // ── Calendar section ───────────────────────────────────────────────
+  calendarSection: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  calendarNav: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  legendRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "#F3F4F6",
+    marginBottom: 12,
+  },
+  // ── Selected date section ──────────────────────────────────────────
+  selectedDateSection: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  // ── Rich delivery card ─────────────────────────────────────────────
+  richDeliveryCard: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    overflow: "hidden",
+    flexDirection: "row",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.09,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  richStatusStripe: {
+    width: 5,
+    alignSelf: "stretch",
+  },
+  richCardBody: {
+    flex: 1,
+    padding: 16,
+  },
+  richCardTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12,
+    gap: 12,
+  },
+  richMealImage: {
+    width: 68,
+    height: 68,
+    borderRadius: 14,
+    backgroundColor: "#F3F4F6",
+  },
+  richMealImagePlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  richMealInfo: {
+    flex: 1,
+  },
+  richMealName: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#111827",
+    marginBottom: 4,
+    lineHeight: 22,
+  },
+  richTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 4,
+  },
+  richDeliveryTime: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    fontWeight: "500",
+  },
+  richCustomerName: {
+    fontSize: 12,
+    color: "#6B7280",
+    fontWeight: "600",
+  },
+  richStatusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 20,
+    gap: 5,
+    alignSelf: "flex-start",
+    minWidth: 80,
+  },
+  richStatusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  richStatusText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  richAddOnsSection: {
+    marginBottom: 10,
+  },
+  richAddOnsLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#374151",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginBottom: 8,
+  },
+  richAddOnsScroll: {
+    flexGrow: 0,
+  },
+  richAddOnChip: {
+    alignItems: "center",
+    marginRight: 10,
+    width: 64,
+  },
+  richAddOnImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    marginBottom: 4,
+  },
+  richAddOnImagePlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  richAddOnName: {
+    fontSize: 11,
+    color: "#374151",
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  richStaffRow: {
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  richStaffItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  richStaffText: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    fontWeight: "500",
+  },
+  richActionRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  richSkipBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 11,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: "#EF4444",
+    backgroundColor: "#FEF2F2",
+    gap: 6,
+  },
+  richSkipBtnText: {
+    fontSize: 13,
+    color: "#EF4444",
+    fontWeight: "700",
+  },
+  richAddBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 11,
+    borderRadius: 10,
+    backgroundColor: "#48479B",
+    gap: 6,
+  },
+  richAddBtnText: {
+    fontSize: 13,
+    color: "#fff",
+    fontWeight: "700",
+  },
+  richBtnDisabled: {
+    borderColor: "#D1D5DB",
+    backgroundColor: "#F9FAFB",
+  },
+  richDisabledNote: {
+    flex: 1,
+    backgroundColor: "#FEF3C7",
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  richDisabledNoteText: {
+    fontSize: 12,
+    color: "#92400E",
+    fontWeight: "500",
+    textAlign: "center",
+  },
+  // ── Old header styles kept for backward compatibility ──────────────
   header: {
     backgroundColor: "#48479B",
     paddingVertical: 20,
@@ -1997,35 +2273,32 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 20,
+    marginBottom: 14,
   },
   selectedDateTitleContainer: {
     flex: 1,
   },
   selectedDateTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
+    fontSize: 17,
+    fontWeight: "800",
     color: "#111827",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   selectedDateWeekday: {
-    fontSize: 14,
-    color: "#6B7280",
+    fontSize: 13,
+    color: "#9CA3AF",
     fontWeight: "500",
   },
   selectedDateBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#EEF2FF",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 20,
   },
   selectedDateBadgeText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#48479B",
-    marginLeft: 4,
+    fontSize: 11,
+    fontWeight: "700",
   },
   deliveryContainer: {
     padding: 20,
@@ -2204,28 +2477,29 @@ const styles = StyleSheet.create({
   noDeliveryContainer: {
     alignItems: "center",
     paddingVertical: 40,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    gap: 10,
   },
   noDeliveryText: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#6B7280",
-    marginBottom: 16,
-    textAlign: "center",
+    fontWeight: "500",
   },
   addProductButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     backgroundColor: "#48479B",
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-    shadowColor: "#48479B",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    marginTop: 4,
   },
   addProductButtonText: {
     color: "white",
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "700",
   },
   whatsappButton: {
     position: "absolute",
@@ -2792,4 +3066,180 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   heroImage: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+
+  // ── Add-on bottom sheet ──────────────────────────────────────────────────
+  addonSheetOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  addonSheetBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.52)",
+  },
+  addonSheetCloseBtn: {
+    alignSelf: "center",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+    zIndex: 10,
+  },
+  addonSheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: "72%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  addonSheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+    gap: 14,
+  },
+  addonSheetHeaderIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  addonSheetTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 3,
+  },
+  addonSheetSubtitle: {
+    fontSize: 13,
+    color: "#6B7280",
+  },
+  addonSheetScroll: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
+  },
+  addonCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 13,
+    marginBottom: 9,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  addonCardSelected: {
+    borderColor: "#48479B",
+    backgroundColor: "#EEF2FF",
+  },
+  addonCardName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 2,
+  },
+  addonCardDesc: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+  addonCardPrice: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#48479B",
+  },
+  addonToggleBtn: {
+    backgroundColor: "#48479B",
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    minWidth: 72,
+    alignItems: "center",
+    marginLeft: 10,
+  },
+  addonToggleBtnRemove: {
+    backgroundColor: "#EF4444",
+  },
+  addonToggleBtnText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  addonSheetFooter: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#F0F0F0",
+    backgroundColor: "#fff",
+  },
+  addonSummaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  addonSummaryLabel: {
+    fontSize: 13,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  addonSummaryTotal: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  addonPaymentRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  addonPayBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  addonPayBtnWallet: {
+    backgroundColor: "#10B981",
+  },
+  addonPayBtnRazorpay: {
+    backgroundColor: "#48479B",
+  },
+  addonPayBtnDisabled: {
+    backgroundColor: "#E5E7EB",
+  },
+  addonPayBtnLabel: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  addonPayBtnLabelDisabled: {
+    color: "#9CA3AF",
+  },
+  addonPayBtnSub: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 10,
+    marginTop: 1,
+  },
 });

@@ -9,14 +9,16 @@ import {
   RefreshControl,
   Platform,
   Share,
+  Linking,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import RoleSelector from '@/components/RoleSelector';
 import db from '@/db';
-import { Subscription, User, Meal } from '@/types';
+import { Subscription, User, Meal, AddOn } from '@/types';
 import {
   ChefHat,
   Clock,
@@ -52,6 +54,7 @@ export default function KitchenDashboard() {
     readyOrders: 0,
     cookingOrders: 0,
   });
+  const [addOnsById, setAddOnsById] = useState<Map<string, AddOn>>(new Map());
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -64,11 +67,16 @@ export default function KitchenDashboard() {
   const loadFromFirestore = useCallback(async () => {
     try {
       setRefreshing(true);
-      const [subs, users, meals] = await Promise.all([
+      const [subs, users, meals, addOnsData] = await Promise.all([
         db.getSubscriptions(),
         db.getUsers(),
         db.getMeals(),
+        db.getAddOns(),
       ]);
+
+      const addOnsMap = new Map<string, AddOn>();
+      addOnsData.forEach((a) => addOnsMap.set(a.id, a));
+      setAddOnsById(addOnsMap);
 
       const today = new Date();
       today.setHours(0,0,0,0);
@@ -203,82 +211,112 @@ export default function KitchenDashboard() {
     );
   };
 
-  const aggregateForCSV = useCallback((list: CookingItem[]) => {
-    const mealMap = new Map<string, { mealName: string; totalQty: number; addOnCounts: Record<string, number> }>();
+  /** Resolve an add-on ID to its display name */
+  const resolveAddonName = useCallback((id: string) => {
+    return addOnsById.get(id)?.name ?? id;
+  }, [addOnsById]);
+
+  /**
+   * Build the full "what to cook" list:
+   * - Main meals aggregated by name with quantity
+   * - Add-ons aggregated separately by name with quantity (each addon counts as its own cook item)
+   */
+  type CookRow = { name: string; type: 'Meal' | 'Add-on'; quantity: number };
+
+  const buildCookSummary = useCallback((list: CookingItem[]): CookRow[] => {
+    const mealCounts = new Map<string, number>();
+    const addonCounts = new Map<string, number>();
 
     list.forEach((item) => {
-      const key = item.mealName;
-      const entry = mealMap.get(key) ?? { mealName: item.mealName, totalQty: 0, addOnCounts: {} };
-      entry.totalQty += item.quantity;
-      item.addOns.forEach((a) => {
-        if (!entry.addOnCounts[a]) entry.addOnCounts[a] = 0;
-        entry.addOnCounts[a] += 1;
+      mealCounts.set(item.mealName, (mealCounts.get(item.mealName) ?? 0) + item.quantity);
+      item.addOns.forEach((id) => {
+        const name = resolveAddonName(id);
+        addonCounts.set(name, (addonCounts.get(name) ?? 0) + 1);
       });
-      mealMap.set(key, entry);
     });
 
-    const rows: Array<{ Meal: string; Quantity: number; AddOns: string }> = [];
-    mealMap.forEach((v) => {
-      const addOnsText = Object.keys(v.addOnCounts).length
-        ? Object.entries(v.addOnCounts)
-            .map(([name, cnt]) => `${name} x${cnt}`)
-            .join('; ')
-        : '';
-      rows.push({ Meal: v.mealName, Quantity: v.totalQty, AddOns: addOnsText });
-    });
-
+    const rows: CookRow[] = [];
+    mealCounts.forEach((qty, name) => rows.push({ name, type: 'Meal', quantity: qty }));
+    addonCounts.forEach((qty, name) => rows.push({ name, type: 'Add-on', quantity: qty }));
     return rows;
-  }, []);
+  }, [resolveAddonName]);
 
-  const toCSV = useCallback((rows: Array<Record<string, string | number>>) => {
-    if (rows.length === 0) return 'Meal,Quantity,AddOns\n';
-    const headers = Object.keys(rows[0]);
-    const escape = (val: string | number) => {
-      const s = String(val ?? '');
-      if (s.includes(',') || s.includes('\n') || s.includes('"')) {
-        return '"' + s.replace(/"/g, '""') + '"';
-      }
-      return s;
-    };
-    const lines = [headers.join(',')];
-    rows.forEach((r) => {
-      lines.push(headers.map((h) => escape(r[h] ?? '')).join(','));
-    });
+  /** Build a CSV string for the cook sheet */
+  const buildCSV = useCallback((
+    list: CookingItem[],
+    label: string,
+  ): string => {
+    const summary = buildCookSummary(list);
+    const dateStr = new Date().toLocaleDateString('en-IN');
+    const timeStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+    const lines: string[] = [
+      `Same Old Box – Kitchen Sheet`,
+      `Date,${dateStr}`,
+      `Time,${timeStr}`,
+      `List,${label}`,
+      ``,
+      `Type,Item,Quantity`,
+      ...summary.map(r => `${r.type},"${r.name}",${r.quantity}`),
+    ];
     return lines.join('\n');
-  }, []);
+  }, [buildCookSummary]);
 
-  const downloadCSV = useCallback(async (csvText: string, fileName: string) => {
+
+  /**
+   * Generates a CSV, saves it to the device, and opens it immediately.
+   *
+   * Android: SAF folder picker → file saved to chosen folder → opened instantly
+   *          via Linking with the SAF content:// URI (opens Google Sheets / any CSV app).
+   * iOS:     file written to Documents → Share sheet appears;
+   *          "Open in Numbers / Excel" opens it instantly, "Save to Files" saves it.
+   */
+  const exportCSV = useCallback(async (list: CookingItem[], label: string) => {
     try {
-      if (Platform.OS === 'web') {
-        const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+      const csv       = buildCSV(list, label);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const fileName  = `${timestamp}_${label}_sheet.csv`;
+
+      if (Platform.OS === 'android') {
+        const perms = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        if (!perms.granted) return;
+
+        const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+          perms.directoryUri,
+          fileName,
+          'text/csv',
+        );
+        await FileSystem.writeAsStringAsync(fileUri, csv, { encoding: 'utf8' });
+
+        // Open the saved file immediately in whatever CSV app the user has (e.g. Google Sheets)
+        // The SAF content:// URI is safe to pass via Linking – no FileUriExposedException
+        try {
+          await Linking.openURL(fileUri);
+        } catch {
+          Alert.alert('Downloaded ✓', `${fileName} saved. Open it from your chosen folder.`);
+        }
       } else {
-        await Share.share({ message: csvText, title: fileName });
+        // iOS: write locally, then show share sheet
+        // "Open in Numbers / Excel" → instant view; "Save to Files" → saved
+        const filePath = (FileSystem.documentDirectory ?? '') + fileName;
+        await FileSystem.writeAsStringAsync(filePath, csv, { encoding: 'utf8' });
+        await Share.share({ url: filePath, title: fileName });
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.message?.includes('cancelled') || e?.message?.includes('dismiss')) return;
       console.log('[kitchen] CSV export error', e);
-      Alert.alert('Export failed', 'Could not export CSV. Please try again.');
+      Alert.alert('Export failed', 'Could not save the CSV. Please try again.');
     }
-  }, []);
+  }, [buildCSV]);
 
   const exportInitialCSV = useCallback(() => {
-    const rows = aggregateForCSV(initialSnapshot.length ? initialSnapshot : cookingList);
-    const csv = toCSV(rows);
-    downloadCSV(csv, 'initial_requirements.csv');
-  }, [aggregateForCSV, downloadCSV, initialSnapshot, cookingList, toCSV]);
+    const list = initialSnapshot.length ? initialSnapshot : cookingList;
+    exportCSV(list, 'Initial Requirements');
+  }, [exportCSV, initialSnapshot, cookingList]);
 
   const exportFinalCSV = useCallback(() => {
-    const rows = aggregateForCSV(cookingList);
-    const csv = toCSV(rows);
-    downloadCSV(csv, 'final_revised_list.csv');
-  }, [aggregateForCSV, downloadCSV, cookingList, toCSV]);
+    exportCSV(cookingList, 'Final Revised List');
+  }, [exportCSV, cookingList]);
 
   const startCooking = (orderId: string) => {
     updateOrderStatus(orderId, 'cooking_started');
@@ -299,7 +337,7 @@ export default function KitchenDashboard() {
           style: 'destructive',
           onPress: async () => {
             await logout();
-            router.replace('/auth/role-selection');
+            router.replace('/auth/login');
           },
         },
       ]
@@ -365,22 +403,18 @@ export default function KitchenDashboard() {
           {/* Export CSV Buttons */}
           <View style={styles.exportContainer}>
             <TouchableOpacity
-              testID="export-initial-csv"
-              accessibilityLabel="Export initial requirements CSV"
               style={[styles.exportButton, styles.exportInitial]}
               onPress={exportInitialCSV}
             >
               <Download size={16} color="white" />
-              <Text style={styles.exportText}>Initial Requirements</Text>
+              <Text style={styles.exportText}>Initial CSV</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              testID="export-final-csv"
-              accessibilityLabel="Export final revised list CSV"
               style={[styles.exportButton, styles.exportFinal]}
               onPress={exportFinalCSV}
             >
               <CheckCircle size={16} color="white" />
-              <Text style={styles.exportText}>Final Revised List</Text>
+              <Text style={styles.exportText}>Final CSV</Text>
             </TouchableOpacity>
           </View>
 
@@ -455,28 +489,55 @@ export default function KitchenDashboard() {
             </View>
           </View>
 
-          {/* Aggregated Meal Summary */}
-          {cookingList.length > 0 && (
-            <View style={styles.sectionContainer}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Meal Summary</Text>
-              </View>
-              {aggregateForCSV(cookingList).map((row) => (
-                <View key={row.Meal} style={styles.aggCard}>
-                  <View style={styles.aggLeft}>
-                    <ChefHat size={18} color="#F59E0B" />
-                    <Text style={styles.aggMeal}>{row.Meal}</Text>
-                  </View>
-                  <View style={styles.aggRight}>
-                    <View style={styles.aggQtyBadge}>
-                      <Text style={styles.aggQtyText}>×{row.Quantity}</Text>
-                    </View>
-                    {row.AddOns ? <Text style={styles.aggAddOns}>{row.AddOns}</Text> : null}
-                  </View>
+          {/* Cook Summary — Meals + Add-ons */}
+          {cookingList.length > 0 && (() => {
+            const summary = buildCookSummary(cookingList);
+            const meals = summary.filter((r) => r.type === 'Meal');
+            const addons = summary.filter((r) => r.type === 'Add-on');
+            return (
+              <View style={styles.sectionContainer}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>What to Cook Today</Text>
                 </View>
-              ))}
-            </View>
-          )}
+
+                {/* Meals */}
+                {meals.length > 0 && (
+                  <>
+                    <Text style={styles.cookSubHeader}>🍽️ Meals</Text>
+                    {meals.map((row) => (
+                      <View key={row.name} style={styles.aggCard}>
+                        <View style={styles.aggLeft}>
+                          <ChefHat size={18} color="#F59E0B" />
+                          <Text style={styles.aggMeal}>{row.name}</Text>
+                        </View>
+                        <View style={styles.aggQtyBadge}>
+                          <Text style={styles.aggQtyText}>×{row.quantity}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </>
+                )}
+
+                {/* Add-ons as separate cook items */}
+                {addons.length > 0 && (
+                  <>
+                    <Text style={[styles.cookSubHeader, { marginTop: 14 }]}>🥗 Add-ons to Prepare</Text>
+                    {addons.map((row) => (
+                      <View key={row.name} style={[styles.aggCard, styles.aggCardAddon]}>
+                        <View style={styles.aggLeft}>
+                          <Package size={16} color="#10B981" />
+                          <Text style={[styles.aggMeal, { color: '#10B981' }]}>{row.name}</Text>
+                        </View>
+                        <View style={[styles.aggQtyBadge, { backgroundColor: '#10B981' }]}>
+                          <Text style={styles.aggQtyText}>×{row.quantity}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </>
+                )}
+              </View>
+            );
+          })()}
 
           {/* Cooking List */}
           <View style={styles.sectionContainer}>
@@ -514,7 +575,9 @@ export default function KitchenDashboard() {
                   {item.addOns.length > 0 && (
                     <View style={styles.addOnsContainer}>
                       <Text style={styles.addOnsTitle}>Add-ons:</Text>
-                      <Text style={styles.addOnsList}>{item.addOns.join(', ')}</Text>
+                      <Text style={styles.addOnsList}>
+                        {item.addOns.map((id) => resolveAddonName(id)).join(', ')}
+                      </Text>
                     </View>
                   )}
                   
@@ -798,6 +861,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     maxWidth: 140,
     textAlign: 'right',
+  },
+  aggCardAddon: {
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.3)',
+    backgroundColor: 'rgba(16,185,129,0.07)',
+  },
+  cookSubHeader: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
   },
   qtyBadge: {
     backgroundColor: 'rgba(255,255,255,0.15)',

@@ -1604,7 +1604,7 @@ export default function AdminDashboard() {
         style: "destructive",
         onPress: async () => {
           await logout();
-          router.replace("/auth/role-selection");
+          router.replace("/auth/login");
         },
       },
     ]);

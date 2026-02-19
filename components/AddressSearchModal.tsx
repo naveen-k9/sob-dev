@@ -63,8 +63,7 @@ async function autocompletePlaces(query: string): Promise<PlacePrediction[]> {
     `?input=${encodeURIComponent(query)}` +
     `&key=${GOOGLE_KEY}` +
     `&components=country:in` +
-    `&language=en` +
-    `&types=geocode`;
+    `&language=en`;
 
   const res = await fetch(url);
   const data = await res.json();
