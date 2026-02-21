@@ -26,6 +26,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import RoleSelector from "@/components/RoleSelector";
 import db from "@/db";
 import { Subscription, User, Meal, Address } from "@/types";
+import { isActivePlanDate } from "@/utils/subscriptionDateUtils";
 import {
   Truck,
   MapPin,
@@ -112,7 +113,7 @@ export default function DeliveryDashboard() {
       meals.forEach((m) => mealsById.set(m.id, m));
 
       const orders: DeliveryOrder[] = subs
-        .filter((s: Subscription) => s.status === "active")
+        .filter((s: Subscription) => s.status === "active" && isActivePlanDate(today, s))
         .map((s: Subscription) => {
           const u: User | undefined = users.find((us) => us.id === s.userId);
           const m = mealsById.get(s.mealId);
@@ -334,7 +335,7 @@ export default function DeliveryDashboard() {
               <Text style={styles.userName}>
                 {user?.name || "Delivery Partner"}
               </Text>
-              <Text style={styles.currentTime}>{formatTime(currentTime)}</Text>
+              {/* <Text style={styles.currentTime}>{formatTime(currentTime)}</Text> */}
             </View>
             <View style={styles.headerActions}>
               <RoleSelector currentRole="delivery" />
@@ -354,7 +355,7 @@ export default function DeliveryDashboard() {
                 colors={["#48479B", "#2563EB"]}
                 style={styles.statGradient}
               >
-                <Package size={24} color="white" />
+                <Package size={18} color="white" />
                 <Text style={styles.statValue}>{stats.totalDeliveries}</Text>
                 <Text style={styles.statTitle}>Total Orders</Text>
               </LinearGradient>
@@ -364,7 +365,7 @@ export default function DeliveryDashboard() {
                 colors={["#F59E0B", "#D97706"]}
                 style={styles.statGradient}
               >
-                <Clock size={24} color="white" />
+                <Clock size={18} color="white" />
                 <Text style={styles.statValue}>{stats.pendingDeliveries}</Text>
                 <Text style={styles.statTitle}>Pending</Text>
               </LinearGradient>
@@ -374,23 +375,140 @@ export default function DeliveryDashboard() {
                 colors={["#10B981", "#059669"]}
                 style={styles.statGradient}
               >
-                <CheckCircle size={24} color="white" />
+                <CheckCircle size={18} color="white" />
                 <Text style={styles.statValue}>
                   {stats.completedDeliveries}
                 </Text>
                 <Text style={styles.statTitle}>Completed</Text>
               </LinearGradient>
             </View>
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={["#8B5CF6", "#7C3AED"]}
-                style={styles.statGradient}
-              >
-                <Truck size={24} color="white" />
-                <Text style={styles.statValue}>{stats.totalEarnings}</Text>
-                <Text style={styles.statTitle}>Earnings</Text>
-              </LinearGradient>
-            </View>
+          </View>
+
+          {/* Packaging done & Delivery started actions */}
+          <View style={styles.bulkButtonsRow}>
+            <TouchableOpacity
+              style={styles.bulkButton}
+              onPress={() => {
+                const toUpdate = deliveryOrders.filter(
+                  (o) => o.status === "packaging"
+                );
+                const count = toUpdate.length;
+                if (count === 0) {
+                  Alert.alert(
+                    "Nothing to update",
+                    "No orders in packaging state."
+                  );
+                  return;
+                }
+                Alert.alert(
+                  "Mark all packaging done",
+                  `Confirm marking ${count} order(s) as packaging done?`,
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Confirm",
+                      onPress: async () => {
+                        const todayStr = new Date().toISOString().split("T")[0];
+                        try {
+                          await Promise.all(
+                            toUpdate.map((o) =>
+                              db.updateSubscriptionDeliveryStatus(
+                                o.id,
+                                todayStr,
+                                "packaging_done"
+                              )
+                            )
+                          );
+                          setDeliveryOrders((prev) => {
+                            const next = prev.map((order) =>
+                              order.status === "packaging"
+                                ? { ...order, status: "packaging_done" as const }
+                                : order
+                            );
+                            recalcStats(next);
+                            return next;
+                          });
+                        } catch (e) {
+                          console.warn("[delivery] Bulk packaging-done failed", e);
+                          Alert.alert(
+                            "Sync failed",
+                            "Could not save to server. Check connection and try again."
+                          );
+                          loadFromFirestore();
+                        }
+                      },
+                    },
+                  ]
+                );
+              }}
+              testID="btn-bulk-packaging-done"
+              accessibilityLabel="Mark all packaging done"
+            >
+              <Text style={styles.bulkButtonText}>Packaging Done</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.bulkButton, styles.bulkButtonSecondary]}
+              onPress={() => {
+                const toUpdate = deliveryOrders.filter(
+                  (o) => o.status === "packaging_done"
+                );
+                const count = toUpdate.length;
+                if (count === 0) {
+                  Alert.alert(
+                    "Nothing to update",
+                    "No orders ready to start delivery."
+                  );
+                  return;
+                }
+                Alert.alert(
+                  "Start delivery for all",
+                  `Confirm starting delivery for ${count} order(s)?`,
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Confirm",
+                      onPress: async () => {
+                        const todayStr = new Date().toISOString().split("T")[0];
+                        try {
+                          await Promise.all(
+                            toUpdate.map((o) =>
+                              db.updateSubscriptionDeliveryStatus(
+                                o.id,
+                                todayStr,
+                                "delivery_started"
+                              )
+                            )
+                          );
+                          setDeliveryOrders((prev) => {
+                            const next = prev.map((order) =>
+                              order.status === "packaging_done"
+                                ? {
+                                    ...order,
+                                    status: "delivery_started" as const,
+                                  }
+                                : order
+                            );
+                            recalcStats(next);
+                            return next;
+                          });
+                        } catch (e) {
+                          console.warn("[delivery] Bulk delivery-started failed", e);
+                          Alert.alert(
+                            "Sync failed",
+                            "Could not save to server. Check connection and try again."
+                          );
+                          loadFromFirestore();
+                        }
+                      },
+                    },
+                  ]
+                );
+              }}
+              testID="btn-bulk-delivery-started"
+              accessibilityLabel="Mark all delivery started"
+            >
+              <Text style={styles.bulkButtonText}>Delivery Started</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Delivery Orders */}
@@ -398,91 +516,7 @@ export default function DeliveryDashboard() {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Today&apos;s Deliveries</Text>
               <View style={styles.headerButtonsRow}>
-                <TouchableOpacity
-                  style={styles.bulkButton}
-                  onPress={() => {
-                    const count = deliveryOrders.filter(
-                      (o) => o.status === "packaging"
-                    ).length;
-                    if (count === 0) {
-                      Alert.alert(
-                        "Nothing to update",
-                        "No orders in packaging state."
-                      );
-                      return;
-                    }
-                    Alert.alert(
-                      "Mark all packaging done",
-                      `Confirm marking ${count} order(s) as packaging done?`,
-                      [
-                        { text: "Cancel", style: "cancel" },
-                        {
-                          text: "Confirm",
-                          onPress: () => {
-                            setDeliveryOrders((prev) => {
-                              const next = prev.map((o) =>
-                                o.status === "packaging"
-                                  ? { ...o, status: "packaging_done" as const }
-                                  : o
-                              );
-                              recalcStats(next);
-                              return next;
-                            });
-                          },
-                        },
-                      ]
-                    );
-                  }}
-                  testID="btn-bulk-packaging-done"
-                  accessibilityLabel="Mark all packaging done"
-                >
-                  <Text style={styles.bulkButtonText}>All Packaging Done</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.bulkButton, { backgroundColor: "#48479B" }]}
-                  onPress={() => {
-                    const count = deliveryOrders.filter(
-                      (o) => o.status === "packaging_done"
-                    ).length;
-                    if (count === 0) {
-                      Alert.alert(
-                        "Nothing to update",
-                        "No orders ready to start delivery."
-                      );
-                      return;
-                    }
-                    Alert.alert(
-                      "Start delivery for all",
-                      `Confirm starting delivery for ${count} order(s)?`,
-                      [
-                        { text: "Cancel", style: "cancel" },
-                        {
-                          text: "Confirm",
-                          onPress: () => {
-                            setDeliveryOrders((prev) => {
-                              const next = prev.map((o) =>
-                                o.status === "packaging_done"
-                                  ? {
-                                      ...o,
-                                      status: "delivery_started" as const,
-                                    }
-                                  : o
-                              );
-                              recalcStats(next);
-                              return next;
-                            });
-                          },
-                        },
-                      ]
-                    );
-                  }}
-                  testID="btn-bulk-delivery-started"
-                  accessibilityLabel="Mark all delivery started"
-                >
-                  <Text style={styles.bulkButtonText}>
-                    All Delivery Started
-                  </Text>
-                </TouchableOpacity>
+                
                 <TouchableOpacity
                   onPress={onRefresh}
                   style={styles.iconButton}
@@ -798,8 +832,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 30,
+    paddingTop: 18,
+    paddingBottom: 12,
   },
   greeting: {
     fontSize: 16,
@@ -829,36 +863,38 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 20,
-    marginBottom: 30,
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    marginBottom: 20,
   },
   statCard: {
-    width: "48%",
-    marginRight: "2%",
-    marginBottom: 16,
-    borderRadius: 16,
+    width: "31%",
+    borderRadius: 12,
     overflow: "hidden",
   },
   statGradient: {
-    padding: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    overflow: "hidden",
   },
   statValue: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: "900",
     color: "white",
-    marginTop: 6,
+    marginTop: 4,
     letterSpacing: -0.5,
   },
   statTitle: {
-    fontSize: 11,
+    fontSize: 9,
     color: "rgba(255, 255, 255, 0.8)",
-    marginTop: 4,
+    marginTop: 2,
     textAlign: "center",
     fontWeight: "600",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
   },
   sectionContainer: {
     paddingHorizontal: 20,
@@ -874,16 +910,27 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+  bulkButtonsRow: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    marginBottom: 24,
+    gap: 12,
+  },
   bulkButton: {
+    flex: 1,
     backgroundColor: "#8B5CF6",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginLeft: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bulkButtonSecondary: {
+    backgroundColor: "#48479B",
   },
   bulkButtonText: {
     color: "white",
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "700",
   },
   iconButton: {

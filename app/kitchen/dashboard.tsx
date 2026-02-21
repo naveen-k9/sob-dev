@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import RoleSelector from '@/components/RoleSelector';
 import db from '@/db';
 import { Subscription, User, Meal, AddOn } from '@/types';
+import { isActivePlanDate } from '@/utils/subscriptionDateUtils';
 import {
   ChefHat,
   Clock,
@@ -28,6 +29,7 @@ import {
   LogOut,
   Package,
   Download,
+  Plus,
 } from 'lucide-react-native';
 
 interface CookingItem {
@@ -49,10 +51,8 @@ export default function KitchenDashboard() {
   const [initialSnapshot, setInitialSnapshot] = useState<CookingItem[]>([]);
 
   const [stats, setStats] = useState({
-    totalOrders: 0,
-    pendingOrders: 0,
-    readyOrders: 0,
-    cookingOrders: 0,
+    totalMeals: 0,
+    totalAddons: 0,
   });
   const [addOnsById, setAddOnsById] = useState<Map<string, AddOn>>(new Map());
 
@@ -79,7 +79,7 @@ export default function KitchenDashboard() {
       setAddOnsById(addOnsMap);
 
       const today = new Date();
-      today.setHours(0,0,0,0);
+      today.setHours(0, 0, 0, 0);
       const todayStr = today.toISOString().split('T')[0];
 
       const mealsById = new Map<string, Meal>();
@@ -87,7 +87,7 @@ export default function KitchenDashboard() {
 
       const validKitchenStatuses = ['pending', 'cooking_started', 'cooking_done', 'ready_for_delivery'];
       const list: CookingItem[] = subs
-        .filter((s: Subscription) => s.status === 'active')
+        .filter((s: Subscription) => s.status === 'active' && isActivePlanDate(today, s))
         .map((s: Subscription) => {
           const u: User | undefined = users.find((us) => us.id === s.userId);
           const m = mealsById.get(s.mealId);
@@ -110,10 +110,9 @@ export default function KitchenDashboard() {
 
       setCookingList(list);
       setInitialSnapshot(prev => (prev.length === 0 ? list : prev));
-      const pending = list.filter((i) => i.status === 'pending').length;
-      const cooking = list.filter((i) => i.status === 'cooking_started' || i.status === 'cooking_done').length;
-      const ready = list.filter((i) => i.status === 'ready_for_delivery').length;
-      setStats({ totalOrders: list.length, pendingOrders: pending, cookingOrders: cooking, readyOrders: ready });
+      const totalMeals = list.reduce((sum, i) => sum + i.quantity, 0);
+      const totalAddons = list.reduce((sum, i) => sum + i.addOns.length, 0);
+      setStats({ totalMeals, totalAddons });
     } catch (e) {
       console.log('[kitchen] loadFromFirestore error', e);
       Alert.alert('Error', 'Failed to load kitchen data');
@@ -144,17 +143,6 @@ export default function KitchenDashboard() {
         item.id === orderId ? { ...item, status: newStatus } : item
       )
     );
-    setStats(prev => {
-      const next = { ...prev };
-      if (newStatus === 'cooking_started') {
-        next.pendingOrders = Math.max(0, prev.pendingOrders - 1);
-        next.cookingOrders += 1;
-      } else if (newStatus === 'ready_for_delivery') {
-        next.cookingOrders = Math.max(0, prev.cookingOrders - 1);
-        next.readyOrders += 1;
-      }
-      return next;
-    });
   };
 
   const markAsReadyForDelivery = (orderId: string) => {
@@ -173,7 +161,7 @@ export default function KitchenDashboard() {
 
   const bulkUpdateStatus = (newStatus: 'cooking_started' | 'cooking_done' | 'ready_for_delivery') => {
     const statusText = newStatus === 'cooking_started' ? 'Cooking Started' :
-                      newStatus === 'cooking_done' ? 'Cooking Done' : 'Ready for Delivery';
+      newStatus === 'cooking_done' ? 'Cooking Done' : 'Ready for Delivery';
 
     Alert.alert(
       `Mark All as ${statusText}`,
@@ -199,12 +187,6 @@ export default function KitchenDashboard() {
             setCookingList(prev =>
               prev.map(item => ({ ...item, status: newStatus }))
             );
-            const totalOrders = cookingList.length;
-            if (newStatus === 'cooking_started' || newStatus === 'cooking_done') {
-              setStats({ totalOrders, pendingOrders: 0, cookingOrders: totalOrders, readyOrders: 0 });
-            } else {
-              setStats({ totalOrders, pendingOrders: 0, cookingOrders: 0, readyOrders: totalOrders });
-            }
           },
         },
       ]
@@ -273,9 +255,9 @@ export default function KitchenDashboard() {
    */
   const exportCSV = useCallback(async (list: CookingItem[], label: string) => {
     try {
-      const csv       = buildCSV(list, label);
+      const csv = buildCSV(list, label);
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const fileName  = `${timestamp}_${label}_sheet.csv`;
+      const fileName = `${timestamp}_${label}_sheet.csv`;
 
       if (Platform.OS === 'android') {
         const perms = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
@@ -378,8 +360,8 @@ export default function KitchenDashboard() {
         colors={['#1F2937', '#111827']}
         style={styles.gradient}
       >
-        <ScrollView 
-          style={styles.scrollView} 
+        <ScrollView
+          style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -390,7 +372,7 @@ export default function KitchenDashboard() {
             <View>
               <Text style={styles.greeting}>Kitchen Dashboard</Text>
               <Text style={styles.userName}>{user?.name || 'Chef'}</Text>
-              <Text style={styles.currentTime}>{formatTime(currentTime)}</Text>
+              {/* <Text style={styles.currentTime}>{formatTime(currentTime)}</Text> */}
             </View>
             <View style={styles.headerActions}>
               <RoleSelector currentRole="kitchen" />
@@ -400,8 +382,32 @@ export default function KitchenDashboard() {
             </View>
           </View>
 
-          {/* Export CSV Buttons */}
-          <View style={styles.exportContainer}>
+           {/* Stats Cards */}
+           <View style={styles.statsContainer}>
+            <View style={styles.statCard}>
+              <LinearGradient
+                colors={['#48479B', '#2563EB']}
+                style={styles.statGradient}
+              >
+                <ChefHat size={24} color="white" />
+                <Text style={styles.statValue}>{stats.totalMeals}</Text>
+                <Text style={styles.statTitle}>Total Meals</Text>
+              </LinearGradient>
+            </View>
+            <View style={styles.statCard}>
+              <LinearGradient
+                colors={['#F59E0B', '#D97706']}
+                style={styles.statGradient}
+              >
+                <Plus size={24} color="white" />
+                <Text style={styles.statValue}>{stats.totalAddons}</Text>
+                <Text style={styles.statTitle}>Total Add-ons</Text>
+              </LinearGradient>
+            </View>
+          </View>
+
+           {/* Export CSV Buttons */}
+           <View style={styles.exportContainer}>
             <TouchableOpacity
               style={[styles.exportButton, styles.exportInitial]}
               onPress={exportInitialCSV}
@@ -418,76 +424,32 @@ export default function KitchenDashboard() {
             </TouchableOpacity>
           </View>
 
-          {/* Bulk Action Buttons */}
-          <View style={styles.bulkActionsContainer}>
+           {/* Bulk Action Buttons */}
+           {/* <View style={styles.bulkActionsContainer}>
             <TouchableOpacity
               style={[styles.bulkActionButton, styles.bulkStartButton]}
               onPress={() => bulkUpdateStatus('cooking_started')}
             >
               <ChefHat size={16} color="white" />
-              <Text style={styles.bulkActionText}>Start All Cooking</Text>
+              <Text style={styles.bulkActionText}>Start Cooking</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.bulkActionButton, styles.bulkDoneButton]}
-              onPress={() => bulkUpdateStatus('cooking_done')}
-            >
-              <Clock size={16} color="white" />
-              <Text style={styles.bulkActionText}>Mark All Done</Text>
-            </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={[styles.bulkActionButton, styles.bulkReadyButton]}
               onPress={() => bulkUpdateStatus('ready_for_delivery')}
             >
               <Package size={16} color="white" />
-              <Text style={styles.bulkActionText}>Ready for Delivery</Text>
+              <Text style={styles.bulkActionText}>Ready for Packaging</Text>
             </TouchableOpacity>
-          </View>
+          </View> */}
 
-          {/* Stats Cards */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={['#48479B', '#2563EB']}
-                style={styles.statGradient}
-              >
-                <Package size={24} color="white" />
-                <Text style={styles.statValue}>{stats.totalOrders}</Text>
-                <Text style={styles.statTitle}>Total Orders</Text>
-              </LinearGradient>
-            </View>
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={['#F59E0B', '#D97706']}
-                style={styles.statGradient}
-              >
-                <AlertCircle size={24} color="white" />
-                <Text style={styles.statValue}>{stats.pendingOrders}</Text>
-                <Text style={styles.statTitle}>Pending</Text>
-              </LinearGradient>
-            </View>
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={['#8B5CF6', '#7C3AED']}
-                style={styles.statGradient}
-              >
-                <Clock size={24} color="white" />
-                <Text style={styles.statValue}>{stats.cookingOrders}</Text>
-                <Text style={styles.statTitle}>Cooking</Text>
-              </LinearGradient>
-            </View>
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={['#10B981', '#059669']}
-                style={styles.statGradient}
-              >
-                <CheckCircle size={24} color="white" />
-                <Text style={styles.statValue}>{stats.readyOrders}</Text>
-                <Text style={styles.statTitle}>Ready</Text>
-              </LinearGradient>
-            </View>
-          </View>
+         
+
+          
+
+         
+
+
 
           {/* Cook Summary — Meals + Add-ons */}
           {cookingList.length > 0 && (() => {
@@ -540,14 +502,14 @@ export default function KitchenDashboard() {
           })()}
 
           {/* Cooking List */}
-          <View style={styles.sectionContainer}>
+          {/* <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Today&apos;s Cooking List</Text>
               <TouchableOpacity onPress={onRefresh}>
                 <RefreshCw size={20} color="#9CA3AF" />
               </TouchableOpacity>
             </View>
-            
+
             {cookingList.map((item) => {
               const StatusIcon = getStatusIcon(item.status);
               const statusColor = getStatusColor(item.status);
@@ -571,7 +533,7 @@ export default function KitchenDashboard() {
                       </View>
                     </View>
                   </View>
-                  
+
                   {item.addOns.length > 0 && (
                     <View style={styles.addOnsContainer}>
                       <Text style={styles.addOnsTitle}>Add-ons:</Text>
@@ -580,7 +542,7 @@ export default function KitchenDashboard() {
                       </Text>
                     </View>
                   )}
-                  
+
                   <View style={styles.orderActions}>
                     {item.status === 'pending' && (
                       <TouchableOpacity
@@ -619,7 +581,7 @@ export default function KitchenDashboard() {
                 </View>
               );
             })}
-          </View>
+          </View> */}
         </ScrollView>
       </LinearGradient>
     </SafeAreaView>
@@ -641,8 +603,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 30,
+    paddingTop: 18,
+    paddingBottom: 12,
   },
   greeting: {
     fontSize: 16,
@@ -674,7 +636,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: 20,
-    marginBottom: 30,
+    marginBottom: 9,
   },
   statCard: {
     width: '48%',
@@ -900,8 +862,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingVertical: 18,
+    paddingHorizontal: 9,
     borderRadius: 12,
     gap: 6,
     backgroundColor: 'rgba(255,255,255,0.08)',
@@ -916,7 +878,7 @@ const styles = StyleSheet.create({
   },
   exportText: {
     color: 'white',
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
     marginLeft: 6,
@@ -926,8 +888,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingVertical: 18,
+    paddingHorizontal: 9,
     borderRadius: 12,
     gap: 6,
   },
