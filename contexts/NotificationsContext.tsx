@@ -12,6 +12,7 @@ import {
   addNotificationResponseListener,
   addNotificationReceivedListener,
 } from "@/services/pushNotifications";
+import { getUserDoc } from "@/services/firebase";
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -112,7 +113,9 @@ export const [NotificationsProvider, useNotifications] = createContextHook(
     }, []);
 
     /**
-     * Initialize push notifications
+     * Initialize push notifications.
+     * Ensures the current user's push token is set in Firebase: if the user
+     * has no pushToken in Firebase after login, we generate and set a new one.
      */
     const initializePushNotifications = useCallback(async () => {
       if (Platform.OS === "web") {
@@ -120,18 +123,29 @@ export const [NotificationsProvider, useNotifications] = createContextHook(
         return;
       }
 
+      if (!user) return;
+
       try {
         // Setup notification categories (iOS actions)
         await setupNotificationCategories();
+
+        // Check Firebase for current user's push token (source of truth)
+        let firebaseUser: { pushToken?: string } | null = null;
+        try {
+          firebaseUser = await getUserDoc(user.id);
+        } catch (e) {
+          console.log("[PushNotif] Could not fetch user from Firebase:", e);
+        }
+
+        const hasNoTokenInFirebase = !firebaseUser?.pushToken;
 
         // Register for push notifications
         const token = await registerForPushNotificationsAsync();
 
         if (token) {
           setExpoPushToken(token);
-
-          // Always save token if missing or changed
-          if (user && (!user.pushToken || token !== user.pushToken)) {
+          // Save to Firebase if user has no token there or token changed
+          if (hasNoTokenInFirebase || token !== firebaseUser?.pushToken) {
             try {
               await updateUser({ pushToken: token });
               console.log("[PushNotif] Token saved for user:", user.id);
@@ -139,8 +153,8 @@ export const [NotificationsProvider, useNotifications] = createContextHook(
               console.log("[PushNotif] Failed to save push token:", e);
             }
           }
-        } else if (user && !user.pushToken) {
-          // No token received – likely no permission. Request explicitly.
+        } else if (hasNoTokenInFirebase) {
+          // No token received – request permission and retry so we can set in Firebase
           try {
             const { status } = await Notifications.requestPermissionsAsync();
             if (status === "granted") {
