@@ -223,7 +223,8 @@ export default function DeliveryDashboard() {
             await db.updateSubscriptionDeliveryStatus(
               orderId,
               todayStr,
-              nextStatus
+              nextStatus,
+              user?.id
             );
             updateOrderStatus(orderId, nextStatus as DeliveryOrder["status"]);
           } catch (e) {
@@ -415,7 +416,8 @@ export default function DeliveryDashboard() {
                               db.updateSubscriptionDeliveryStatus(
                                 o.id,
                                 todayStr,
-                                "packaging_done"
+                                "packaging_done",
+                                user?.id
                               )
                             )
                           );
@@ -475,7 +477,8 @@ export default function DeliveryDashboard() {
                               db.updateSubscriptionDeliveryStatus(
                                 o.id,
                                 todayStr,
-                                "delivery_started"
+                                "delivery_started",
+                                user?.id
                               )
                             )
                           );

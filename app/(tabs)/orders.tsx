@@ -41,7 +41,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import RazorpayCheckout from "react-native-razorpay";
-import { sendAddonPurchaseNotification } from "@/services/whatsapp";
+import { sendAddonPurchaseNotificationCallable } from "@/services/firebaseFunctions";
 
 interface CalendarDay {
   date: Date;
@@ -677,7 +677,8 @@ export default function OrdersScreen() {
         const a = availableAddOns.find((ao) => ao.id === id);
         return a?.name ?? id;
       });
-      sendAddonPurchaseNotification(user.phone, {
+      sendAddonPurchaseNotificationCallable({
+        phone: user.phone,
         customerName: user.name ?? "Customer",
         addonNames,
         date: new Date(dateString).toLocaleDateString("en-IN", { day: "numeric", month: "long" }),
@@ -786,7 +787,7 @@ export default function OrdersScreen() {
           contact: user.phone ?? "",
           name: user.name ?? "Customer",
         },
-        theme: { color: "#E53935" },
+        theme: { color: "#48479B" },
       };
 
       RazorpayCheckout.open(options)
@@ -1178,7 +1179,7 @@ export default function OrdersScreen() {
                 "#48479B",
                 "#10B981",
                 "#F59E0B",
-                "#E53935",
+                "#48479B",
               ][index % 4];
               const mealForPlan = mealsMap[sub.mealId];
 

@@ -84,7 +84,7 @@ export default function SubscriptionAckScreen() {
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color="#E53935" />
+            <ActivityIndicator size="large" color="#48479B" />
             <Text style={styles.loadingText}>Loading…</Text>
           </View>
         ) : !subscription ? (
@@ -98,7 +98,11 @@ export default function SubscriptionAckScreen() {
             <LinearGradient colors={["#ECFDF5", "#D1FAE5"]} style={styles.successGradient}>
               <CheckCircle2 size={56} color="#10B981" />
               <Text style={styles.successTitle}>Delivery Confirmed!</Text>
-              <Text style={styles.successSub}>Thank you for confirming. Enjoy your meal!</Text>
+              <Text style={styles.successSub}>
+                {(subscription as any)?.deliveryAckMetaByDate?.[date || ""]?.mode === "auto"
+                  ? "This delivery was auto-confirmed. Enjoy your meal!"
+                  : "Thank you for confirming. Enjoy your meal!"}
+              </Text>
             </LinearGradient>
           </View>
         ) : (
@@ -108,7 +112,7 @@ export default function SubscriptionAckScreen() {
               <LinearGradient colors={["#FFF7F0", "#FFF0E6"]} style={styles.cardGradient}>
                 <View style={styles.iconRow}>
                   <View style={styles.iconCircle}>
-                    <Package size={28} color="#E53935" />
+                    <Package size={28} color="#48479B" />
                   </View>
                   <View style={styles.cardInfo}>
                     <Text style={styles.cardTitle}>{mealName}</Text>
@@ -208,7 +212,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: 16, overflow: "hidden", marginBottom: 20, elevation: 2, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
   cardGradient: { padding: 20 },
   iconRow: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 20 },
-  iconCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", elevation: 2, shadowColor: "#E53935", shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
+  iconCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", elevation: 2, shadowColor: "#48479B", shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
   cardInfo: { flex: 1 },
   cardTitle: { fontSize: 17, fontWeight: "700", color: "#111" },
   cardDate: { fontSize: 13, color: "#6B7280", marginTop: 2 },
@@ -221,7 +225,7 @@ const styles = StyleSheet.create({
   stepLine: { flex: 1, height: 2, backgroundColor: "#E5E7EB", marginBottom: 14 },
   stepLineActive: { backgroundColor: "#10B981" },
   helpText: { fontSize: 14, color: "#6B7280", textAlign: "center", lineHeight: 20, marginBottom: 24, paddingHorizontal: 8 },
-  cta: { backgroundColor: "#E53935", borderRadius: 14, paddingVertical: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, elevation: 3, shadowColor: "#E53935", shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+  cta: { backgroundColor: "#48479B", borderRadius: 14, paddingVertical: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, elevation: 3, shadowColor: "#48479B", shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
   ctaDisabled: { backgroundColor: "#9CA3AF", shadowOpacity: 0 },
   ctaText: { color: "#fff", fontSize: 16, fontWeight: "700" },
   notAvail: { color: "#9CA3AF", textAlign: "center", marginTop: 12, fontSize: 13 },

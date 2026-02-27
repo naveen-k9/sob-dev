@@ -168,6 +168,8 @@ export interface Subscription {
   /** Per-date delivery status: packaging | packaging_done | delivery_started | reached | delivery_done */
   deliveryStatusByDate?: Record<string, string>;
   deliveryAckByDate?: Record<string, boolean>;
+  /** Per-date ack source: user tap vs auto-complete (for calendar display) */
+  deliveryAckMetaByDate?: Record<string, { mode: "user" | "auto"; at: string }>;
   /** Per-day log of kitchen/delivery status changes (date string -> log entries) */
   deliveryDayLogs?: Record<string, DeliveryDayLogEntry[]>;
   /** Offer applied at subscription creation */

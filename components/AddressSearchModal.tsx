@@ -323,7 +323,7 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
       activeOpacity={0.7}
     >
       <View style={styles.resultIcon}>
-        <Ionicons name="location-outline" size={20} color="#E53935" />
+        <Ionicons name="location-outline" size={20} color="#48479B" />
       </View>
       <View style={styles.resultContent}>
         <Text style={styles.resultTitle} numberOfLines={1}>
@@ -344,7 +344,7 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
       activeOpacity={0.7}
     >
       <View style={styles.resultIcon}>
-        <Ionicons name="location-outline" size={20} color="#E53935" />
+        <Ionicons name="location-outline" size={20} color="#48479B" />
       </View>
       <View style={styles.resultContent}>
         <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
@@ -408,7 +408,7 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
               autoCapitalize="none"
             />
             {isSearching ? (
-              <ActivityIndicator size="small" color="#E53935" />
+              <ActivityIndicator size="small" color="#48479B" />
             ) : searchQuery.length > 0 ? (
               <TouchableOpacity
                 onPress={handleClear}
@@ -430,12 +430,12 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
           {isLocating ? (
             <ActivityIndicator
               size="small"
-              color="#E53935"
+              color="#48479B"
               style={{ marginRight: 12 }}
             />
           ) : (
             <View style={styles.currentLocationIcon}>
-              <Ionicons name="navigate" size={18} color="#E53935" />
+              <Ionicons name="navigate" size={18} color="#48479B" />
             </View>
           )}
           <View>
@@ -455,7 +455,7 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
         {/* Fetching details overlay */}
         {isFetchingDetails && (
           <View style={styles.detailsOverlay}>
-            <ActivityIndicator color="#E53935" />
+            <ActivityIndicator color="#48479B" />
             <Text style={styles.detailsText}>Getting location…</Text>
           </View>
         )}
@@ -472,7 +472,7 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
         {hasQuery ? (
           isSearching ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#E53935" />
+              <ActivityIndicator size="large" color="#48479B" />
               <Text style={styles.loadingText}>Searching…</Text>
             </View>
           ) : hasResults ? (
@@ -563,8 +563,8 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === "ios" ? 12 : 8,
     gap: 10,
     borderWidth: 1.5,
-    borderColor: "#E53935",
-    shadowColor: "#E53935",
+    borderColor: "#48479B",
+    shadowColor: "#48479B",
     shadowOpacity: 0.08,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  currentLocationTitle: { fontSize: 15, fontWeight: "700", color: "#E53935" },
+  currentLocationTitle: { fontSize: 15, fontWeight: "700", color: "#48479B" },
   currentLocationSub: { fontSize: 12, color: "#9CA3AF", marginTop: 1 },
   divider: { height: 6, backgroundColor: "#F5F5F5" },
   detailsOverlay: {
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#FECACA",
   },
-  detailsText: { color: "#E53935", fontSize: 13 },
+  detailsText: { color: "#48479B", fontSize: 13 },
   errorRow: {
     flexDirection: "row",
     alignItems: "center",

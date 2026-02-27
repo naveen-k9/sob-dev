@@ -28,7 +28,6 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "@/contexts/LocationContext";
 import db from "@/db";
-import { notifySubscriptionUpdate } from "@/utils/notificationTemplates";
 import RazorpayCheckout from "react-native-razorpay";
 import { Colors } from "@/constants/colors";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -647,18 +646,7 @@ export default function CheckoutScreen() {
             );
           }
 
-          // Notify via push + WhatsApp
-          if (user?.id) {
-            notifySubscriptionUpdate(
-              { userId: user.id, name: user.name || "Customer", phone: user.phone || "", pushToken: user.pushToken },
-              {
-                planName: updatedDetails.plan?.name || "Meal Plan",
-                status: "activated",
-                startDate: new Date(updatedDetails.startDate).toLocaleDateString(),
-                endDate: updatedDetails.endDate ? new Date(updatedDetails.endDate).toLocaleDateString() : undefined,
-              }
-            ).catch(() => {});
-          }
+          // Subscription WhatsApp/push sent by Firestore trigger when subscription doc is written
 
           // Update wallet transaction with subscription ID if available
           if (
@@ -814,16 +802,7 @@ export default function CheckoutScreen() {
               console.log("incrementOfferUsedCount failed", e)
             );
           }
-          if (user?.id) {
-            notifySubscriptionUpdate(
-              { userId: user.id, name: user.name || "Customer", phone: user.phone || "", pushToken: user.pushToken },
-              {
-                planName: subscriptionDetails?.plan?.name || "Meal Plan",
-                status: "activated",
-                startDate: new Date(subscriptionDetails?.startDate || Date.now()).toLocaleDateString(),
-              }
-            ).catch(() => {});
-          }
+          // Subscription WhatsApp/push sent by Firestore trigger
         } catch (error) {
           console.error("Error creating subscription:", error);
         }
@@ -954,16 +933,7 @@ export default function CheckoutScreen() {
             console.log("incrementOfferUsedCount failed", e)
           );
         }
-        if (user?.id) {
-          notifySubscriptionUpdate(
-            { userId: user.id, name: user.name || "Customer", phone: user.phone || "", pushToken: user.pushToken },
-            {
-              planName: subscriptionDetails?.plan?.name || "Meal Plan",
-              status: "activated",
-              startDate: new Date(subscriptionDetails?.startDate || Date.now()).toLocaleDateString(),
-            }
-          ).catch(() => {});
-        }
+        // Subscription WhatsApp/push sent by Firestore trigger
       } catch (error) {
         console.error("Error creating subscription on retry:", error);
       }
@@ -1923,7 +1893,7 @@ const styles = StyleSheet.create({
   totalValue: {
     fontSize: 20,
     fontWeight: "900",
-    color: "#E53935",
+    color: "#48479B",
   },
   promoContainer: {
     flexDirection: "row",
@@ -1973,7 +1943,7 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
   },
   selectedPaymentMethod: {
-    borderColor: "#E53935",
+    borderColor: "#48479B",
     backgroundColor: "#FEF2F2",
   },
   walletRow: {
@@ -1986,7 +1956,7 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
   },
   walletRowActive: {
-    borderColor: "#E53935",
+    borderColor: "#48479B",
     backgroundColor: "#FEF2F2",
   },
   checkbox: {
@@ -2071,12 +2041,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   placeOrderButton: {
-    backgroundColor: "#E53935",
+    backgroundColor: "#48479B",
     paddingVertical: 17,
     borderRadius: 14,
     alignItems: "center",
     elevation: 4,
-    shadowColor: "#E53935",
+    shadowColor: "#48479B",
     shadowOpacity: 0.35,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },

@@ -85,7 +85,7 @@ export default function AcknowledgmentScreen() {
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color="#E53935" />
+            <ActivityIndicator size="large" color="#48479B" />
             <Text style={styles.loadingText}>Loading order…</Text>
           </View>
         ) : !order ? (
@@ -109,7 +109,7 @@ export default function AcknowledgmentScreen() {
               <LinearGradient colors={["#FFF7F0", "#FFF0E6"]} style={styles.statusGrad}>
                 <View style={styles.orderRow}>
                   <View style={styles.orderIconWrap}>
-                    <Truck size={26} color="#E53935" />
+                    <Truck size={26} color="#48479B" />
                   </View>
                   <View style={styles.orderInfo}>
                     <Text style={styles.orderIdText}>Order #{order.id.slice(-6).toUpperCase()}</Text>
@@ -198,14 +198,14 @@ const styles = StyleSheet.create({
   statusCard: { borderRadius: 16, overflow: "hidden", marginBottom: 20, elevation: 2, shadowColor: "#000", shadowOpacity: 0.07, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
   statusGrad: { padding: 20, gap: 20 },
   orderRow: { flexDirection: "row", alignItems: "center", gap: 14 },
-  orderIconWrap: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", elevation: 2, shadowColor: "#E53935", shadowOpacity: 0.15, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
+  orderIconWrap: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", elevation: 2, shadowColor: "#48479B", shadowOpacity: 0.15, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
   orderInfo: { flex: 1, gap: 6 },
   orderIdText: { fontSize: 15, fontWeight: "700", color: "#111" },
   statusPill: { alignSelf: "flex-start", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   statusPillActive: { backgroundColor: "#FEE2E2" },
   statusPillNeutral: { backgroundColor: "#F3F4F6" },
   statusPillText: { fontSize: 12, fontWeight: "600", textTransform: "capitalize" },
-  statusPillTextActive: { color: "#E53935" },
+  statusPillTextActive: { color: "#48479B" },
   statusPillTextNeutral: { color: "#374151" },
   stepsRow: { flexDirection: "row", alignItems: "center" },
   step: { alignItems: "center", gap: 4 },
@@ -217,9 +217,9 @@ const styles = StyleSheet.create({
   stepLineDone: { backgroundColor: "#10B981" },
   helpText: { fontSize: 14, color: "#6B7280", textAlign: "center", lineHeight: 20, marginBottom: 24, paddingHorizontal: 8 },
   cta: {
-    backgroundColor: "#E53935", borderRadius: 14, paddingVertical: 16,
+    backgroundColor: "#48479B", borderRadius: 14, paddingVertical: 16,
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
-    elevation: 3, shadowColor: "#E53935", shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
+    elevation: 3, shadowColor: "#48479B", shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
   },
   ctaDisabled: { backgroundColor: "#9CA3AF", shadowOpacity: 0, elevation: 0 },
   ctaText: { color: "#fff", fontSize: 16, fontWeight: "700" },

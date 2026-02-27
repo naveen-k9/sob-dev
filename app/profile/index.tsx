@@ -104,7 +104,7 @@ export default function ProfileScreen() {
     },
     {
       icon: Heart,
-      title: "Nutritionist Consultation",
+      title: "Personalized Meal Plans",
       onPress: () => router.push("/nutritionist-contact" as any),
     },
     {
@@ -112,17 +112,17 @@ export default function ProfileScreen() {
       title: "Corporate Catering",
       onPress: () => router.push("/corporate-catering" as any),
     },
-    { icon: CreditCard, title: "Payment Methods", onPress: () => {} },
-    {
-      icon: Bell,
-      title: "Notifications",
-      onPress: () => router.push("/notifications" as any),
-    },
-    {
-      icon: HelpCircle,
-      title: "FAQs",
-      onPress: () => router.push("/faqs" as any),
-    },
+    // { icon: CreditCard, title: "Payment Methods", onPress: () => {} },
+    // {
+    //   icon: Bell,
+    //   title: "Notifications",
+    //   onPress: () => router.push("/notifications" as any),
+    // },
+    // {
+    //   icon: HelpCircle,
+    //   title: "FAQs",
+    //   onPress: () => router.push("/faqs" as any),
+    // },
     {
       icon: MessageSquare,
       title: "Support Tickets",
@@ -130,147 +130,147 @@ export default function ProfileScreen() {
     },
   ];
 
-  const handleEditPlanName = (subscription: Subscription) => {
-    setEditingPlanId(subscription.id);
-    setEditingPlanName(subscription.planName || `Plan ${subscription.planId}`);
-  };
+  // const handleEditPlanName = (subscription: Subscription) => {
+  //   setEditingPlanId(subscription.id);
+  //   setEditingPlanName(subscription.planName || `Plan ${subscription.planId}`);
+  // };
 
-  const savePlanName = async (subscriptionId: string) => {
-    if (!editingPlanName.trim()) {
-      Alert.alert("Error", "Plan name cannot be empty");
-      return;
-    }
+  // const savePlanName = async (subscriptionId: string) => {
+  //   if (!editingPlanName.trim()) {
+  //     Alert.alert("Error", "Plan name cannot be empty");
+  //     return;
+  //   }
 
-    try {
-      await db.updateSubscription(subscriptionId, {
-        planName: editingPlanName.trim(),
-      });
-      setEditingPlanId(null);
-      setEditingPlanName("");
-      await loadUserSubscriptions(); // Reload to show updated name
-    } catch (error) {
-      console.error("Error updating plan name:", error);
-      Alert.alert("Error", "Failed to update plan name");
-    }
-  };
+  //   try {
+  //     await db.updateSubscription(subscriptionId, {
+  //       planName: editingPlanName.trim(),
+  //     });
+  //     setEditingPlanId(null);
+  //     setEditingPlanName("");
+  //     await loadUserSubscriptions(); // Reload to show updated name
+  //   } catch (error) {
+  //     console.error("Error updating plan name:", error);
+  //     Alert.alert("Error", "Failed to update plan name");
+  //   }
+  // };
 
-  const cancelEditPlanName = () => {
-    setEditingPlanId(null);
-    setEditingPlanName("");
-  };
+  // const cancelEditPlanName = () => {
+  //   setEditingPlanId(null);
+  //   setEditingPlanName("");
+  // };
 
-  const renderSubscriptionCard = ({ item }: { item: Subscription }) => {
-    const getStatusColor = (status: string) => {
-      switch (status) {
-        case "active":
-          return "#10B981";
-        case "paused":
-          return "#F59E0B";
-        case "cancelled":
-          return "#EF4444";
-        case "completed":
-          return "#6B7280";
-        default:
-          return "#6B7280";
-      }
-    };
+  // const renderSubscriptionCard = ({ item }: { item: Subscription }) => {
+  //   const getStatusColor = (status: string) => {
+  //     switch (status) {
+  //       case "active":
+  //         return "#10B981";
+  //       case "paused":
+  //         return "#F59E0B";
+  //       case "cancelled":
+  //         return "#EF4444";
+  //       case "completed":
+  //         return "#6B7280";
+  //       default:
+  //         return "#6B7280";
+  //     }
+  //   };
 
-    const formatDate = (date: Date) => {
-      return new Date(date).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      });
-    };
+  //   const formatDate = (date: Date) => {
+  //     return new Date(date).toLocaleDateString("en-IN", {
+  //       day: "numeric",
+  //       month: "short",
+  //       year: "numeric",
+  //     });
+  //   };
 
-    const deliveredMeals =
-      (item.totalDeliveries || 0) - (item.remainingDeliveries || 0);
-    const isEditing = editingPlanId === item.id;
+  //   const deliveredMeals =
+  //     (item.totalDeliveries || 0) - (item.remainingDeliveries || 0);
+  //   const isEditing = editingPlanId === item.id;
 
-    return (
-      <View style={styles.subscriptionCard}>
-        <View style={styles.subscriptionHeader}>
-          <View style={styles.subscriptionInfo}>
-            {isEditing ? (
-              <View style={styles.editPlanContainer}>
-                <TextInput
-                  style={styles.editPlanInput}
-                  value={editingPlanName}
-                  onChangeText={setEditingPlanName}
-                  placeholder="Enter plan name"
-                  autoFocus
-                />
-                <View style={styles.editPlanButtons}>
-                  <TouchableOpacity
-                    style={styles.saveButton}
-                    onPress={() => savePlanName(item.id)}
-                  >
-                    <Text style={styles.saveButtonText}>Save</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.cancelButton}
-                    onPress={cancelEditPlanName}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <TouchableOpacity onPress={() => handleEditPlanName(item)}>
-                <View style={styles.planNameContainer}>
-                  <Text style={styles.subscriptionMeal}>
-                    {item.planName || `Plan ${item.planId}`}
-                  </Text>
-                  <Edit size={14} color="#48479B" style={styles.editIcon} />
-                </View>
-                <Text style={styles.subscriptionPlan}>
-                  Subscription #{item.id.slice(-6)}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: getStatusColor(item.status) },
-            ]}
-          >
-            <Text style={styles.statusText}>{item.status.toUpperCase()}</Text>
-          </View>
-        </View>
+  //   return (
+  //     <View style={styles.subscriptionCard}>
+  //       <View style={styles.subscriptionHeader}>
+  //         <View style={styles.subscriptionInfo}>
+  //           {isEditing ? (
+  //             <View style={styles.editPlanContainer}>
+  //               <TextInput
+  //                 style={styles.editPlanInput}
+  //                 value={editingPlanName}
+  //                 onChangeText={setEditingPlanName}
+  //                 placeholder="Enter plan name"
+  //                 autoFocus
+  //               />
+  //               <View style={styles.editPlanButtons}>
+  //                 <TouchableOpacity
+  //                   style={styles.saveButton}
+  //                   onPress={() => savePlanName(item.id)}
+  //                 >
+  //                   <Text style={styles.saveButtonText}>Save</Text>
+  //                 </TouchableOpacity>
+  //                 <TouchableOpacity
+  //                   style={styles.cancelButton}
+  //                   onPress={cancelEditPlanName}
+  //                 >
+  //                   <Text style={styles.cancelButtonText}>Cancel</Text>
+  //                 </TouchableOpacity>
+  //               </View>
+  //             </View>
+  //           ) : (
+  //             <TouchableOpacity onPress={() => handleEditPlanName(item)}>
+  //               <View style={styles.planNameContainer}>
+  //                 <Text style={styles.subscriptionMeal}>
+  //                   {item.planName || `Plan ${item.planId}`}
+  //                 </Text>
+  //                 <Edit size={14} color="#48479B" style={styles.editIcon} />
+  //               </View>
+  //               <Text style={styles.subscriptionPlan}>
+  //                 Subscription #{item.id.slice(-6)}
+  //               </Text>
+  //             </TouchableOpacity>
+  //           )}
+  //         </View>
+  //         <View
+  //           style={[
+  //             styles.statusBadge,
+  //             { backgroundColor: getStatusColor(item.status) },
+  //           ]}
+  //         >
+  //           <Text style={styles.statusText}>{item.status.toUpperCase()}</Text>
+  //         </View>
+  //       </View>
 
-        <View style={styles.subscriptionDetails}>
-          <View style={styles.detailRow}>
-            <Calendar size={16} color="#666" />
-            <Text style={styles.detailText}>
-              {formatDate(item.startDate)} - {formatDate(item.endDate)}
-            </Text>
-          </View>
+  //       <View style={styles.subscriptionDetails}>
+  //         <View style={styles.detailRow}>
+  //           <Calendar size={16} color="#666" />
+  //           <Text style={styles.detailText}>
+  //             {formatDate(item.startDate)} - {formatDate(item.endDate)}
+  //           </Text>
+  //         </View>
 
-          <View style={styles.detailRow}>
-            <Package size={16} color="#666" />
-            <Text style={styles.detailText}>
-              {deliveredMeals}/{item.totalDeliveries || 0} meals delivered
-            </Text>
-          </View>
+  //         <View style={styles.detailRow}>
+  //           <Package size={16} color="#666" />
+  //           <Text style={styles.detailText}>
+  //             {deliveredMeals}/{item.totalDeliveries || 0} meals delivered
+  //           </Text>
+  //         </View>
 
-          <View style={styles.detailRow}>
-            <Clock size={16} color="#666" />
-            <Text style={styles.detailText}>Delivery: {item.deliveryTime}</Text>
-          </View>
-        </View>
+  //         <View style={styles.detailRow}>
+  //           <Clock size={16} color="#666" />
+  //           <Text style={styles.detailText}>Delivery: {item.deliveryTime}</Text>
+  //         </View>
+  //       </View>
 
-        <View style={styles.subscriptionFooter}>
-          <Text style={styles.totalAmount}>₹{item.totalAmount}</Text>
-          {item.status === "active" && (
-            <TouchableOpacity style={styles.manageButton}>
-              <Text style={styles.manageButtonText}>Manage</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    );
-  };
+  //       <View style={styles.subscriptionFooter}>
+  //         <Text style={styles.totalAmount}>₹{item.totalAmount}</Text>
+  //         {item.status === "active" && (
+  //           <TouchableOpacity style={styles.manageButton}>
+  //             <Text style={styles.manageButtonText}>Manage</Text>
+  //           </TouchableOpacity>
+  //         )}
+  //       </View>
+  //     </View>
+  //   );
+  // };
 
   if (isGuest) {
     return (
@@ -333,7 +333,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* My Subscriptions */}
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <Text style={styles.sectionTitle}>My Subscriptions</Text>
           {loading ? (
             <View style={styles.loadingContainer}>
@@ -362,7 +362,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
           )}
-        </View>
+        </View> */}
 
         {/* Menu Items */}
         <View style={styles.menu}>
@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     fontSize: 15,
-    color: "#E53935",
+    color: "#48479B",
     fontWeight: "700",
   },
   walletCard: {

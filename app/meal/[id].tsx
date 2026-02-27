@@ -1106,7 +1106,7 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 26,
     fontWeight: "900",
-    color: "#E53935",
+    color: "#48479B",
   },
   originalPrice: {
     fontSize: 18,
@@ -1157,7 +1157,7 @@ const styles = StyleSheet.create({
   nutritionValue: {
     fontSize: 20,
     fontWeight: "900",
-    color: "#E53935",
+    color: "#48479B",
   },
   nutritionLabel: {
     fontSize: 12,
@@ -1183,8 +1183,8 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
   },
   selectedMealType: {
-    color: "#E53935",
-    borderColor: "#E53935",
+    color: "#48479B",
+    borderColor: "#48479B",
     backgroundColor: "#FEF2F2",
   },
   mealTypeText: {
@@ -1204,14 +1204,14 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   selectedPlan: {
-    borderColor: "#E53935",
+    borderColor: "#48479B",
     backgroundColor: "#FEF2F2",
   },
   popularBadge: {
     position: "absolute",
     top: -8,
     right: 16,
-    backgroundColor: "#E53935",
+    backgroundColor: "#48479B",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -1334,7 +1334,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#EC4899',
+    shadowColor: '#48479B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
@@ -1604,12 +1604,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   proceedButton: {
-    backgroundColor: "#E53935",
+    backgroundColor: "#48479B",
     paddingVertical: 17,
     borderRadius: 14,
     alignItems: "center",
     elevation: 4,
-    shadowColor: "#E53935",
+    shadowColor: "#48479B",
     shadowOpacity: 0.35,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },

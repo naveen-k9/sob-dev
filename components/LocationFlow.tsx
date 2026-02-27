@@ -558,7 +558,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
       {/* Loading location */}
       {isLoadingLocation && (
         <View style={styles.locationLoading}>
-          <ActivityIndicator size="large" color="#E53935" />
+          <ActivityIndicator size="large" color="#48479B" />
           <Text style={styles.locationLoadingText}>Finding your location…</Text>
         </View>
       )}
@@ -1087,13 +1087,13 @@ const styles = StyleSheet.create({
     color: "#8E8E93",
   },
   confirmButton: {
-    backgroundColor: "#E53935",
+    backgroundColor: "#48479B",
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
     elevation: 3,
-    shadowColor: "#E53935",
+    shadowColor: "#48479B",
     shadowOpacity: 0.3,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },

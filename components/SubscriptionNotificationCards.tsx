@@ -47,7 +47,7 @@ const STATUS_CONFIG: Record<
   scheduled: { label: "Scheduled", accent: "#3B82F6", pillBg: "rgba(59, 130, 246, 0.12)", pillText: "#2563EB" },
   cooking: { label: "Cooking", accent: "#F59E0B", pillBg: "rgba(245, 158, 11, 0.12)", pillText: "#D97706" },
   ready: { label: "Ready", accent: "#8B5CF6", pillBg: "rgba(139, 92, 246, 0.12)", pillText: "#7C3AED" },
-  out_for_delivery: { label: "On the way", accent: "#EC4899", pillBg: "rgba(236, 72, 153, 0.12)", pillText: "#DB2777" },
+  out_for_delivery: { label: "On the way", accent: "#48479B", pillBg: "rgba(236, 72, 153, 0.12)", pillText: "#DB2777" },
   delivered: { label: "Delivered", accent: "#10B981", pillBg: "rgba(16, 185, 129, 0.12)", pillText: "#059669" },
 };
 

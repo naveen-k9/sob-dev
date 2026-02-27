@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   selectedAddressCard: {
-    borderColor: '#E53935',
+    borderColor: '#48479B',
     backgroundColor: '#FEF2F2',
   },
   addressIcon: {
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
   },
   notServiceableText: {
     fontSize: 11,
-    color: '#E53935',
+    color: '#48479B',
     fontWeight: '600',
     marginTop: 4,
   },
@@ -394,13 +394,13 @@ const styles = StyleSheet.create({
     borderTopColor: '#F0F0F0',
   },
   confirmButton: {
-    backgroundColor: '#E53935',
+    backgroundColor: '#48479B',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 3,
-    shadowColor: '#E53935',
+    shadowColor: '#48479B',
     shadowOpacity: 0.3,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },

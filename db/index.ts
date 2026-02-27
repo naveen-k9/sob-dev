@@ -44,6 +44,7 @@ import {
   fetchOffers as fbFetchOffers,
   createOffer as fbCreateOffer,
   updateOffer as fbUpdateOffer,
+  createWalletTransactionToFirestore,
 } from "@/services/firebase";
 
 class Database {
@@ -1190,7 +1191,14 @@ class Database {
       ...(subscription.deliveryAckByDate || {}),
       [dateString]: true,
     };
-    return this.updateSubscription(subscriptionId, { deliveryAckByDate: ackByDate });
+    const ackMetaByDate = {
+      ...(subscription.deliveryAckMetaByDate || {}),
+      [dateString]: { mode: "user" as const, at: new Date().toISOString() },
+    };
+    return this.updateSubscription(subscriptionId, {
+      deliveryAckByDate: ackByDate,
+      deliveryAckMetaByDate: ackMetaByDate,
+    });
   }
 
   // Skip and Add-on methods
@@ -1615,6 +1623,10 @@ class Database {
 
       console.log(
         `[Wallet] ${transactionData.type === "credit" ? "Credited" : "Debited"} ₹${transactionData.amount} ${transactionData.type === "credit" ? "to" : "from"} user ${user.name}'s wallet. New balance: ₹${newBalance}`
+      );
+
+      createWalletTransactionToFirestore(newTransaction).catch((e) =>
+        console.log("[db] Firestore walletTransactions write failed", e)
       );
 
       return newTransaction;

@@ -54,8 +54,7 @@ const WHATSAPP_API_URL = defineString("WHATSAPP_API_URL", {
   default: "https://graph.facebook.com/v22.0",
 });
 const WHATSAPP_PHONE_NUMBER_ID = defineString("WHATSAPP_PHONE_NUMBER_ID");
-const WHATSAPP_ACCESS_TOKEN =
-  "EAAVLZCZBw38D8BP6cVYgnxZCqbZCXZB2gn1x8llkZAm0TXM4g8aYarPMPZAIw3OQ3QReZA8fYAJR9WBrayVzOkK2OkDZAhudZAInaq4EvtVnpAHnZBwyyDF3tttJ9MhNtmsfE1ZAwkTP4NJhHMzTDDu0rs8PhSkNJwAQzDSOc5ZCA93VvdcAUHWozHTteZCx4kQ4tGpsj3jKO573J6XFYZAZCouR4l6BcRZA2OGVYvqgp8GZBX5niVNl8ZD";
+const WHATSAPP_ACCESS_TOKEN = defineString("WHATSAPP_ACCESS_TOKEN");
 
 // Template names (must match WhatsApp Business Manager templates)
 const TEMPLATES = {
@@ -74,6 +73,7 @@ const TEMPLATES = {
   DAILY_MENU_UPDATE: "daily_menu_update",
   PROMOTIONAL_OFFER: "promotional_offer",
   WALLET_CREDITED: "wallet_credited",
+  ADDON_PURCHASED: "addon_purchased",
 };
 
 /**
@@ -83,7 +83,7 @@ function getWhatsAppClient() {
   return axios.create({
     baseURL: WHATSAPP_API_URL.value(),
     headers: {
-      Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN.value()}`,
       "Content-Type": "application/json",
     },
   });
@@ -155,45 +155,48 @@ async function sendWhatsAppMessage(
 }
 
 /**
- * Helper: Send push notification via FCM
+ * Helper: Send push notification via Expo Push API
+ * (users.pushToken is an Expo push token from expo-notifications)
  */
 async function sendPushNotification(
-  token: string,
+  toExpoToken: string,
   title: string,
   body: string,
   data?: Record<string, string>
 ): Promise<{ success: boolean; error?: string }> {
+  if (!toExpoToken || !toExpoToken.startsWith("ExponentPushToken")) {
+    console.warn("Invalid or non-Expo push token, skipping");
+    return { success: false, error: "Invalid Expo push token" };
+  }
   try {
-    await admin.messaging().send({
-      token,
-      notification: {
+    const response = await axios.post(
+      "https://exp.host/--/api/v2/push/send",
+      {
+        to: toExpoToken,
         title,
         body,
-      },
-      data,
-      android: {
+        data: data || {},
+        sound: "default",
         priority: "high",
-        notification: {
-          sound: "default",
-          channelId: "orders",
-        },
+        channelId: "orders",
       },
-      apns: {
-        payload: {
-          aps: {
-            sound: "default",
-            badge: 1,
-          },
-        },
-      },
-    });
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 10000,
+      }
+    );
 
+    const result = response.data?.data?.[0];
+    if (result?.status === "error") {
+      console.error("Expo push error:", result.message);
+      return { success: false, error: result.message };
+    }
     return { success: true };
   } catch (error: any) {
-    console.error("Push notification error:", error);
+    console.error("Push notification error:", error?.response?.data || error.message);
     return {
       success: false,
-      error: error.message,
+      error: error?.response?.data?.message || error.message,
     };
   }
 }
@@ -382,6 +385,81 @@ export const verifyWhatsAppOTP = onCall(async (request) => {
     console.error("Verify OTP error:", error.message);
     throw new HttpsError("internal", error.message);
   }
+});
+
+/**
+ * Cloud Function: Send add-on purchase notification via WhatsApp
+ */
+export const sendAddonPurchaseNotification = onCall(async (request) => {
+  const {
+    phone,
+    customerName,
+    addonNames,
+    date,
+    totalAmount,
+  } = request.data;
+
+  if (!phone || !customerName || !addonNames || !Array.isArray(addonNames)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "phone, customerName, and addonNames (array) are required"
+    );
+  }
+
+  const addonList = addonNames.join(", ");
+  const amountText = totalAmount?.toString().startsWith("₹")
+    ? totalAmount
+    : `₹${totalAmount || "0"}`;
+
+  const parameters = [
+    { type: "text", text: customerName },
+    { type: "text", text: addonList },
+    { type: "text", text: date || "" },
+    { type: "text", text: amountText },
+  ];
+
+  const result = await sendWhatsAppMessage(
+    phone,
+    TEMPLATES.ADDON_PURCHASED,
+    parameters
+  );
+
+  return {
+    success: result.success,
+    messageId: result.messageId,
+    error: result.error,
+  };
+});
+
+/**
+ * Cloud Function: Send test WhatsApp (e.g. for admin panel)
+ * Accepts phone and optional templateName + parameters; defaults to subscription_activated test payload.
+ */
+export const sendTestWhatsApp = onCall(async (request) => {
+  const { phone, templateName, parameters } = request.data;
+
+  if (!phone) {
+    throw new HttpsError("invalid-argument", "phone is required");
+  }
+
+  const name = templateName || TEMPLATES.SUBSCRIPTION_ACTIVATED;
+  const params =
+    parameters && Array.isArray(parameters) && parameters.length > 0
+      ? parameters
+      : [
+          { type: "text", text: "Test User" },
+          { type: "text", text: "Test Plan" },
+          { type: "text", text: new Date().toISOString().split("T")[0] },
+          { type: "text", text: "N/A" },
+        ];
+
+  const result = await sendWhatsAppMessage(phone, name, params);
+
+  return {
+    success: result.success,
+    messageId: result.messageId,
+    error: result.error,
+  };
 });
 
 /**
@@ -630,6 +708,86 @@ export const onSubscriptionStatusChange = onDocumentUpdated(
       );
     } catch (error) {
       console.error("Subscription notification error:", error);
+    }
+  }
+);
+
+/**
+ * Firestore Trigger: Subscription delivery status by date (meal delivery flow)
+ * Only runs for subscriptions with assignedDeliveryId. Sends Expo push for delivery_started
+ * and delivery_done; for delivery_done also creates deliveryAcks doc for 2nd push + auto-ack.
+ */
+export const onSubscriptionDeliveryStatusChange = onDocumentUpdated(
+  "subscriptions/{subscriptionId}",
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+
+    if (!before || !after) return;
+
+    const subscriptionId = event.params.subscriptionId;
+    const beforeDelivery = before.deliveryStatusByDate || {};
+    const afterDelivery = after.deliveryStatusByDate || {};
+    const afterLogs = after.deliveryDayLogs || {};
+
+    // Only subscriptions assigned to a delivery person get delivery pushes
+    const assignedDeliveryId = after.assignedDeliveryId;
+    if (!assignedDeliveryId) return;
+
+    const customerUserId = after.userId;
+    if (!customerUserId) return;
+
+    try {
+      const userDoc = await db.collection("users").doc(customerUserId).get();
+      if (!userDoc.exists) return;
+      const user = userDoc.data();
+      const pushToken = user!.pushToken;
+      if (!pushToken) return;
+
+      for (const dateStr of Object.keys(afterDelivery)) {
+        const prevStatus = beforeDelivery[dateStr];
+        const nextStatus = afterDelivery[dateStr];
+        if (prevStatus === nextStatus) continue;
+
+        // Only send if the most recent delivery log for this date was by the assigned delivery person
+        const dayLogs = afterLogs[dateStr] || [];
+        const lastDeliveryLog = [...dayLogs].reverse().find((e: any) => e.type === "delivery");
+        if (!lastDeliveryLog || lastDeliveryLog.userId !== assignedDeliveryId) continue;
+
+        if (nextStatus === "delivery_started") {
+          await sendPushNotification(pushToken, "🚴 Out for Delivery", "Your meal is on the way! Sit tight.", {
+            type: "delivery_started",
+            subscriptionId,
+            date: dateStr,
+            screen: "/(tabs)/orders",
+          });
+          console.log(`Delivery started push sent for ${subscriptionId} ${dateStr}`);
+        } else if (nextStatus === "delivery_done") {
+          const ackScreen = `/acknowledgment/subscription/${subscriptionId}?date=${dateStr}`;
+          await sendPushNotification(pushToken, "✅ Meal Delivered", "Tap to confirm you received your meal.", {
+            type: "delivery_done",
+            subscriptionId,
+            date: dateStr,
+            screen: ackScreen,
+          });
+          const ackId = `${subscriptionId}_${dateStr}`;
+          const now = Date.now();
+          await db.collection("deliveryAcks").doc(ackId).set({
+            subscriptionId,
+            date: dateStr,
+            userId: customerUserId,
+            state: "pending_second",
+            firstPushSentAt: now,
+            secondPushSentAt: null,
+            nextActionAt: now + 60 * 1000,
+            completedAt: null,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          console.log(`Delivery done push #1 + ack doc created for ${subscriptionId} ${dateStr}`);
+        }
+      }
+    } catch (error) {
+      console.error("Delivery status notification error:", error);
     }
   }
 );
@@ -941,6 +1099,121 @@ export const checkExpiringSubscriptions = onSchedule("0 9 * * *", async () => {
     console.error("Subscription expiry check error:", error);
   }
 });
+
+/**
+ * Scheduled: Process delivery acknowledgement queue (every 1 minute)
+ * Sends second ack push or auto-completes acknowledgement.
+ */
+export const processDeliveryAckQueue = onSchedule(
+  { schedule: "every 1 minutes", timeZone: "Asia/Kolkata" },
+  async () => {
+    const now = Date.now();
+    try {
+      const snapshot = await db
+        .collection("deliveryAcks")
+        .where("nextActionAt", "<=", now)
+        .get();
+
+      for (const doc of snapshot.docs) {
+        const ack = doc.data();
+        const { subscriptionId, date: dateStr, userId: customerUserId, state } = ack;
+
+        if (state === "done") continue;
+
+        const subRef = db.collection("subscriptions").doc(subscriptionId);
+        const subSnap = await subRef.get();
+        if (!subSnap.exists) {
+          await doc.ref.update({ state: "done" });
+          continue;
+        }
+
+        const sub = subSnap.data();
+        const alreadyAcked = sub!.deliveryAckByDate?.[dateStr] === true;
+
+        if (alreadyAcked) {
+          await doc.ref.update({ state: "done", completedAt: admin.firestore.FieldValue.serverTimestamp() });
+          continue;
+        }
+
+        if (state === "pending_second") {
+          const userDoc = await db.collection("users").doc(customerUserId).get();
+          if (userDoc.exists && userDoc.data()?.pushToken) {
+            await sendPushNotification(
+              userDoc.data()!.pushToken,
+              "✅ Meal Delivered",
+              "Tap to confirm you received your meal.",
+              {
+                type: "delivery_done",
+                subscriptionId,
+                date: dateStr,
+                screen: `/acknowledgment/subscription/${subscriptionId}?date=${dateStr}`,
+              }
+            );
+          }
+          await doc.ref.update({
+            state: "pending_auto",
+            secondPushSentAt: now,
+            nextActionAt: now + 60 * 1000,
+          });
+        } else if (state === "pending_auto") {
+          const ackMeta = { mode: "auto" as const, at: new Date().toISOString() };
+          await subRef.update({
+            deliveryAckByDate: { ...(sub!.deliveryAckByDate || {}), [dateStr]: true },
+            deliveryAckMetaByDate: { ...(sub!.deliveryAckMetaByDate || {}), [dateStr]: ackMeta },
+          });
+          await doc.ref.update({
+            state: "done",
+            completedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          console.log(`Auto-acked delivery ${subscriptionId} ${dateStr}`);
+        }
+      }
+    } catch (error) {
+      console.error("processDeliveryAckQueue error:", error);
+    }
+  }
+);
+
+/**
+ * Firestore Trigger: Wallet transaction created (send push for credit - streak/referral)
+ */
+export const onWalletTransactionCreated = onDocumentCreated(
+  "walletTransactions/{txnId}",
+  async (event) => {
+    const txn = event.data?.data();
+    if (!txn || txn.type !== "credit") return;
+
+    const userId = txn.userId;
+    const description = (txn.description || "") as string;
+
+    let title = "";
+    if (/referral/i.test(description)) {
+      title = "🎁 Referral bonus credited";
+    } else if (/streak/i.test(description)) {
+      title = "🔥 Streak reward credited";
+    } else {
+      return;
+    }
+
+    try {
+      const userDoc = await db.collection("users").doc(userId).get();
+      if (!userDoc.exists) return;
+
+      const user = userDoc.data();
+      const pushToken = user!.pushToken;
+      if (pushToken) {
+        await sendPushNotification(
+          pushToken,
+          title,
+          `₹${txn.amount} has been added to your wallet.`,
+          { type: "wallet_credit", screen: "wallet", txnId: event.params.txnId }
+        );
+      }
+    } catch (error) {
+      console.error("Wallet credit push error:", error);
+    }
+  }
+);
 
 /**
  * Cloud Function: List all OTPs (for debugging)

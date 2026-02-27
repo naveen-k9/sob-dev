@@ -50,11 +50,7 @@ import {
 } from "lucide-react-native";
 import db from "@/db";
 import { User, Subscription } from "@/types";
-import { sendLocalNotification } from "@/services/pushNotifications";
-import {
-  notifySubscriptionUpdate,
-  notifyOrderUpdate,
-} from "@/utils/notificationTemplates";
+import { sendTestWhatsAppCallable } from "@/services/firebaseFunctions";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -172,25 +168,8 @@ export default function TestNotificationsScreen() {
       const updated = await db.getSubscriptionById(selectedSub.id);
       if (updated) setSelectedSub(updated);
 
-      // Notify user if needed
-      const user = selectedUser;
-      if (user && sendPush && user.pushToken) {
-        await sendLocalNotification({
-          title: status === "delivery_started" ? "🚴 Out for Delivery" : status === "delivery_done" ? "✅ Delivered!" : "📦 Update",
-          body: status === "delivery_started"
-            ? "Your meal is on the way!"
-            : status === "delivery_done"
-            ? "Your meal has been delivered. Tap to confirm."
-            : `Delivery status: ${status}`,
-          data: {
-            subscriptionId: selectedSub.id,
-            dateString: date,
-            status,
-            screen: status === "delivery_done" ? `/acknowledgment/subscription/${selectedSub.id}?date=${date}` : undefined,
-          },
-        });
-        addLog(`Push sent (${status})`, true);
-      }
+      // Delivery pushes are sent by Firebase Functions when deliveryStatusByDate changes
+      if (sendPush) addLog(`Delivery push will be sent by backend if assigned`, true);
     } catch (e: any) {
       addLog(`Error: ${e?.message || e}`, false);
     } finally {
@@ -211,17 +190,14 @@ export default function TestNotificationsScreen() {
       const updated = await db.getSubscriptionById(selectedSub.id);
       if (updated) setSelectedSub(updated);
 
-      // Send notifications
+      // Push is sent by Firebase Functions on subscription change; WhatsApp via callable for testing
       const user = selectedUser;
-      if (user && (sendPush || sendWhatsApp)) {
-        await notifySubscriptionUpdate(
-          { userId: user.id, name: user.name, phone: user.phone, pushToken: user.pushToken },
-          {
-            planName: selectedSub.planName || "Meal Plan",
-            status: status === "active" ? "activated" : status === "completed" ? "expired" : "activated",
-          }
-        );
-        addLog(`Notifications sent for status=${status}`, true);
+      if (user) {
+        if (sendWhatsApp && user.phone) {
+          await sendTestWhatsAppCallable({ phone: user.phone });
+        }
+        if (sendPush) addLog(`Push is sent by backend on subscription update`, true);
+        if (sendWhatsApp) addLog(`WhatsApp test sent for status=${status}`, true);
       }
     } catch (e: any) {
       addLog(`Error: ${e?.message || e}`, false);
@@ -236,20 +212,10 @@ export default function TestNotificationsScreen() {
   const sendTestPush = async () => {
     const user = selectedUser;
     if (!user) return Alert.alert("Select a user first");
-    if (!user.pushToken) return Alert.alert("No push token", "This user has no FCM/Expo push token saved.");
-    setBusy("test_push");
-    try {
-      await sendLocalNotification({
-        title: "🔔 Test Push Notification",
-        body: `Hello ${user.name}! This is a test push from the admin panel.`,
-        data: { screen: "/notifications" },
-      });
-      addLog(`Test push sent to ${user.name}`, true);
-    } catch (e: any) {
-      addLog(`Push error: ${e?.message}`, false);
-    } finally {
-      setBusy(null);
-    }
+    Alert.alert(
+      "Push from backend",
+      "All pushes are sent from Firebase Functions (Expo Push API). Trigger a real event (e.g. change delivery status to Out for delivery) to test."
+    );
   };
 
   // ---------------------------------------------------------------------------
@@ -261,10 +227,7 @@ export default function TestNotificationsScreen() {
     if (!user.phone) return Alert.alert("No phone number for this user.");
     setBusy("test_wa");
     try {
-      await notifySubscriptionUpdate(
-        { userId: user.id, name: user.name, phone: user.phone, pushToken: user.pushToken },
-        { planName: "Test Plan", status: "activated", startDate: new Date().toLocaleDateString() }
-      );
+      await sendTestWhatsAppCallable({ phone: user.phone });
       addLog(`Test WhatsApp sent to ${user.phone}`, true);
     } catch (e: any) {
       addLog(`WhatsApp error: ${e?.message}`, false);
@@ -358,7 +321,7 @@ export default function TestNotificationsScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color="#E53935" size="large" />
+          <ActivityIndicator color="#48479B" size="large" />
           <Text style={styles.loadingText}>Loading users & subscriptions…</Text>
         </View>
       ) : (
@@ -391,7 +354,7 @@ export default function TestNotificationsScreen() {
                       {selectedUser.pushToken.slice(0, 32)}…
                     </Text>
                     <TouchableOpacity onPress={() => copyToken(selectedUser.pushToken!)} style={styles.copyBtn}>
-                      <Copy size={14} color="#E53935" />
+                      <Copy size={14} color="#48479B" />
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -658,7 +621,7 @@ export default function TestNotificationsScreen() {
                   ) : (
                     <View style={[styles.tokenBadge, { backgroundColor: "#374151" }]}><Bell size={12} color="#6B7280" /></View>
                   )}
-                  {item.id === selectedUser?.id && <Check size={16} color="#E53935" />}
+                  {item.id === selectedUser?.id && <Check size={16} color="#48479B" />}
                 </TouchableOpacity>
               )}
               ListEmptyComponent={<Text style={styles.emptyText}>No users found</Text>}
@@ -696,7 +659,7 @@ export default function TestNotificationsScreen() {
                     </View>
                     <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
                     <Text style={[styles.listItemStatus, { color: statusColor }]}>{item.status}</Text>
-                    {item.id === selectedSub?.id && <Check size={16} color="#E53935" />}
+                    {item.id === selectedSub?.id && <Check size={16} color="#48479B" />}
                   </TouchableOpacity>
                 );
               }}
@@ -717,7 +680,7 @@ export default function TestNotificationsScreen() {
 function SectionHeader({ icon: Icon, title }: { icon: any; title: string }) {
   return (
     <View style={styles.sectionHeader}>
-      <Icon size={16} color="#E53935" />
+      <Icon size={16} color="#48479B" />
       <Text style={styles.sectionTitle}>{title}</Text>
     </View>
   );

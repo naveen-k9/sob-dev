@@ -11,6 +11,7 @@ import {
   Polygon,
   ServiceableLocation,
   Offer,
+  WalletTransaction,
 } from "@/types";
 import Constants from "expo-constants";
 
@@ -1071,4 +1072,23 @@ export async function updateServiceableLocation(
 export async function deleteServiceableLocation(id: string): Promise<void> {
   console.log("[firebase] Deleting serviceable location:", id);
   await deleteDocument("serviceableLocations", id);
+}
+
+/**
+ * Create a wallet transaction document in Firestore so Functions can send push for credits (streak/referral).
+ */
+export async function createWalletTransactionToFirestore(
+  txn: WalletTransaction
+): Promise<void> {
+  const data: Record<string, any> = {
+    id: txn.id,
+    userId: txn.userId,
+    type: txn.type,
+    amount: txn.amount,
+    description: txn.description,
+    createdAt: txn.createdAt,
+  };
+  if (txn.orderId) data.orderId = txn.orderId;
+  if (txn.referenceId) data.referenceId = txn.referenceId;
+  await createDocument("walletTransactions", txn.id, data);
 }

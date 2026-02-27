@@ -17,7 +17,7 @@ import { Notification } from "@/types";
 
 const TYPE_CONFIG: Record<string, { color: string; bg: string; Icon: any }> = {
   order:    { color: "#48479B", bg: "#EEF2FF", Icon: Package },
-  delivery: { color: "#E53935", bg: "#FEF2F2", Icon: Truck },
+  delivery: { color: "#48479B", bg: "#FEF2F2", Icon: Truck },
   promotion:{ color: "#8B5CF6", bg: "#F5F3FF", Icon: Gift },
   system:   { color: "#F59E0B", bg: "#FFFBEB", Icon: Bell },
 };
@@ -157,7 +157,7 @@ export default function NotificationsScreen() {
         </View>
         {notifications.length > 0 && (
           <TouchableOpacity onPress={clearAll} style={styles.clearBtn}>
-            <Trash2 size={16} color="#E53935" />
+            <Trash2 size={16} color="#48479B" />
             <Text style={styles.clearText}>Clear all</Text>
           </TouchableOpacity>
         )}
@@ -165,7 +165,7 @@ export default function NotificationsScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#E53935" />
+          <ActivityIndicator size="large" color="#48479B" />
         </View>
       ) : notifications.length === 0 ? (
         <View style={styles.empty}>
@@ -203,9 +203,9 @@ const styles = StyleSheet.create({
     borderBottomColor: "#F0F0F0",
   },
   headerTitle: { fontSize: 22, fontWeight: "800", color: "#111" },
-  headerSub: { fontSize: 13, color: "#E53935", fontWeight: "600", marginTop: 2 },
+  headerSub: { fontSize: 13, color: "#48479B", fontWeight: "600", marginTop: 2 },
   clearBtn: { flexDirection: "row", alignItems: "center", gap: 5, padding: 8 },
-  clearText: { fontSize: 13, color: "#E53935", fontWeight: "600" },
+  clearText: { fontSize: 13, color: "#48479B", fontWeight: "600" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   list: { padding: 16, gap: 10 },
   card: {

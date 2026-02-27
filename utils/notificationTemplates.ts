@@ -8,17 +8,8 @@ import {
   sendReferralRewardNotification as sendPushReferralRewardNotification,
 } from "@/services/pushNotifications";
 
-import {
-  sendOrderNotification as sendWhatsAppOrderNotification,
-  sendSubscriptionNotification as sendWhatsAppSubscriptionNotification,
-  sendPaymentNotification as sendWhatsAppPaymentNotification,
-  sendPromotionalMessage as sendWhatsAppPromotionalMessage,
-  sendDailyMenuUpdate as sendWhatsAppDailyMenuUpdate,
-  sendWalletCreditNotification as sendWhatsAppWalletCreditNotification,
-} from "@/services/whatsapp";
-
 /**
- * Unified notification handler that sends both push notifications and WhatsApp messages
+ * Unified notification handler: push from app; WhatsApp is sent by Firebase triggers/callables only.
  */
 
 export interface NotificationRecipient {
@@ -52,7 +43,7 @@ export async function notifyOrderUpdate(
     whatsapp: { success: false, error: undefined as string | undefined },
   };
 
-  // Send push notification
+  // Send push notification (WhatsApp is sent by Firestore trigger on order status change)
   try {
     if (recipient.pushToken) {
       await sendPushOrderNotification({
@@ -65,29 +56,6 @@ export async function notifyOrderUpdate(
   } catch (error: any) {
     console.error("Push notification error:", error);
     results.push.error = error.message;
-  }
-
-  // Send WhatsApp message
-  try {
-    if (recipient.phone) {
-      const whatsappResult = await sendWhatsAppOrderNotification(
-        recipient.phone,
-        {
-          orderId: orderDetails.orderId,
-          status: orderDetails.status,
-          customerName: recipient.name,
-          items: orderDetails.items,
-          totalAmount: orderDetails.totalAmount,
-          deliveryTime: orderDetails.deliveryTime,
-          trackingUrl: orderDetails.trackingUrl,
-        }
-      );
-      results.whatsapp.success = whatsappResult.success;
-      results.whatsapp.error = whatsappResult.error;
-    }
-  } catch (error: any) {
-    console.error("WhatsApp notification error:", error);
-    results.whatsapp.error = error.message;
   }
 
   return results;
@@ -112,7 +80,7 @@ export async function notifySubscriptionUpdate(
     whatsapp: { success: false, error: undefined as string | undefined },
   };
 
-  // Send push notification
+  // Send push notification (WhatsApp is sent by Firestore trigger on subscription status change)
   try {
     if (recipient.pushToken) {
       await sendPushSubscriptionNotification({
@@ -125,29 +93,6 @@ export async function notifySubscriptionUpdate(
   } catch (error: any) {
     console.error("Push notification error:", error);
     results.push.error = error.message;
-  }
-
-  // Send WhatsApp message
-  try {
-    if (recipient.phone) {
-      const whatsappResult = await sendWhatsAppSubscriptionNotification(
-        recipient.phone,
-        {
-          customerName: recipient.name,
-          planName: subscriptionDetails.planName,
-          status: subscriptionDetails.status,
-          startDate: subscriptionDetails.startDate,
-          endDate: subscriptionDetails.endDate,
-          daysRemaining: subscriptionDetails.daysRemaining,
-          renewalAmount: subscriptionDetails.renewalAmount,
-        }
-      );
-      results.whatsapp.success = whatsappResult.success;
-      results.whatsapp.error = whatsappResult.error;
-    }
-  } catch (error: any) {
-    console.error("WhatsApp notification error:", error);
-    results.whatsapp.error = error.message;
   }
 
   return results;
@@ -171,7 +116,7 @@ export async function notifyPaymentStatus(
     whatsapp: { success: false, error: undefined as string | undefined },
   };
 
-  // Send push notification
+  // Send push notification (WhatsApp is sent by Firestore trigger on payment creation)
   try {
     if (recipient.pushToken) {
       await sendPushPaymentNotification({
@@ -184,28 +129,6 @@ export async function notifyPaymentStatus(
   } catch (error: any) {
     console.error("Push notification error:", error);
     results.push.error = error.message;
-  }
-
-  // Send WhatsApp message
-  try {
-    if (recipient.phone) {
-      const whatsappResult = await sendWhatsAppPaymentNotification(
-        recipient.phone,
-        {
-          customerName: recipient.name,
-          status: paymentDetails.status,
-          amount: paymentDetails.amount,
-          orderId: paymentDetails.orderId,
-          transactionId: paymentDetails.transactionId,
-          failureReason: paymentDetails.failureReason,
-        }
-      );
-      results.whatsapp.success = whatsappResult.success;
-      results.whatsapp.error = whatsappResult.error;
-    }
-  } catch (error: any) {
-    console.error("WhatsApp notification error:", error);
-    results.whatsapp.error = error.message;
   }
 
   return results;
@@ -231,7 +154,7 @@ export async function notifyPromotion(
     whatsapp: { success: false, error: undefined as string | undefined },
   };
 
-  // Send push notification
+  // Send push notification (WhatsApp handled by backend/scheduled functions if needed)
   try {
     if (recipient.pushToken) {
       await sendPushPromotionalNotification({
@@ -245,30 +168,6 @@ export async function notifyPromotion(
   } catch (error: any) {
     console.error("Push notification error:", error);
     results.push.error = error.message;
-  }
-
-  // Send WhatsApp message
-  try {
-    if (recipient.phone) {
-      const whatsappResult = await sendWhatsAppPromotionalMessage(
-        recipient.phone,
-        {
-          customerName: recipient.name,
-          offerTitle: promotionDetails.title,
-          offerDescription:
-            promotionDetails.offerDescription || promotionDetails.message,
-          discountCode:
-            promotionDetails.discountCode || promotionDetails.offerCode,
-          validUntil: promotionDetails.validUntil,
-          imageUrl: promotionDetails.imageUrl,
-        }
-      );
-      results.whatsapp.success = whatsappResult.success;
-      results.whatsapp.error = whatsappResult.error;
-    }
-  } catch (error: any) {
-    console.error("WhatsApp notification error:", error);
-    results.whatsapp.error = error.message;
   }
 
   return results;
@@ -289,7 +188,7 @@ export async function notifyDailyMenu(
     whatsapp: { success: false, error: undefined as string | undefined },
   };
 
-  // Send push notification
+  // Send push notification (WhatsApp handled by backend/scheduled functions if needed)
   try {
     if (recipient.pushToken) {
       await sendPushMenuUpdateNotification({
@@ -301,25 +200,6 @@ export async function notifyDailyMenu(
   } catch (error: any) {
     console.error("Push notification error:", error);
     results.push.error = error.message;
-  }
-
-  // Send WhatsApp message
-  try {
-    if (recipient.phone) {
-      const whatsappResult = await sendWhatsAppDailyMenuUpdate(
-        recipient.phone,
-        {
-          customerName: recipient.name,
-          menuItems: menuDetails.menuItems,
-          date: menuDetails.date,
-        }
-      );
-      results.whatsapp.success = whatsappResult.success;
-      results.whatsapp.error = whatsappResult.error;
-    }
-  } catch (error: any) {
-    console.error("WhatsApp notification error:", error);
-    results.whatsapp.error = error.message;
   }
 
   return results;
@@ -341,7 +221,7 @@ export async function notifyWalletCredit(
     whatsapp: { success: false, error: undefined as string | undefined },
   };
 
-  // Send push notification
+  // Send push notification (WhatsApp handled by backend if needed)
   try {
     if (recipient.pushToken) {
       await sendPushWalletCreditNotification({
@@ -354,26 +234,6 @@ export async function notifyWalletCredit(
   } catch (error: any) {
     console.error("Push notification error:", error);
     results.push.error = error.message;
-  }
-
-  // Send WhatsApp message
-  try {
-    if (recipient.phone) {
-      const whatsappResult = await sendWhatsAppWalletCreditNotification(
-        recipient.phone,
-        {
-          customerName: recipient.name,
-          amount: walletDetails.amount,
-          reason: walletDetails.reason,
-          newBalance: walletDetails.newBalance,
-        }
-      );
-      results.whatsapp.success = whatsappResult.success;
-      results.whatsapp.error = whatsappResult.error;
-    }
-  } catch (error: any) {
-    console.error("WhatsApp notification error:", error);
-    results.whatsapp.error = error.message;
   }
 
   return results;
@@ -394,7 +254,7 @@ export async function notifyReferralReward(
     whatsapp: { success: false, error: undefined as string | undefined },
   };
 
-  // Send push notification
+  // Send push notification (WhatsApp handled by backend if needed)
   try {
     if (recipient.pushToken) {
       await sendPushReferralRewardNotification({
@@ -406,26 +266,6 @@ export async function notifyReferralReward(
   } catch (error: any) {
     console.error("Push notification error:", error);
     results.push.error = error.message;
-  }
-
-  // Send WhatsApp message (can use wallet credit template)
-  try {
-    if (recipient.phone) {
-      const whatsappResult = await sendWhatsAppWalletCreditNotification(
-        recipient.phone,
-        {
-          customerName: recipient.name,
-          amount: referralDetails.amount,
-          reason: `Referral reward for ${referralDetails.referredUserName}`,
-          newBalance: "Check your wallet",
-        }
-      );
-      results.whatsapp.success = whatsappResult.success;
-      results.whatsapp.error = whatsappResult.error;
-    }
-  } catch (error: any) {
-    console.error("WhatsApp notification error:", error);
-    results.whatsapp.error = error.message;
   }
 
   return results;

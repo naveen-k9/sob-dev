@@ -10,17 +10,15 @@ import {
   createUser as fbCreateUser,
   signInWithCustomToken,
 } from "@/services/firebase";
-import { sendWhatsAppOTP } from "@/services/whatsapp";
+import {
+  sendWhatsAppOTPCallable,
+  verifyWhatsAppOTPCallable,
+} from "@/services/firebaseFunctions";
 
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
-  const [pendingWhatsAppOTP, setPendingWhatsAppOTP] = useState<{
-    phone: string;
-    otp: string;
-    timestamp: number;
-  } | null>(null);
 
   const persistUserId = useCallback(async (id: string) => {
     await AsyncStorage.setItem("currentUser", JSON.stringify({ id }));
@@ -139,28 +137,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   );
 
   /**
-   * Send WhatsApp OTP for authentication
+   * Send WhatsApp OTP for authentication (via Firebase callable; OTP generated server-side)
    */
   const sendWhatsAppOTPForAuth = useCallback(
     async (phone: string): Promise<{ success: boolean; error?: string }> => {
       try {
-        // Generate 6-digit OTP
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-        // Send OTP via WhatsApp
-        const result = await sendWhatsAppOTP(phone, otp);
-
-        if (result.success) {
-          // Store OTP temporarily for verification (expires in 5 minutes)
-          setPendingWhatsAppOTP({
-            phone,
-            otp,
-            timestamp: Date.now(),
-          });
-
-          return { success: true };
-        }
-
+        const result = await sendWhatsAppOTPCallable(phone);
+        if (result.success) return { success: true };
         return { success: false, error: result.error || "Failed to send OTP" };
       } catch (error: any) {
         console.error("Send WhatsApp OTP error:", error);
@@ -171,81 +154,37 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   );
 
   /**
-   * Verify WhatsApp OTP and sign in with custom token
+   * Verify WhatsApp OTP and sign in with custom token (via Firebase callable)
    */
   const verifyWhatsAppOTP = useCallback(
     async (
       phone: string,
       otp: string,
       role: UserRole = "customer",
-      referralCode?: string
+      _referralCode?: string
     ): Promise<{ success: boolean; user?: User; error?: string }> => {
       try {
-        // Check if OTP is valid and not expired (5 minutes)
-        if (!pendingWhatsAppOTP || pendingWhatsAppOTP.phone !== phone) {
+        const result = await verifyWhatsAppOTPCallable(phone, otp);
+        if (!result.success || !result.verified) {
           return {
             success: false,
-            error: "OTP not found. Please request a new OTP.",
+            error: result.error || "Verification failed",
           };
         }
-
-        const otpAge = Date.now() - pendingWhatsAppOTP.timestamp;
-        const OTP_VALIDITY = 5 * 60 * 1000; // 5 minutes
-
-        if (otpAge > OTP_VALIDITY) {
-          setPendingWhatsAppOTP(null);
-          return {
-            success: false,
-            error: "OTP expired. Please request a new OTP.",
-          };
-        }
-
-        if (pendingWhatsAppOTP.otp !== otp) {
-          return { success: false, error: "Invalid OTP. Please try again." };
-        }
-
-        // Clear pending OTP
-        setPendingWhatsAppOTP(null);
-
-        // Check if user exists in database
-        let user = await db.getUserByPhone(phone);
-
-        // If user doesn't exist, create new user
-        if (!user) {
-          user = await db.createUser({
-            name: "",
-            email: "",
+        if (result.token && result.user) {
+          const loginResult = await login(
             phone,
-            role,
-            addresses: [],
-            walletBalance: 500,
-            isActive: true,
-            referredBy: referralCode,
-          });
+            otp,
+            (result.user.role as UserRole) || role,
+            result.token,
+            result.user
+          );
+          return loginResult;
         }
-
-        // Create custom token for Firebase authentication
-        try {
-          const customToken = await createCustomToken(user.id, {
-            phone,
-            role: user.role,
-          });
-
-          // Sign in with custom token
-          const { uid } = await signInWithCustomToken(customToken);
-
-          console.log("Firebase auth successful with UID:", uid);
-        } catch (firebaseError) {
-          console.log("Firebase custom token auth skipped:", firebaseError);
-          // Continue even if Firebase auth fails, as we have local user
-        }
-
-        // Persist user session
-        await persistUserId(user.id);
-        setUser(user);
-        setIsGuest(false);
-
-        return { success: true, user };
+        return {
+          success: false,
+          error: result.error || "No token returned",
+        };
       } catch (error: any) {
         console.error("Verify WhatsApp OTP error:", error);
         return {
@@ -254,7 +193,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         };
       }
     },
-    [pendingWhatsAppOTP, persistUserId]
+    [login]
   );
 
   const emailSignIn = useCallback(

@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
   referralCode: {
     fontSize: 36,
     fontWeight: '900',
-    color: '#E53935',
+    color: '#48479B',
     letterSpacing: 6,
     marginBottom: 20,
     textAlign: 'center',
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   actionButtonText: {
-    color: '#E53935',
+    color: '#48479B',
     fontWeight: '700',
     fontSize: 14,
   },
