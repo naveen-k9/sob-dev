@@ -52,6 +52,7 @@ import {
   Image as ImageIcon,
   Heart,
   Building2,
+  Tag,
 } from "lucide-react-native";
 import db from "@/db";
 import {
@@ -894,6 +895,15 @@ export default function AdminDashboard() {
       icon: ImageIcon,
       color: "#F59E0B",
       onPress: () => router.push("/admin/banners" as any),
+      group: "Marketing",
+    },
+    {
+      id: "24",
+      title: "Offers & Coupons",
+      description: "CRUD promo codes (SAVE100, FIRSTMEAL, etc.) and set active",
+      icon: Tag,
+      color: "#8B5CF6",
+      onPress: () => router.push("/admin/offers" as any),
       group: "Marketing",
     },
     {

@@ -296,6 +296,20 @@ export default function SubscriptionEditScreen() {
             placeholderTextColor="#6B7280"
           />
         </View>
+        {(sub?.promoCode || sub?.appliedOfferId) && (sub?.promoDiscountAmount ?? 0) > 0 && (
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Offer applied</Text>
+            <Text style={styles.fieldValue}>
+              {sub.promoCode ?? sub.appliedOfferId} (-₹{sub.promoDiscountAmount ?? 0})
+            </Text>
+          </View>
+        )}
+        {(sub?.walletPaidAmount ?? 0) > 0 && (
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Paid from wallet</Text>
+            <Text style={styles.fieldValue}>₹{sub.walletPaidAmount}</Text>
+          </View>
+        )}
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>Remaining deliveries</Text>
           <TextInput

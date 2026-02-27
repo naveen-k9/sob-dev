@@ -10,7 +10,7 @@ interface CategoryCardProps {
   isActive?: boolean;
 }
 
-export default function CategoryCard({ category, onPress, isActive = false }: CategoryCardProps) {
+export default function CategoryCardCollection({ category, onPress, isActive = false }: CategoryCardProps) {
   const { isDark } = useTheme();
   const colors = getColors(isDark);
   const scaleAnim = useRef(new Animated.Value(isActive ? 1.05 : 1)).current;
@@ -34,12 +34,22 @@ export default function CategoryCard({ category, onPress, isActive = false }: Ca
   
   return (
     <TouchableOpacity 
-      style={styles.container} 
+      style={[
+        styles.container,
+        isActive && { borderBottomWidth: 5, borderBottomColor: colors.accent, paddingBottom: 6, borderRadius: 4 },
+      ]} 
       onPress={onPress} 
       testID={`cat-${category.id}`}
     >
       <Animated.View 
-        
+        style={[
+          styles.imageWrap,
+          { backgroundColor: colors.surface },
+          // isActive && styles.imageWrapActive,
+          { 
+            transform: [{ scale: scaleAnim }],
+          }
+        ]}
       >
         <Image source={{ uri: category.image }} style={styles.image} />
       </Animated.View>
@@ -60,14 +70,14 @@ export default function CategoryCard({ category, onPress, isActive = false }: Ca
 const styles = StyleSheet.create({
   container: {
     width: 126,
-    // marginRight: 9,
-    marginLeft: 9,
+    marginRight: 9,
+    marginTop: 9,
     alignItems: 'center',
   },
   imageWrap: {
     padding: 0,
     borderRadius: 60,
-    // marginBottom: 6,
+    marginBottom: 3,
   },
   imageWrapActive: {
     borderWidth: 3,
@@ -77,7 +87,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: 126,
-    height: 90,
+    height: 108,
     borderRadius: 60,
   },
   name: {

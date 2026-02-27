@@ -10,6 +10,7 @@ import {
   ServiceAreaNotificationRequest,
   Polygon,
   ServiceableLocation,
+  Offer,
 } from "@/types";
 import Constants from "expo-constants";
 
@@ -983,6 +984,29 @@ export async function updateSubscriptionDoc(
   updates: Partial<Subscription>
 ): Promise<void> {
   await updateDocument("subscriptions", id, updates as Record<string, any>);
+}
+
+// ============ Offers ============
+
+export async function fetchOffers(): Promise<Offer[]> {
+  try {
+    const items = await fetchCollection<Offer>("offers");
+    return items ?? [];
+  } catch (e) {
+    console.log("[firebase] fetchOffers failed", e);
+    return [];
+  }
+}
+
+export async function createOffer(offer: Offer): Promise<void> {
+  await createDocument("offers", offer.id, offer as Record<string, any>);
+}
+
+export async function updateOffer(
+  id: string,
+  updates: Partial<Offer>
+): Promise<void> {
+  await updateDocument("offers", id, updates as Record<string, any>);
 }
 
 // ============ Polygon Functions ============

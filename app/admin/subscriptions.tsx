@@ -157,6 +157,18 @@ export default function AdminSubscriptionsScreen() {
             Delivery: {item.deliveryTime ?? item.deliveryTimeSlot}
           </Text>
         </View>
+        {(item.promoCode || item.appliedOfferId) && (item.promoDiscountAmount ?? 0) > 0 && (
+          <View style={styles.metaRow}>
+            <Text style={styles.metaText}>
+              Offer: {item.promoCode ?? item.appliedOfferId} (-₹{item.promoDiscountAmount ?? 0})
+            </Text>
+          </View>
+        )}
+        {(item.walletPaidAmount ?? 0) > 0 && (
+          <View style={styles.metaRow}>
+            <Text style={styles.metaText}>Wallet: ₹{item.walletPaidAmount}</Text>
+          </View>
+        )}
         <View style={styles.footer}>
           <Text style={styles.amount}>₹{item.totalAmount}</Text>
           <Text style={styles.paid}>Paid: ₹{item.paidAmount ?? 0}</Text>

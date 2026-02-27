@@ -52,6 +52,8 @@ export default function TodayMealSlider({
   const [mealsMap, setMealsMap] = useState<Record<string, Meal>>({});
   const [addOnsMap, setAddOnsMap] = useState<Record<string, AddOn>>({});
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
 
   useEffect(() => {
     loadData();
@@ -127,13 +129,6 @@ export default function TodayMealSlider({
           ...subscriptionAddOns,
           ...additionalAddOnsForDate,
         ];
-        const addOnNames = allAddOnIds
-          .map((addOnId) => {
-            const addOn = aMap[addOnId];
-            return addOn ? addOn.name : "";
-          })
-          .filter(Boolean);
-
         // Determine status based on time
         const currentHour = new Date().getHours();
         let status: TodayMealItem["status"] = "scheduled";
@@ -163,7 +158,7 @@ export default function TodayMealSlider({
             subscription.deliveryTimeSlot ||
             subscription.deliveryTime ||
             "12:00 PM - 1:00 PM",
-          addOns: addOnNames,
+          addOns: allAddOnIds,
           status,
           canAddItems: addOnResult.canProceed,
           cutoffTime: addOnResult.cutoffTime,
@@ -200,8 +195,6 @@ export default function TodayMealSlider({
     return null; // Don't show section if no meals today
   }
 
-  const { isDark } = useTheme();
-  const colors = getColors(isDark);
   return (
     <View style={styles.container}>
       {/* <View style={styles.header}>
@@ -256,9 +249,24 @@ export default function TodayMealSlider({
                   {meal.addOns.length > 0 && (
                     <View style={styles.addOnsContainer}>
                       <Text style={styles.addOnsLabel}>Addons</Text>
-                      <Text style={styles.addOnsText} numberOfLines={2}>
-                        {meal.addOns.join(", ")}
-                      </Text>
+                      <View style={styles.addOnsImagesRow}>
+                        {meal.addOns.map((addOnId) => {
+                          const addOn = addOnsMap[addOnId];
+                          if (!addOn?.image) return null;
+                          return (
+                            <View key={addOnId} style={styles.addOnItem}>
+                              <Image
+                                source={{ uri: addOn.image }}
+                                style={styles.addOnImage}
+                                resizeMode="cover"
+                              />
+                              <Text style={styles.addOnLabel} numberOfLines={1}>
+                                {addOn.name}
+                              </Text>
+                            </View>
+                          );
+                        })}
+                      </View>
                     </View>
                   )}
 
@@ -415,10 +423,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: Colors.text,
-    marginBottom: 2,
+    marginBottom: 6,
+  },
+  addOnsImagesRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  addOnItem: {
+    alignItems: "center",
+    maxWidth: 44,
+  },
+  addOnImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+  },
+  addOnLabel: {
+    fontSize: 9,
+    color: "#9CA3AF",
+    marginTop: 2,
+    textAlign: "center",
   },
   addOnsText: {
-    fontSize: 12,
+    fontSize: 10,
     color: "#9CA3AF",
   },
   addItemsButtonWrapper: {

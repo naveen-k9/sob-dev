@@ -51,8 +51,8 @@ const STATUS_CONFIG: Record<
   delivered: { label: "Delivered", accent: "#10B981", pillBg: "rgba(16, 185, 129, 0.12)", pillText: "#059669" },
 };
 
-const CARD_HEIGHT = 88;
-const IMAGE_WIDTH = 72;
+const CARD_HEIGHT = 57;
+const IMAGE_WIDTH =99;
 
 export default function SubscriptionNotificationCards({
   userId,
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
     minHeight: CARD_HEIGHT,
-    borderRadius: 16,
+    borderRadius: 9,
     overflow: "hidden",
     borderLeftWidth: 4,
     borderLeftColor: "#E2E8F0",
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   },
   cardGradient: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: 9,
     overflow: "hidden",
     minHeight: CARD_HEIGHT,
   },
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-    marginBottom: 8,
+    marginBottom: 0,
   },
   title: {
     flex: 1,

@@ -41,6 +41,9 @@ import {
   createServiceableLocation as fbCreateServiceableLocation,
   updateServiceableLocation as fbUpdateServiceableLocation,
   deleteServiceableLocation as fbDeleteServiceableLocation,
+  fetchOffers as fbFetchOffers,
+  createOffer as fbCreateOffer,
+  updateOffer as fbUpdateOffer,
 } from "@/services/firebase";
 
 class Database {
@@ -1474,7 +1477,24 @@ class Database {
 
   // Offer methods
   async getOffers(): Promise<Offer[]> {
-    return (await this.getItem("offers")) || [];
+    try {
+      const fromFirestore = await fbFetchOffers();
+      if (fromFirestore && fromFirestore.length > 0) {
+        await this.setItem("offers", fromFirestore);
+        return fromFirestore;
+      }
+    } catch (e) {
+      console.log("[db] fetchOffers from firebase failed, using fallback", e);
+    }
+    const cached = (await this.getItem("offers")) || [];
+    if (cached.length > 0) return cached;
+    try {
+      const constants = await import("@/constants/data");
+      const constOffers: Offer[] = (constants as any).offers ?? [];
+      return Array.isArray(constOffers) ? constOffers : [];
+    } catch {
+      return [];
+    }
   }
 
   async getActiveOffers(): Promise<Offer[]> {
@@ -1482,10 +1502,51 @@ class Database {
     const now = new Date();
     return offers.filter(
       (offer) =>
+        offer &&
         offer.isActive &&
         new Date(offer.validFrom) <= now &&
         new Date(offer.validTo) >= now
     );
+  }
+
+  async createOffer(offerData: Omit<Offer, "id"> & { id?: string }): Promise<Offer> {
+    const id = offerData.id ?? `offer_${Date.now()}`;
+    const offer: Offer = {
+      ...offerData,
+      id,
+      usedCount: offerData.usedCount ?? 0,
+    } as Offer;
+    try {
+      await fbCreateOffer(offer);
+    } catch (e) {
+      console.log("[db] createOffer on firebase failed", e);
+    }
+    const offers = (await this.getOffers()) || [];
+    offers.push(offer);
+    await this.setItem("offers", offers);
+    return offer;
+  }
+
+  async updateOffer(id: string, updates: Partial<Offer>): Promise<Offer | null> {
+    try {
+      await fbUpdateOffer(id, updates);
+    } catch (e) {
+      console.log("[db] updateOffer on firebase failed", e);
+    }
+    const offers = (await this.getOffers()) || [];
+    const index = offers.findIndex((o) => o.id === id);
+    if (index === -1) return null;
+    offers[index] = { ...offers[index], ...updates };
+    await this.setItem("offers", offers);
+    return offers[index];
+  }
+
+  async incrementOfferUsedCount(offerId: string): Promise<void> {
+    const offers = (await this.getOffers()) || [];
+    const offer = offers.find((o) => o.id === offerId);
+    if (!offer) return;
+    const usedCount = (offer.usedCount ?? 0) + 1;
+    await this.updateOffer(offerId, { usedCount });
   }
 
   // Wallet methods

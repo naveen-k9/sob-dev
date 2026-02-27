@@ -30,8 +30,7 @@ import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "@/contexts/LocationContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { getColors } from "@/constants/colors";
-import CategoryCard from "@/components/CategoryCardMealTime";
+import { getColors, type AppColors } from "@/constants/colors";
 import TestimonialCard from "@/components/TestimonialCard";
 import OfferCard from "@/components/OfferCard";
 import OfferDetailModal from "@/components/OfferDetailModal";
@@ -39,7 +38,7 @@ import FilterModal from "@/components/FilterModal";
 import LocationService from "@/components/LocationService";
 import FormCard from "@/components/FormCard";
 import ThemeToggle from "@/components/ThemeToggle";
-import { offers, PromotionalItem } from "@/constants/data";
+import { PromotionalItem } from "@/constants/data";
 import { useAsyncStorage } from "@/hooks/useStorage";
 import {
   Banner,
@@ -67,6 +66,8 @@ import { Ionicons } from "@expo/vector-icons";
 import TodayMealSlider from "@/components/TodayMealSlider";
 import SubscriptionNotificationCards from "@/components/SubscriptionNotificationCards";
 import CategoryCardMealTime from "@/components/CategoryCardMealTime";
+import CategoryCardCollection from "@/components/CategoryCardCollection";
+import MenuOffers from "@/components/MenuOffers";
 
 const TOP_BG_HEIGHT = Math.round(Dimensions.get("window").height * 0.38);
 
@@ -177,8 +178,9 @@ export default function HomeScreen() {
     router.push(`/meal/${mealId}`);
   };
 
-  const handleOfferPress = (offerId: string) => {
-    const offer = offers.find((o) => o.id === offerId);
+  const handleOfferPress = (offerId: string, offersList?: Offer[]) => {
+    const list = offersList ?? [];
+    const offer = list.find((o: Offer) => o.id === offerId);
     if (offer) {
       setSelectedOffer(offer);
       setShowOfferModal(true);
@@ -186,7 +188,8 @@ export default function HomeScreen() {
   };
 
   const handleUseOffer = (offer: Offer) => {
-    router.push(`/subscription?offerId=${offer.id}&promoCode=${offer.code}`);
+    const code = offer.code ?? offer.promoCode ?? "";
+    router.push(`/subscription?offerId=${offer.id}&promoCode=${encodeURIComponent(code)}`);
   };
 
   const handleCloseOfferModal = () => {
@@ -228,7 +231,7 @@ export default function HomeScreen() {
   );
 
   const renderCollectionsGrid = ({ item }: { item: any }) => (
-    <CategoryCardMealTime
+    <CategoryCardCollection
       category={item}
       onPress={() => handleCategoryPress(item.id)}
     />
@@ -335,7 +338,7 @@ function CustomerHomeScreen({
   setFilterSections: (v: any) => void;
   handleCategoryPress: (id: string) => void;
   handleMealPress: (id: string) => void;
-  handleOfferPress: (id: string) => void;
+  handleOfferPress: (id: string, list?: Offer[]) => void;
   handleBannerPress: (b: Banner) => void;
   renderMealGrid: ({ item }: { item: any }) => React.ReactElement;
   renderCollectionsGrid: ({ item }: { item: any }) => React.ReactElement;
@@ -377,6 +380,10 @@ function CustomerHomeScreen({
   const testimonialsQuery = useQuery({
     queryKey: ["testimonials"],
     queryFn: fetchTestimonials,
+  });
+  const offersQuery = useQuery({
+    queryKey: ["activeOffers"],
+    queryFn: () => db.getActiveOffers(),
   });
 
   // Cleanup scroll timeout on unmount
@@ -622,15 +629,15 @@ function CustomerHomeScreen({
           <View style={styles.section}>
             <View style={styles.centeredSectionHeader}>
               <View
-                style={[styles.headerLine, { backgroundColor: colors.primary }]}
+                style={[styles.headerLine, { backgroundColor: colors.mutedText }]}
               />
               <Text
-                style={[styles.centeredSectionTitle, { color: colors.primary }]}
+                style={[styles.centeredSectionTitle, { color: colors.mutedText }]}
               >
                 TODAY'S DELIVERIES
               </Text>
               <View
-                style={[styles.headerLine, { backgroundColor: colors.primary }]}
+                style={[styles.headerLine, { backgroundColor: colors.mutedText }]}
               />
             </View>
             <TodayMealSlider
@@ -641,18 +648,20 @@ function CustomerHomeScreen({
           </View>
         )}
 
+<MenuOffers />
+
         <View style={[styles.section]}>
           <View style={styles.centeredSectionHeader}>
             <View
-              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+              style={[styles.headerLine, { backgroundColor: colors.mutedText }]}
             />
             <Text
-              style={[styles.centeredSectionTitle, { color: colors.primary }]}
+              style={[styles.centeredSectionTitle, { color: colors.mutedText }]}
             >
               MEAL TIME
             </Text>
             <View
-              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+              style={[styles.headerLine, { backgroundColor: colors.mutedText }]}
             />
           </View>
           {categoriesQuery.isLoading ? (
@@ -671,7 +680,7 @@ function CustomerHomeScreen({
               contentContainerStyle={styles.categoriesScrollContent}
             >
               {mealTimeCategories.map((category: Category) => (
-                <CategoryCard
+                <CategoryCardMealTime
                   key={category.id}
                   category={category}
                   onPress={() => handleCategoryPress(category.id)}
@@ -684,15 +693,15 @@ function CustomerHomeScreen({
         <View style={styles.section}>
           <View style={styles.centeredSectionHeader}>
             <View
-              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+              style={[styles.headerLine, { backgroundColor: colors.mutedText }]}
             />
             <Text
-              style={[styles.centeredSectionTitle, { color: colors.primary }]}
+              style={[styles.centeredSectionTitle, { color: colors.mutedText }]}
             >
               COLLECTIONS
             </Text>
             <View
-              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+              style={[styles.headerLine, { backgroundColor: colors.mutedText }]}
             />
           </View>
           {categoriesQuery.isLoading ? (
@@ -717,7 +726,7 @@ function CustomerHomeScreen({
                     style={[styles.gridRow, { flexDirection: "row" }]}
                   >
                     {row.map((category) => (
-                      <CategoryCardMealTime
+                      <CategoryCardCollection
                         key={category.id}
                         category={category}
                         onPress={() => handleCategoryPress(category.id)}
@@ -777,20 +786,20 @@ function CustomerHomeScreen({
               onPress={() => router.push("/nutritionist-contact")}
             />
           </View>
-        </View>
+        </View> 
 
         <View style={styles.section}>
           <View style={styles.centeredSectionHeader}>
             <View
-              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+              style={[styles.headerLine, { backgroundColor: colors.mutedText }]}
             />
             <Text
-              style={[styles.centeredSectionTitle, { color: colors.primary }]}
+              style={[styles.centeredSectionTitle, { color: colors.mutedText }]}
             >
               {selectedCategoryId ? "MEALS" : "POPULAR MEALS"}
             </Text>
             <View
-              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+              style={[styles.headerLine, { backgroundColor: colors.mutedText }]}
             />
           </View>
           {mealsQuery.isLoading ? (
@@ -825,16 +834,22 @@ function CustomerHomeScreen({
                   />
                 </View>
               ))}
-              {/* See All Button */}
-              {/* <TouchableOpacity
-                style={[styles.seeAllCard, { backgroundColor: colors.primary }]}
-                onPress={() => router.push("/(tabs)/menu")}
+              <TouchableOpacity
+                style={[
+                  styles.seeAllCard,
+                  {
+                    borderColor: (colors as AppColors).mutedText ?? (colors as AppColors).text,
+                    backgroundColor: "transparent",
+                  },
+                ]}
+                onPress={() => router.push("/menu")}
               >
                 <View style={styles.seeAllCardContent}>
-                  <Text style={styles.seeAllCardText}>See All</Text>
-                  <Text style={styles.seeAllCardArrow}>→</Text>
+                  <Text style={[styles.seeAllCardText, { color: (colors as AppColors).text }]}>
+                    See All
+                  </Text>
                 </View>
-              </TouchableOpacity> */}
+              </TouchableOpacity>
             </ScrollView>
           )}
         </View>
@@ -877,13 +892,13 @@ function CustomerHomeScreen({
                       <View
                         style={[
                           styles.headerLine,
-                          { backgroundColor: colors.primary },
+                          { backgroundColor: colors.mutedText },
                         ]}
                       />
                       <Text
                         style={[
                           styles.centeredSectionTitle,
-                          { color: colors.primary },
+                          { color: colors.mutedText },
                         ]}
                       >
                         {collection.name.toUpperCase()}
@@ -891,7 +906,7 @@ function CustomerHomeScreen({
                       <View
                         style={[
                           styles.headerLine,
-                          { backgroundColor: colors.primary },
+                          { backgroundColor: colors.mutedText },
                         ]}
                       />
                     </View>
@@ -923,13 +938,17 @@ function CustomerHomeScreen({
                       <TouchableOpacity
                         style={[
                           styles.seeAllCard,
-                          { backgroundColor: colors.primary },
+                          {
+                            borderColor: (colors as AppColors).mutedText ?? (colors as AppColors).text,
+                            backgroundColor: "transparent",
+                          },
                         ]}
                         onPress={() => handleCategoryPress(collection.id)}
                       >
                         <View style={styles.seeAllCardContent}>
-                          <Text style={styles.seeAllCardText}>See All</Text>
-                          <Text style={styles.seeAllCardArrow}>→</Text>
+                          <Text style={[styles.seeAllCardText, { color: (colors as AppColors).text }]}>
+                            See All
+                          </Text>
                         </View>
                       </TouchableOpacity>
                     </ScrollView>
@@ -960,11 +979,16 @@ function CustomerHomeScreen({
             style={styles.horizontalScroll}
             contentContainerStyle={styles.categoriesScrollContent}
           >
-            {offers.map((offer) => (
+            {(offersQuery.data ?? []).map((offer) => (
               <OfferCard
                 key={offer.id}
-                offer={offer}
-                onPress={() => handleOfferPress(offer.id)}
+                offer={{
+                  ...offer,
+                  discount: offer.discount ?? (offer.discountType === "percentage" ? `${offer.discountValue}% OFF` : offer.discountType === "cashback" ? `₹${offer.discountValue} Cashback` : `₹${offer.discountValue} OFF`),
+                  code: offer.code ?? offer.promoCode,
+                  validUntil: offer.validUntil ?? (offer.validTo ? new Date(offer.validTo).toDateString() : undefined),
+                }}
+                onPress={() => handleOfferPress(offer.id, offersQuery.data ?? [])}
               />
             ))}
           </ScrollView>
@@ -1184,13 +1208,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     marginBottom: 16,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#000000",
-    paddingHorizontal: 18,
-    paddingBottom: 9,
-  },
   centeredSectionHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -1200,10 +1217,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   centeredSectionTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
     letterSpacing: 1.8,
-    paddingHorizontal: 5,
+    paddingHorizontal: 3,
   },
   headerLine: {
     flex: 1,
@@ -1212,7 +1229,7 @@ const styles = StyleSheet.create({
   },
   seeAll: { fontSize: 14, color: "#A3D397", fontWeight: "700" },
   horizontalScroll: { paddingLeft: 9 },
-  mealGrid: { paddingHorizontal: 25 },
+  mealGrid: { paddingHorizontal: 16 },
   gridRow: { justifyContent: "space-between" },
   row: { flexDirection: "row", alignItems: "center" },
   rowMB6: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
@@ -1311,33 +1328,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   seeAllCard: {
-    width: 90,
-    height: 90,
-    borderRadius: 16,
+    width: 171,
+    minHeight: 252,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-
     marginRight: 18,
     marginLeft: 9,
+    borderWidth: 1.5,
   },
   seeAllCardContent: {
-    flex: 1,
-    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
   },
   seeAllCardText: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
     letterSpacing: 0.2,
-    marginRight: 6,
-  },
-  seeAllCardArrow: {
-    fontSize: 22,
-    fontWeight: "900",
-    color: "#FFFFFF",
-    marginTop: -1,
   },
   categoriesScrollContent: {
     paddingRight: 0,

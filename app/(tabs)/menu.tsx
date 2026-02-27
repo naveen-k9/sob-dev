@@ -26,7 +26,7 @@ import FilterChips from "@/components/FilterChips";
 import FilterModal from "@/components/FilterModal";
 import { ArrowLeftIcon, FilterIcon, LayoutGrid, Rows } from "lucide-react-native";
 
-import { offers as offersSeed } from "@/constants/data";
+import db from "@/db";
 import { getColors } from "@/constants/colors";
 import { useTheme } from "@/contexts/ThemeContext";
 import MealCard from "@/components/MealCard";
@@ -105,10 +105,11 @@ export default function CategoryBrowserScreen() {
     retry: 3,
   });
 
-  const activeOffers: Offer[] = useMemo(
-    () => (offersSeed ?? []).filter((o) => o.isActive),
-    []
-  );
+  const offersQuery = useQuery({
+    queryKey: ["activeOffers"],
+    queryFn: () => db.getActiveOffers(),
+  });
+  const activeOffers: Offer[] = offersQuery.data ?? [];
 
   const mealsQuery = useQuery({
     queryKey: ["meals"],
@@ -701,7 +702,7 @@ export default function CategoryBrowserScreen() {
             ))}
 
           </ScrollView> */}
-          <MenuOffers />
+        
           {/* 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitleSmall}>{activeCategoryId ? 'Products' : 'Pick a category'}</Text>

@@ -170,6 +170,12 @@ export interface Subscription {
   deliveryAckByDate?: Record<string, boolean>;
   /** Per-day log of kitchen/delivery status changes (date string -> log entries) */
   deliveryDayLogs?: Record<string, DeliveryDayLogEntry[]>;
+  /** Offer applied at subscription creation */
+  appliedOfferId?: string | null;
+  promoCode?: string | null;
+  promoDiscountAmount?: number;
+  /** Amount paid from wallet at subscription creation */
+  walletPaidAmount?: number;
 }
 
 /** Single log entry when kitchen or delivery updates status for a date */

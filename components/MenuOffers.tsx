@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -13,29 +13,23 @@ import * as Clipboard from "expo-clipboard";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getColors } from "@/constants/colors";
+import db from "@/db";
+import { Offer } from "@/types";
 
 const { width } = Dimensions.get("window");
 
-const offers = [
-  {
-    id: "1",
-    code: "SAVE50",
-    discount: "₹50",
-    minOrder: "₹1199",
-  },
-  {
-    id: "2",
-    code: "SAVE150",
-    discount: "₹150",
-    minOrder: "₹2399",
-  },
-  {
-    id: "3",
-    code: "SAVE200",
-    discount: "₹200",
-    minOrder: "₹2999",
-  },
-];
+function mapOfferToDisplay(o: Offer): { id: string; code: string; discount: string; minOrder: string } {
+  const code = (o.promoCode ?? o.code ?? o.id).toString();
+  let discount = o.discount ?? "";
+  if (!discount) {
+    if (o.discountType === "fixed") discount = `₹${o.discountValue}`;
+    else if (o.discountType === "percentage") discount = `${o.discountValue}%`;
+    else if (o.discountType === "cashback") discount = `₹${o.discountValue} cashback`;
+    else discount = `₹${o.discountValue}`;
+  }
+  const minOrder = o.minOrderAmount != null ? `₹${o.minOrderAmount}` : "any order";
+  return { id: o.id, code, discount, minOrder };
+}
 
 const HORIZONTAL_PADDING = 16;
 const SPACING = 10;
@@ -47,6 +41,20 @@ const NOTCH_SIZE = 14;
 export default function MenuOffers() {
   const { isDark } = useTheme();
   const colors = getColors(isDark);
+  const [activeOffers, setActiveOffers] = useState<Offer[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    db.getActiveOffers().then((list) => {
+      if (!cancelled) setActiveOffers(list ?? []);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const displayOffers = useMemo(
+    () => activeOffers.filter((o) => (o.promoCode ?? o.code) && o.offerType !== "deal").slice(0, 5).map(mapOfferToDisplay),
+    [activeOffers]
+  );
 
   const handleCopy = async (code: string) => {
     try {
@@ -75,8 +83,8 @@ export default function MenuOffers() {
   const discountTextColor = isDark ? "#a78bfa" : "#5b21b6";
   const dashColor = isDark ? "#6366f1" : "#c4b5fd";
 
-  const renderItem = ({ item, index }: ListRenderItemInfo<any>) => {
-    const isLast = index === offers.length - 1;
+  const renderItem = ({ item, index }: ListRenderItemInfo<{ id: string; code: string; discount: string; minOrder: string }>) => {
+    const isLast = index === displayOffers.length - 1;
     return (
       <Pressable
         onPress={() => handleCopy(item.code)}
@@ -111,6 +119,8 @@ export default function MenuOffers() {
     );
   };
 
+  if (displayOffers.length === 0) return null;
+
   return (
     <LinearGradient
       colors={gradientColors}
@@ -119,13 +129,13 @@ export default function MenuOffers() {
       style={styles.container}
     >
       <FlatList
-        data={offers}
+        data={displayOffers}
         keyExtractor={(i) => String(i.id)}
         horizontal
         showsHorizontalScrollIndicator={false}
         renderItem={renderItem}
         contentContainerStyle={styles.scrollContent}
-        scrollEnabled={false}
+        scrollEnabled={displayOffers.length > 3}
       />
     </LinearGradient>
   );

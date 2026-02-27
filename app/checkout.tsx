@@ -624,10 +624,13 @@ export default function CheckoutScreen() {
           additionalAddOns: {},
           specialInstructions: deliveryInstructions,
           mealType: updatedDetails.mealType,
-          // Recipient info if ordering for someone else
           recipientName: orderForSomeoneElse ? recipientName : null,
           recipientPhone: orderForSomeoneElse ? recipientPhone : null,
           orderForSomeoneElse: orderForSomeoneElse,
+          appliedOfferId: appliedOffer?.id ?? null,
+          promoCode: appliedOffer?.promoCode ?? appliedOffer?.code ?? null,
+          promoDiscountAmount: orderSummary.promoDiscount ?? 0,
+          walletPaidAmount: orderSummary.walletAppliedAmount ?? 0,
         };
         console.log("Creating subscription:", subscription);
         let createdSubscriptionId: string | undefined;
@@ -638,6 +641,11 @@ export default function CheckoutScreen() {
             "Subscription created successfully with ID:",
             createdSubscriptionId
           );
+          if (appliedOffer?.id) {
+            db.incrementOfferUsedCount(appliedOffer.id).catch((e) =>
+              console.log("incrementOfferUsedCount failed", e)
+            );
+          }
 
           // Notify via push + WhatsApp
           if (user?.id) {
@@ -786,10 +794,13 @@ export default function CheckoutScreen() {
           additionalAddOns: {},
           specialInstructions: deliveryInstructions,
           mealType: updatedDetails.mealType,
-          // Recipient info if ordering for someone else
           recipientName: orderForSomeoneElse ? recipientName : null,
           recipientPhone: orderForSomeoneElse ? recipientPhone : null,
           orderForSomeoneElse: orderForSomeoneElse,
+          appliedOfferId: appliedOffer?.id ?? null,
+          promoCode: appliedOffer?.promoCode ?? appliedOffer?.code ?? null,
+          promoDiscountAmount: orderSummary.promoDiscount ?? 0,
+          walletPaidAmount: orderSummary.walletAppliedAmount ?? 0,
         };
         console.log("Creating subscription:", subscription);
 
@@ -798,6 +809,11 @@ export default function CheckoutScreen() {
           const createdSubscription = await db.createSubscription(subscription);
           createdSubscriptionId = createdSubscription.id;
           console.log("Subscription created with ID:", createdSubscriptionId);
+          if (appliedOffer?.id) {
+            db.incrementOfferUsedCount(appliedOffer.id).catch((e) =>
+              console.log("incrementOfferUsedCount failed", e)
+            );
+          }
           if (user?.id) {
             notifySubscriptionUpdate(
               { userId: user.id, name: user.name || "Customer", phone: user.phone || "", pushToken: user.pushToken },
@@ -921,15 +937,23 @@ export default function CheckoutScreen() {
         additionalAddOns: {},
         specialInstructions: deliveryInstructions,
         mealType: subscriptionDetails.mealType,
-        // Recipient info if ordering for someone else
         recipientName: orderForSomeoneElse ? recipientName : null,
         recipientPhone: orderForSomeoneElse ? recipientPhone : null,
         orderForSomeoneElse: orderForSomeoneElse,
+        appliedOfferId: appliedOffer?.id ?? null,
+        promoCode: appliedOffer?.promoCode ?? appliedOffer?.code ?? null,
+        promoDiscountAmount: orderSummary.promoDiscount ?? 0,
+        walletPaidAmount: orderSummary.walletAppliedAmount ?? 0,
       };
 
       try {
         await db.createSubscription(subscription);
         console.log("Subscription created successfully on retry");
+        if (appliedOffer?.id) {
+          db.incrementOfferUsedCount(appliedOffer.id).catch((e) =>
+            console.log("incrementOfferUsedCount failed", e)
+          );
+        }
         if (user?.id) {
           notifySubscriptionUpdate(
             { userId: user.id, name: user.name || "Customer", phone: user.phone || "", pushToken: user.pushToken },
