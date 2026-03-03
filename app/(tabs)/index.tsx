@@ -648,7 +648,7 @@ function CustomerHomeScreen({
           </View>
         )}
 
-<MenuOffers />
+
 
         <View style={[styles.section]}>
           <View style={styles.centeredSectionHeader}>

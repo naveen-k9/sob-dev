@@ -88,7 +88,7 @@ export default function MealCard({
     }
 
     return {
-      imageHeight: 144,
+      imageHeight: 180,
         cardPadding: 0,
         imageRadius: 12,
         contentPadTop: 9,
@@ -97,7 +97,7 @@ export default function MealCard({
         titleLines: 2,
         ctaHeight: 36,
         ctaMarginTop: 9,
-        cardWidth: 171,
+        cardWidth: 205,
         cardMarginBottom: 0,
     };
   }, [columns, variant]);
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     minHeight: 36,
     borderWidth: 1.5,
-    borderColor: Colors.accent,
+    borderColor: Colors.primary,
     // ...(Platform.select({
     //   ios: {
     //     shadowColor: "#000",

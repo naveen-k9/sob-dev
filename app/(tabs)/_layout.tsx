@@ -9,7 +9,7 @@ import { FlipCircle } from "@/components/FlipCircle";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const TAB_BAR_HEIGHT = 72;
-const CENTER_BUTTON_RAISE = 18;
+const CENTER_BUTTON_RAISE = -3;
 
 export default function TabLayout() {
   const { isAdmin, isKitchen, isDelivery } = useAuth();

@@ -33,6 +33,7 @@ import MealCard from "@/components/MealCard";
 import MenuOffers from "@/components/MenuOffers";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+
 export default function CategoryBrowserScreen() {
   const { isDark } = useTheme();
   const colors = getColors(isDark);
@@ -84,8 +85,8 @@ export default function CategoryBrowserScreen() {
         { id: "above-400", label: "Above ₹400", selected: false },
       ],
     },
-    
-  
+
+
     {
       id: "nutrition",
       title: "Nutrition",
@@ -545,12 +546,13 @@ export default function CategoryBrowserScreen() {
   }, []);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={["top", "left", "right"]} style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
           title: "Menu",
           headerShown: true,
           headerStyle: { backgroundColor: colors.surface },
+          headerShadowVisible: false,
           headerTitleStyle: {
             color: colors.primary,
             fontSize: 22,
@@ -596,7 +598,7 @@ export default function CategoryBrowserScreen() {
         }}
       />
 
-      <View style={[styles.sectionMain, { marginTop: -36 }]}>
+      <View style={[styles.sectionMain, { marginTop: -45 }]}>
         <ScrollView
           ref={scrollRef}
           horizontal
@@ -702,7 +704,7 @@ export default function CategoryBrowserScreen() {
             ))}
 
           </ScrollView> */}
-        
+
           {/* 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitleSmall}>{activeCategoryId ? 'Products' : 'Pick a category'}</Text>
@@ -713,13 +715,15 @@ export default function CategoryBrowserScreen() {
             )}
           </View> */}
 
+          <MenuOffers />
+
           {/* Active Category Name below ScrollView */}
           {activeCategoryName ? (
 
             <View style={styles.centeredSectionHeader}>
-              <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
-              <Text style={[styles.centeredSectionTitle, { color: colors.primary }]}>{activeCategoryName} PRODUCTS</Text>
-              <View style={[styles.headerLine, { backgroundColor: colors.primary }]} />
+              <View style={[styles.headerLine, { backgroundColor: colors.mutedText }]} />
+              <Text style={[styles.centeredSectionTitle, { color: colors.mutedText }]}>{activeCategoryName} PRODUCTS</Text>
+              <View style={[styles.headerLine, { backgroundColor: colors.mutedText }]} />
 
             </View>
           ) : null}
@@ -815,7 +819,7 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   clearText: { color: "#48479B", fontWeight: "600" },
-  mealGrid: { paddingHorizontal: 18, marginTop: 0 },
+  mealGrid: { paddingHorizontal: 9, marginTop: 0 },
   gridRow: { justifyContent: "space-between" },
   emptyContainer: {
     alignItems: "center",
@@ -878,15 +882,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 18,
-    paddingTop: 18,
+    paddingTop: 9,
     marginBottom: 20,
     gap: 12,
   },
   centeredSectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     letterSpacing: 1.5,
-    paddingHorizontal: 12,
+    paddingHorizontal: 3,
     textTransform: 'uppercase'
   },
   headerLine: {
