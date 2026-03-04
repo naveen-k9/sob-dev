@@ -439,6 +439,15 @@ export interface SubscriptionPlan {
   popular?: boolean;
 }
 
+/** Fixed streak milestone days. Amounts are admin-editable. */
+export const STREAK_DAYS = [21, 60, 90, 120, 180, 270, 365] as const;
+
+export interface StreakMilestoneConfig {
+  days: number;
+  amount: number;
+  label: string;
+}
+
 export interface AppSettings {
   deliveryRadius: number;
   minOrderAmount: number;
@@ -496,19 +505,4 @@ export interface MapRegion {
   longitude: number;
   latitudeDelta: number;
   longitudeDelta: number;
-}
-
-export interface AppSettings {
-  deliveryRadius: number;
-  minOrderAmount: number;
-  deliveryFee: number;
-  freeDeliveryAbove: number;
-  orderCutoffTime: string;
-  skipCutoffTime: string;
-  addOnCutoffTime: string;
-  kitchenStartTime: string;
-  deliveryStartTime: string;
-  supportPhone: string;
-  supportEmail: string;
-  whatsappNumber: string;
 }

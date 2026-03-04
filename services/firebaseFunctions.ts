@@ -1,9 +1,10 @@
 /**
- * Firebase Callable Functions client (HTTP).
- * Invokes Firebase callables without embedding tokens in the app.
+ * Firebase Callable Functions client.
+ * Uses Firebase SDK httpsCallable (onCall) — no manual URL.
  */
 
-import axios from "axios";
+import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
+import { getFunctions, httpsCallable, type Functions } from "firebase/functions";
 import Constants from "expo-constants";
 
 const PROJECT_ID =
@@ -14,31 +15,54 @@ const PROJECT_ID =
 
 const REGION = "us-central1";
 
-const FUNCTIONS_BASE_URL =
-  process.env.EXPO_PUBLIC_FIREBASE_FUNCTIONS_URL ||
-  `https://${REGION}-${PROJECT_ID}.cloudfunctions.net`;
+const API_KEY =
+  process.env.EXPO_PUBLIC_FIREBASE_API_KEY ||
+  (Constants as any).expoConfig?.extra?.firebaseApiKey ||
+  "";
+
+/** App name used only for OTP callables; no one signs in to this app, so SDK sends no auth token. */
+const OTP_CALLABLE_APP_NAME = "__otp_callable__";
+
+function getOtpCallableApp(): FirebaseApp {
+  try {
+    return getApp(OTP_CALLABLE_APP_NAME);
+  } catch {
+    return initializeApp(
+      { apiKey: API_KEY, projectId: PROJECT_ID },
+      OTP_CALLABLE_APP_NAME
+    );
+  }
+}
 
 /**
- * Invoke a Firebase callable function by name.
- * Request body: { data: T }. Response: { result: R } or { error: { message, code } }.
+ * Call a callable that allows unauthenticated access (e.g. sendWhatsAppOTP, verifyWhatsAppOTP).
+ * Uses a dedicated Firebase app that is never signed in, so the SDK does not send
+ * any Authorization header and the backend does not return 16 UNAUTHENTICATED.
+ */
+function getPublicCallableFunctions(): Functions {
+  return getFunctions(getOtpCallableApp(), REGION);
+}
+
+function getFirebaseApp(): FirebaseApp {
+  if (getApps().length > 0) return getApp();
+  return initializeApp({ apiKey: API_KEY, projectId: PROJECT_ID });
+}
+
+function getFunctionsInstance(): Functions {
+  return getFunctions(getFirebaseApp(), REGION);
+}
+
+/**
+ * Invoke a Firebase onCall function by name (direct callable).
  */
 export async function callFirebaseCallable<T = unknown, R = unknown>(
   name: string,
   data: T
 ): Promise<R> {
-  const url = `${FUNCTIONS_BASE_URL}/${name}`;
-  const response = await axios.post<{ result?: R; error?: { message?: string; code?: string } }>(
-    url,
-    { data },
-    { headers: { "Content-Type": "application/json" }, timeout: 30000 }
-  );
-
-  if (response.data?.error) {
-    const msg = response.data.error.message || "Request failed";
-    throw new Error(msg);
-  }
-
-  return response.data?.result as R;
+  const functions = getFunctionsInstance();
+  const callable = httpsCallable<T, R>(functions, name);
+  const result = await callable(data);
+  return result.data;
 }
 
 // --- Auth (WhatsApp OTP) ---
@@ -53,10 +77,13 @@ export interface SendWhatsAppOTPResult {
 export async function sendWhatsAppOTPCallable(
   phone: string
 ): Promise<SendWhatsAppOTPResult> {
-  return callFirebaseCallable<{ phone: string }, SendWhatsAppOTPResult>(
-    "sendWhatsAppOTP",
-    { phone }
-  );
+  const functions = getPublicCallableFunctions();
+  const callable = httpsCallable<
+    { phone: string },
+    SendWhatsAppOTPResult
+  >(functions, "sendWhatsAppOTP");
+  const result = await callable({ phone });
+  return result.data;
 }
 
 export interface VerifyWhatsAppOTPResult {
@@ -80,10 +107,13 @@ export async function verifyWhatsAppOTPCallable(
   phone: string,
   otp: string
 ): Promise<VerifyWhatsAppOTPResult> {
-  return callFirebaseCallable<{ phone: string; otp: string }, VerifyWhatsAppOTPResult>(
-    "verifyWhatsAppOTP",
-    { phone, otp }
-  );
+  const functions = getPublicCallableFunctions();
+  const callable = httpsCallable<
+    { phone: string; otp: string },
+    VerifyWhatsAppOTPResult
+  >(functions, "verifyWhatsAppOTP");
+  const result = await callable({ phone, otp });
+  return result.data;
 }
 
 // --- Add-on purchase notification ---

@@ -29,6 +29,8 @@ import {
   UserStreak,
   SupportMessage,
   TimeSlot,
+  StreakMilestoneConfig,
+  STREAK_DAYS,
 } from "@/types";
 import {
   fetchUsers as fbFetchUsers,
@@ -1050,10 +1052,11 @@ class Database {
     id: string,
     updates: Partial<Subscription>
   ): Promise<Subscription | null> {
+    let result: Subscription | null = null;
     try {
       await fbUpdateSubscription(id, updates);
       const refreshed = await this.getSubscriptions();
-      return refreshed.find((s) => s.id === id) || null;
+      result = refreshed.find((s) => s.id === id) || null;
     } catch (e) {
       console.log(
         "[db] updateSubscription on firebase failed, updating local cache",
@@ -1066,8 +1069,12 @@ class Database {
       if (index === -1) return null;
       subscriptions[index] = { ...subscriptions[index], ...updates };
       await this.setItem("subscriptions", subscriptions);
-      return subscriptions[index];
+      result = subscriptions[index];
     }
+    if (result?.status === "completed" && result.userId) {
+      await this.checkAndResetStreakIfNoRenewal(result.userId, result);
+    }
+    return result;
   }
 
   /**
@@ -1146,6 +1153,9 @@ class Database {
       if (remaining === 0) {
         updates.status = "completed";
       }
+      // Streak: count every completed delivery
+      const customerUserId = subscription.userId;
+      if (customerUserId) await this.updateUserStreak(customerUserId);
     }
     const result = await this.updateSubscription(subscriptionId, updates);
 
@@ -2588,7 +2598,40 @@ class Database {
     };
   }
 
-  // Streak methods
+  // Streak config (fixed days; amounts admin-editable)
+  private getDefaultStreakMilestones(): StreakMilestoneConfig[] {
+    return [
+      { days: 21, amount: 50, label: "First major Milestone" },
+      { days: 60, amount: 100, label: "Transformation Zone" },
+      { days: 90, amount: 150, label: "Elite Member" },
+      { days: 120, amount: 210, label: "Power Performer" },
+      { days: 180, amount: 350, label: "Half year Legend" },
+      { days: 270, amount: 450, label: "270 Day Streak" },
+      { days: 365, amount: 1000, label: "Year Champion" },
+    ];
+  }
+
+  async getStreakMilestonesConfig(): Promise<StreakMilestoneConfig[]> {
+    const stored = await this.getItem("streakMilestones");
+    if (stored && Array.isArray(stored) && stored.length > 0) return stored;
+    const defaultConfig = this.getDefaultStreakMilestones();
+    await this.setItem("streakMilestones", defaultConfig);
+    return defaultConfig;
+  }
+
+  async updateStreakMilestonesConfig(
+    amountsByDay: Partial<Record<number, number>>
+  ): Promise<StreakMilestoneConfig[]> {
+    const config = await this.getStreakMilestonesConfig();
+    const updated = config.map((m) => ({
+      ...m,
+      amount: amountsByDay[m.days] ?? m.amount,
+    }));
+    await this.setItem("streakMilestones", updated);
+    return updated;
+  }
+
+  // Streak methods (delivery-based: each completed delivery +1; reset when subscription lapses)
   async initializeUserStreak(userId: string): Promise<void> {
     const userStreaks = (await this.getItem("userStreaks")) || [];
     const existingStreak = userStreaks.find(
@@ -2608,6 +2651,7 @@ class Database {
     }
   }
 
+  /** Call when a delivery is completed (order delivered or subscription delivery_done). Increments streak by 1. */
   async updateUserStreak(userId: string): Promise<void> {
     const userStreaks = (await this.getItem("userStreaks")) || [];
     const streakIndex = userStreaks.findIndex(
@@ -2620,52 +2664,56 @@ class Database {
     }
 
     const userStreak = userStreaks[streakIndex];
-    const today = new Date();
-    const lastOrderDate = new Date(userStreak.lastOrderDate);
-    const daysDiff = Math.floor(
-      (today.getTime() - lastOrderDate.getTime()) / (1000 * 60 * 60 * 24)
+    userStreak.currentStreak += 1;
+    userStreak.longestStreak = Math.max(
+      userStreak.longestStreak,
+      userStreak.currentStreak
     );
-
-    if (daysDiff === 1) {
-      // Consecutive day - increment streak
-      userStreak.currentStreak += 1;
-      userStreak.longestStreak = Math.max(
-        userStreak.longestStreak,
-        userStreak.currentStreak
-      );
-    } else if (daysDiff > 1) {
-      // Streak broken - reset to 1
-      userStreak.currentStreak = 1;
-    }
-    // If daysDiff === 0, it's the same day, don't change streak
-
-    userStreak.lastOrderDate = today;
+    userStreak.lastOrderDate = new Date();
     userStreaks[streakIndex] = userStreak;
     await this.setItem("userStreaks", userStreaks);
 
-    // Update user record
     await this.updateUser(userId, {
       currentStreak: userStreak.currentStreak,
       longestStreak: userStreak.longestStreak,
     });
 
-    // Check for streak rewards
     await this.checkStreakRewards(userId, userStreak.currentStreak);
+  }
+
+  async resetUserStreak(userId: string): Promise<void> {
+    const userStreaks = (await this.getItem("userStreaks")) || [];
+    const idx = userStreaks.findIndex(
+      (s: UserStreak) => s.userId === userId
+    );
+    if (idx === -1) return;
+    userStreaks[idx].currentStreak = 0;
+    userStreaks[idx].lastOrderDate = new Date();
+    await this.setItem("userStreaks", userStreaks);
+    await this.updateUser(userId, { currentStreak: 0 });
+  }
+
+  /** Call when a subscription completes. Resets streak to 0 if user did not renew (no overlapping/next subscription). */
+  async checkAndResetStreakIfNoRenewal(
+    userId: string,
+    completedSubscription: Subscription
+  ): Promise<void> {
+    const subscriptions = await this.getUserSubscriptions(userId);
+    const endDate = new Date(completedSubscription.endDate).getTime();
+    const hasRenewal = subscriptions.some(
+      (sub) =>
+        sub.id !== completedSubscription.id &&
+        new Date(sub.startDate).getTime() <= endDate
+    );
+    if (!hasRenewal) await this.resetUserStreak(userId);
   }
 
   async checkStreakRewards(
     userId: string,
     currentStreak: number
   ): Promise<void> {
-    const rewardMilestones = [
-      { streak: 7, amount: 50 },
-      { streak: 15, amount: 100 },
-      { streak: 30, amount: 200 },
-      { streak: 50, amount: 300 },
-      { streak: 100, amount: 500 },
-    ];
-
-    const milestone = rewardMilestones.find((m) => m.streak === currentStreak);
+    const milestones = await this.getStreakMilestonesConfig();
+    const milestone = milestones.find((m) => m.days === currentStreak);
     if (!milestone) return;
 
     const streakRewards = (await this.getItem("streakRewards")) || [];
@@ -2687,12 +2735,11 @@ class Database {
       streakRewards.push(newReward);
       await this.setItem("streakRewards", streakRewards);
 
-      // Add to wallet
       await this.addWalletTransaction({
         userId,
         type: "credit",
         amount: milestone.amount,
-        description: `Streak reward for ${currentStreak} consecutive orders`,
+        description: `Streak reward - ${milestone.label} (${currentStreak} deliveries)`,
         referenceId: newReward.id,
       });
     }

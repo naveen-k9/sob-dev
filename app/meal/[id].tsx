@@ -752,7 +752,7 @@ export default function MealDetailScreen() {
           {/* ...existing code... */}
 
           {/* Add-ons */}
-          <View style={styles.section}>
+          {/* <View style={styles.section}>
             {meal.allowDaySelection && (
               <View style={{ marginTop: 12 }}>
                 <Text style={styles.sectionTitle}>
@@ -792,7 +792,7 @@ export default function MealDetailScreen() {
                 )}
               </View>
             )}
-          </View>
+          </View> */}
 
          
 

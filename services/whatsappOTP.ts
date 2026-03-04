@@ -1,20 +1,22 @@
 /**
  * WhatsApp OTP Service
- * Handles OTP send and verify via Firebase Callable Functions (no tokens in app)
+ * Handles OTP generation, sending, and verification via Firebase Cloud Functions
  */
 
-import {
-  sendWhatsAppOTPCallable,
-  verifyWhatsAppOTPCallable,
-} from "@/services/firebaseFunctions";
+import axios from "axios";
 
-export interface SendOTPResponse {
+const FUNCTIONS_BASE_URL = {
+  sendOTP: "https://sendwhatsappotp-nup6zrmsha-uc.a.run.app",
+  verifyOTP: "https://verifywhatsappotp-nup6zrmsha-uc.a.run.app",
+};
+
+interface SendOTPResponse {
   success: boolean;
   messageId?: string;
   error?: string;
 }
 
-export interface VerifyOTPResponse {
+interface VerifyOTPResponse {
   success: boolean;
   verified: boolean;
   token?: string;
@@ -32,49 +34,55 @@ export interface VerifyOTPResponse {
 }
 
 /**
- * Send WhatsApp OTP to phone number (via Firebase callable)
+ * Send WhatsApp OTP to phone number
  */
 export async function sendWhatsAppOTP(phone: string): Promise<SendOTPResponse> {
   try {
-    const result = await sendWhatsAppOTPCallable(phone);
-    return {
-      success: result.success,
-      messageId: result.messageId,
-      error: result.error,
-    };
+    const response = await axios.post(FUNCTIONS_BASE_URL.sendOTP, {
+      data: { phone },
+    });
+
+    if (response.data.result) {
+      return response.data.result;
+    }
+
+    return response.data;
   } catch (error: any) {
-    console.error("Send OTP error:", error?.message || error);
+    console.error("Send OTP error:", error.response?.data || error.message);
     return {
       success: false,
-      error: error?.message || "Failed to send OTP. Please try again.",
+      error:
+        error.response?.data?.error?.message ||
+        "Failed to send OTP. Please try again.",
     };
   }
 }
 
 /**
- * Verify WhatsApp OTP (via Firebase callable; returns token and user)
+ * Verify WhatsApp OTP
  */
 export async function verifyWhatsAppOTP(
   phone: string,
   otp: string
 ): Promise<VerifyOTPResponse> {
   try {
-    const result = await verifyWhatsAppOTPCallable(phone, otp);
-    return {
-      success: result.success,
-      verified: result.verified,
-      token: result.token,
-      uid: result.uid,
-      isNewUser: result.isNewUser,
-      user: result.user,
-      error: result.error,
-    };
+    const response = await axios.post(FUNCTIONS_BASE_URL.verifyOTP, {
+      data: { phone, otp },
+    });
+
+    if (response.data.result) {
+      return response.data.result;
+    }
+
+    return response.data;
   } catch (error: any) {
-    console.error("Verify OTP error:", error?.message || error);
+    console.error("Verify OTP error:", error.response?.data || error.message);
     return {
       success: false,
       verified: false,
-      error: error?.message || "Invalid OTP. Please try again.",
+      error:
+        error.response?.data?.error?.message ||
+        "Invalid OTP. Please try again.",
     };
   }
 }

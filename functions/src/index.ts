@@ -23,29 +23,12 @@ import { defineString } from "firebase-functions/params";
 import axios from "axios";
 
 // Service Account Key embedded directly
-const serviceAccount = {
-  type: "service_account",
-  project_id: "sameoldbox-21666",
-  private_key_id: "350fda6e375093f3629aaa6a5e0fa5f39fcddac3",
-  private_key:
-    "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDbm0EwgaIqnEUN\nrWEYXr9Tl4bJIQht6VloESDEhZ2WuXJstlB5Vl2i/oKUuYAgQaQ0LmJVytgThzjN\nXymOUFVE/a/Q4Bypam+4CAMsAvVZCV3daouOnod6hYSaSJ19JAJ4gTQFePZc+EMs\nFRQXYYbXqSpbvlzbTBffu4f4e2YrxO5hZtzKnnu07DmeGglafY20JvT05H+dUven\ndBTKPoCo9k9TyOVJX9z09ekl0pO7DJKWW7hpuaQDaJylyqGUJWRFk0ZGAPp4L9kP\nyO+z/NxPCXl8HQ95LTpYLKS5Mir9Y7dS1EX40SOICGj92TNDjTBVg8r3J1uVZinK\niUyoZCBrAgMBAAECggEADLkpBLtt/tQA+DLkXjoXEavExmBgkaWkZXAgmuI26CWk\naIIDlZQYZroiLKW2s6e58MADOH9BF5iNBPEPgkxLNG0SQ6LIZlRhVqM4M9OUDW2K\nf6qNnVy38rRLo3izjy2H6x1pOyvv8iD8G1C5UkV3P4Vwi9IypQ36kB7YWOAlYkGy\nJ7dzhz615gk2aCNZVMCXrMYAr1Fc0TYIVOPDwmUlBOejOJL10eC50E1HH+Al1mja\nszhTeyR6aKE0dPNr9jhDEAfbiKjOcxW1eotQ5Oq8j2AGL/SweLeu9A8QpK4LuCPp\nsbdXVZMKGlfpJ6F1SiExo2xJtb7fa8OkDFfZHVif6QKBgQDwiiS/5VBuT+mppCBx\nBT77dKCWGhKubvl8TDpoZOYzikN++zDYihbeIC3NqULmQpY9zxCEQ9EbQnL9nweW\n1/cwBFmBKWiTNkEIe3yTsLzsaLBtFbFzrP0zg7qxq6F0qC0nGd7Mc4NQDBi/peY8\nBR5chprn5LpoRA+9gly/RMks9wKBgQDpuKzkarda8lF7ufDds/ocCIfSqd5H8Hdy\nqgjiQUfjzdDO2TjkK5hN2PSk8u9vijcDzNIRMSumJG60Y3mO59rI1RYzYPAcj8tQ\nH712oOgN9lrUtg26lPV1nvp/k7Aak4kZP5BWvKHJrqLm7jDL/KoKCoPypOS/XDA1\nIdFvTlFPLQKBgQCFixymEUkbRXCjx0RfmxsBfhmd3DHc+C247ZVL2iDYIn4gpJLU\n1a2metUTJlLHBdblz+0KkaApczXmSwFqpNJOrUuH4xZ1DJ0EeZKLaIcq9WBl37Ja\nV4Nns03WUEReQPR4jetdNRCFQ4IF/LQbRHg7xFuCPUGkm4zlmNenNSg/twKBgDa8\nHSFRLKeL4DFNlm8VWxl9lfFr/rZyRkcAMxxplWBwLtqCXKRy4TQ5/vEyQ4inocKu\nEPQdw88g8Rwlv64L9lzaKlzV8uV9d2vIQyKpBC9g5lyyVfzALcvh82A1QiS3MIBN\nNoxZmLoWv+e9GIhtH5VCaSxGGZwHBvMqfFXIzZnxAoGAI84TtBv73XS8iGEP/AC2\nM6w9BSskt1GJu1/zbc5z03ETOIHndtGBjWHibL6nv2I7lQN0w9p/w5c6jwz+6Jj9\nDZY0s1aNZ/MinG4A8l2sprLu9sVf7phv9v9yyY1OLzwFPBzLj43ubs46mP3Jyvtz\nDMlMGrdttExIGGK588HrMrA=\n-----END PRIVATE KEY-----\n",
-  client_email:
-    "firebase-adminsdk-fbsvc@sameoldbox-21666.iam.gserviceaccount.com",
-  client_id: "101381989101719936752",
-  auth_uri: "https://accounts.google.com/o/oauth2/auth",
-  token_uri: "https://oauth2.googleapis.com/token",
-  auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-  client_x509_cert_url:
-    "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40sameoldbox-21666.iam.gserviceaccount.com",
-  universe_domain: "googleapis.com",
-};
 
-// Initialize Firebase Admin SDK
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-  });
-}
+
+// Initialize Firebase Admin SDK with a named app so our credential is always used
+// (avoids UNAUTHENTICATED when runtime/emulator pre-initializes the default app)
+
+admin.initializeApp();
 
 const db = admin.firestore();
 
@@ -98,9 +81,16 @@ async function sendWhatsAppMessage(
   parameters: Array<{ type: string; text?: string; image?: { link: string } }>,
   includeButton?: boolean
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const formattedPhone = phoneNumber.replace(/[^0-9]/g, "");
+  console.log("[sendWhatsAppMessage] Sending", {
+    template: templateName,
+    to: formattedPhone ? `***${formattedPhone.slice(-4)}` : "(empty)",
+    paramCount: parameters?.length ?? 0,
+    includeButton: !!includeButton,
+  });
+
   try {
     const whatsappClient = getWhatsAppClient();
-    const formattedPhone = phoneNumber.replace(/[^0-9]/g, "");
 
     const components: any[] = [
       {
@@ -138,18 +128,37 @@ async function sendWhatsAppMessage(
       }
     );
 
+    const messageId = response.data.messages?.[0]?.id;
+    console.log("[sendWhatsAppMessage] Success", {
+      template: templateName,
+      to: `***${formattedPhone.slice(-4)}`,
+      messageId,
+    });
     return {
       success: true,
-      messageId: response.data.messages?.[0]?.id,
+      messageId,
     };
   } catch (error: any) {
-    console.error(
-      "WhatsApp message error:",
-      error.response?.data || error.message
-    );
+    const data = error.response?.data;
+    const waError = data?.error;
+    const errMsg =
+      waError?.error_user_msg ||
+      waError?.message ||
+      error.message ||
+      "Unknown error";
+    const code = waError?.code ?? error.response?.status;
+    const errorType = waError?.type ?? "WhatsApp API error";
+    console.error("[sendWhatsAppMessage] WhatsApp Business API error", {
+      template: templateName,
+      to: `***${formattedPhone.slice(-4)}`,
+      message: errMsg,
+      code,
+      type: errorType,
+      fullError: data ? JSON.stringify(data) : undefined,
+    });
     return {
       success: false,
-      error: error.response?.data?.error?.message || "Failed to send message",
+      error: errMsg,
     };
   }
 }
@@ -203,8 +212,9 @@ async function sendPushNotification(
 
 /**
  * Cloud Function: Send WhatsApp OTP
+ * invoker: "public" allows unauthenticated calls (needed for login flow before user is signed in).
  */
-export const sendWhatsAppOTP = onCall(async (request) => {
+export const sendWhatsAppOTP = onCall({ invoker: "public" }, async (request) => {
   const { phone } = request.data;
 
   console.log("sendWhatsAppOTP called with phone:", phone);
@@ -268,18 +278,29 @@ export const sendWhatsAppOTP = onCall(async (request) => {
       };
     }
 
-    throw new Error(result.error || "Failed to send OTP");
+    // WhatsApp Business API failed (token, template, or phone) — return message to client
+    const whatsappError = result.error || "WhatsApp could not send the message.";
+    console.error("[sendWhatsAppOTP] WhatsApp Business API failed to send OTP", {
+      phone: phone ? `***${String(phone).slice(-4)}` : "(empty)",
+      error: whatsappError,
+    });
+    throw new HttpsError("internal", whatsappError);
   } catch (error: any) {
-    console.error("Send OTP error:", error);
-    console.error("Error details:", JSON.stringify(error, null, 2));
-    throw new HttpsError("internal", error.message);
+    const message =
+      error instanceof HttpsError ? error.message : (error?.message ?? "Failed to send OTP");
+    console.error("[sendWhatsAppOTP] Error", {
+      message,
+      stack: error?.stack,
+    });
+    throw error instanceof HttpsError ? error : new HttpsError("internal", message);
   }
 });
 
 /**
  * Cloud Function: Verify WhatsApp OTP (Optimized)
+ * invoker: "public" allows unauthenticated calls (needed for login flow before user is signed in).
  */
-export const verifyWhatsAppOTP = onCall(async (request) => {
+export const verifyWhatsAppOTP = onCall({ invoker: "public" }, async (request) => {
   const { phone, otp } = request.data;
 
   if (!phone || !otp) {

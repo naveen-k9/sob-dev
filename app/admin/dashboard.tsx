@@ -53,6 +53,7 @@ import {
   Heart,
   Building2,
   Tag,
+  Flame,
 } from "lucide-react-native";
 import db from "@/db";
 import {
@@ -851,6 +852,15 @@ export default function AdminDashboard() {
       color: "#48479B",
       onPress: () => loadCutoffSettings(),
       group: "Operations",
+    },
+    {
+      id: "streak",
+      title: "Streak Rewards",
+      description: "Edit reward amount for each streak day (21–365)",
+      icon: Flame,
+      color: "#F59E0B",
+      onPress: () => router.push("/admin/streak-settings" as any),
+      group: "Marketing",
     },
     {
       id: "11",

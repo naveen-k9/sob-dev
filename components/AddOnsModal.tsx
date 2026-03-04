@@ -6,9 +6,9 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
-  Image,
   Pressable,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Plus, Minus } from 'lucide-react-native';
 import { AddOn } from '@/types';
@@ -165,16 +165,15 @@ export default function AddOnsModal({
                     <View key={addOn.id} style={styles.addOnCard}>
                       <View style={styles.addOnMain}>
                         <View style={styles.addOnLeft}>
-                          <View style={[styles.addOnImage, styles.addOnImageContainer]}> 
+                          <View style={[styles.addOnImage, styles.addOnImageContainer]}>
                             {addOn.image ? (
                               <Image
-                                source={{ uri: addOn.image }}
+                                source={addOn.image}
                                 style={styles.addOnImageInner}
-                                resizeMode="cover"
-                                onError={() => console.warn(`Failed to load addOn image: ${addOn.image}`)}
+                                contentFit="cover"
                               />
                             ) : (
-                              <View style={styles.addOnImagePlaceholder}>
+                              <View style={[styles.addOnImagePlaceholder, styles.addOnImageInner]}>
                                 <Text style={styles.addOnImageEmoji}>🍽️</Text>
                               </View>
                             )}
@@ -415,8 +414,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   addOnImageInner: {
-    width: '100%',
-    height: '100%',
+    width: 45,
+    height: 45,
   },
   addOnImagePlaceholder: {
     backgroundColor: '#F3F4F6',

@@ -23,13 +23,14 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import db from '@/db';
-import { ReferralReward, StreakReward } from '@/types';
+import { ReferralReward, StreakReward, StreakMilestoneConfig } from '@/types';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ReferScreen() {
   const { user } = useAuth();
   const [referralRewards, setReferralRewards] = useState<ReferralReward[]>([]);
   const [streakRewards, setStreakRewards] = useState<StreakReward[]>([]);
+  const [streakMilestones, setStreakMilestones] = useState<StreakMilestoneConfig[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,15 +41,17 @@ export default function ReferScreen() {
 
   const loadData = async () => {
     if (!user) return;
-    
+
     try {
-      const [referrals, streaks] = await Promise.all([
+      const [referrals, streaks, milestones] = await Promise.all([
         db.getReferralRewards(user.id),
         db.getStreakRewards(user.id),
+        db.getStreakMilestonesConfig(),
       ]);
-      
+
       setReferralRewards(referrals);
       setStreakRewards(streaks);
+      setStreakMilestones(milestones);
     } catch (error) {
       console.error('Error loading refer data:', error);
     } finally {
@@ -83,18 +86,19 @@ export default function ReferScreen() {
   };
 
   const getStreakMilestones = () => {
-    return [
-      { streak: 7, amount: 50, achieved: (user?.longestStreak || 0) >= 7 },
-      { streak: 15, amount: 100, achieved: (user?.longestStreak || 0) >= 15 },
-      { streak: 30, amount: 200, achieved: (user?.longestStreak || 0) >= 30 },
-      { streak: 50, amount: 300, achieved: (user?.longestStreak || 0) >= 50 },
-      { streak: 100, amount: 500, achieved: (user?.longestStreak || 0) >= 100 },
-    ];
+    const current = user?.currentStreak ?? 0;
+    const best = user?.longestStreak ?? 0;
+    return streakMilestones.map((m) => ({
+      streak: m.days,
+      amount: m.amount,
+      label: m.label,
+      achieved: best >= m.days,
+    }));
   };
 
   const getNextStreakMilestone = () => {
     const milestones = getStreakMilestones();
-    return milestones.find(m => !m.achieved);
+    return milestones.find((m) => !m.achieved);
   };
   const insets = useSafeAreaInsets();
 
@@ -113,7 +117,7 @@ export default function ReferScreen() {
   }
 
   const nextMilestone = getNextStreakMilestone();
-  const streaksToNext = nextMilestone ? nextMilestone.streak - (user.currentStreak || 0) : 0;
+  const streaksToNext = nextMilestone ? nextMilestone.streak - (user?.currentStreak ?? 0) : 0;
 
   return (
     <SafeAreaView  style={[styles.container, { paddingTop: insets.top }]}>
@@ -173,7 +177,7 @@ export default function ReferScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Flame size={24} color="#F59E0B" />
-            <Text style={styles.sectionTitle}>Order Streak</Text>
+            <Text style={styles.sectionTitle}>Delivery Streak</Text>
           </View>
           
           <View style={styles.streakCard}>
@@ -192,7 +196,7 @@ export default function ReferScreen() {
               <View style={styles.nextMilestone}>
                 <Target size={16} color="#6B7280" />
                 <Text style={styles.nextMilestoneText}>
-                  {streaksToNext} more orders to earn ₹{nextMilestone.amount}
+                  {streaksToNext} more deliveries to earn ₹{nextMilestone.amount}
                 </Text>
               </View>
             )}
@@ -219,7 +223,7 @@ export default function ReferScreen() {
                     styles.milestoneTitle,
                     milestone.achieved && styles.milestoneTitleAchieved
                   ]}>
-                    {milestone.streak} Day Streak
+                    Day {milestone.streak} – {milestone.label ?? `${milestone.streak} Day Streak`}
                   </Text>
                   <Text style={styles.milestoneReward}>₹{milestone.amount} reward</Text>
                 </View>

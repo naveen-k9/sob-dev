@@ -250,11 +250,11 @@ export default function TodayMealSlider({
                     <View style={styles.addOnsContainer}>
                       <Text style={styles.addOnsLabel}>Addons</Text>
                       <View style={styles.addOnsImagesRow}>
-                        {meal.addOns.map((addOnId) => {
+                        {meal.addOns.map((addOnId, index) => {
                           const addOn = addOnsMap[addOnId];
                           if (!addOn?.image) return null;
                           return (
-                            <View key={addOnId} style={styles.addOnItem}>
+                            <View key={`${addOnId}-${index}`} style={styles.addOnItem}>
                               <Image
                                 source={{ uri: addOn.image }}
                                 style={styles.addOnImage}
