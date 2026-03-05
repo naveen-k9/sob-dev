@@ -47,10 +47,16 @@ function getParamString(value: string | string[] | undefined): string | null {
 }
 
 export default function MealDetailScreen() {
-  const params = useLocalSearchParams<{ id?: string; mode?: string; planId?: string }>();
+  const params = useLocalSearchParams<{
+    id?: string;
+    mode?: string;
+    planId?: string;
+    sid?: string;
+  }>();
   const id = getParamString(params.id) ?? undefined;
   const mode = getParamString(params.mode) ?? undefined;
   const planId = getParamString(params.planId) ?? undefined;
+  const sid = getParamString(params.sid) ?? undefined;
 
   const [meal, setMeal] = useState<Meal | null>(null);
   const [loading, setLoading] = useState(true);
@@ -260,6 +266,73 @@ export default function MealDetailScreen() {
     }
   }, [meal, mode, getAvailablePlans]);
 
+  // Renew flow: when sid is present, load subscription and pre-fill plan, add-ons, weekType, time slot
+  const hasAppliedRenewalRef = useRef(false);
+  useEffect(() => {
+    if (!sid || !meal || allTimeSlots.length === 0 || hasAppliedRenewalRef.current) return;
+
+    let cancelled = false;
+    hasAppliedRenewalRef.current = true;
+
+    (async () => {
+      try {
+        const subscription = await db.getSubscriptionById(sid);
+        if (cancelled || !subscription) return;
+
+        const duration =
+          subscription.duration ??
+          subscriptionPlans.find((p) => p.id === subscription.planId)?.duration ??
+          6;
+        const plans = getAvailablePlans();
+        const plan = plans.find((p) => p.duration === duration) ?? plans.find((p) => p.duration === 6) ?? plans[0];
+        if (plan && !cancelled) {
+          setSelectedPlan(plan);
+          setIsTrialMode(plan.duration <= 2);
+        }
+
+        const wt: WeekType =
+          subscription.weekType === "everyday" ||
+          subscription.weekType === "mon-sat" ||
+          subscription.weekType === "mon-fri"
+            ? subscription.weekType
+            : "mon-fri";
+        if (!cancelled && (!meal.availableWeekTypes || meal.availableWeekTypes.includes(wt))) {
+          setWeekType(wt);
+        }
+
+        const slotTime =
+          subscription.deliveryTimeSlot ||
+          subscription.deliveryTime ||
+          "";
+        const slot =
+          slotTime && allTimeSlots.find((s) => s.time === slotTime);
+        if (!cancelled && slot) setSelectedTimeSlot(slot);
+
+        const addOnIds = subscription.addOns ?? [];
+        if (!cancelled) setSelectedAddOns(addOnIds);
+
+        const dayKeysByWeekType: Record<WeekType, DayKey[]> = {
+          "mon-fri": ["mon", "tue", "wed", "thu", "fri"],
+          "mon-sat": ["mon", "tue", "wed", "thu", "fri", "sat"],
+          everyday: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+        };
+        const days = dayKeysByWeekType[wt];
+        const nextAddOnDays: Record<string, DayKey[]> = {};
+        addOnIds.forEach((addOnId) => {
+          nextAddOnDays[addOnId] = [...days];
+        });
+        if (!cancelled) setSelectedAddOnDays((prev) => ({ ...prev, ...nextAddOnDays }));
+      } catch (e) {
+        console.error("Renew pre-fill error:", e);
+        hasAppliedRenewalRef.current = false;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sid, meal, allTimeSlots, getAvailablePlans]);
+
   const handleAddOnToggle = useCallback(
     (addOnId: string) => {
       setSelectedAddOns((prev) => {
@@ -415,7 +488,7 @@ export default function MealDetailScreen() {
   const handleProceed = () => {
     if (!meal) return;
 
-    const subscriptionData = {
+    const subscriptionData: Record<string, unknown> = {
       meal,
       plan: selectedPlan,
       addOns: selectedAddOns,
@@ -425,6 +498,7 @@ export default function MealDetailScreen() {
       isTrialMode,
       totalPrice: calculateTotalPrice(),
     };
+    if (sid) subscriptionData.renewSubscriptionId = sid;
 
     router.push({
       pathname: "/checkout",

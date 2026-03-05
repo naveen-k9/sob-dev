@@ -4,10 +4,11 @@ This document contains the exact templates you need to create in Meta Business S
 
 ## 📋 Required Templates
 
-You need to create and get approved **3 WhatsApp templates** for the following scenarios:
+You need to create and get approved **4 WhatsApp templates** for the following scenarios:
 1. subscription_activated
 2. subscription_expired
-3. wallet_credited
+3. subscription_expiring (renew link; same CTA as subscription_expired)
+4. wallet_credited
 
 ---
 
@@ -112,11 +113,11 @@ Thank you for being with us.
 Reply STOP to unsubscribe
 ```
 
-### Buttons (Optional)
+### Buttons (Optional) – for renew same meal
 - Button 1: **Call to Action** → URL
   - Button Text: `Renew Now`
-  - URL: `https://yourapp.com/subscription/renew`
-  - URL Type: Static
+  - URL: `https://sameoldbox.com/renew?sid={{1}}`
+  - URL Type: **Dynamic** – one parameter for the button: `{{1}}` = subscription ID (backend will pass this so the app opens the correct subscription to renew).
 
 ### Sample Content for Approval
 ```
@@ -129,6 +130,46 @@ To continue enjoying your daily meals, please renew your subscription.
 Renew now through our app and never miss a meal!
 
 Thank you for being with us.
+```
+
+---
+
+## Template 2b: subscription_expiring
+
+Use this template when a subscription is about to expire (e.g. within 3 days). Same "Renew Now" button as subscription_expired for consistency.
+
+### Basic Information
+- **Template Name:** `subscription_expiring`
+- **Category:** `ACCOUNT_UPDATE`
+- **Language:** `English`
+
+### Body (Required)
+```
+Hi {{1}},
+
+Reminder: Your {{2}} subscription expires in {{3}} days. ⏰
+
+Renew now to continue enjoying delicious meals!
+```
+
+### Variables in Body:
+1. `{{1}}` - Customer Name (TEXT)
+2. `{{2}}` - Plan Name (TEXT)
+3. `{{3}}` - Days Remaining (TEXT, e.g. "3")
+
+### Buttons (Optional) – for renew same meal
+- Button 1: **Call to Action** → URL
+  - Button Text: `Renew Now`
+  - URL: `https://sameoldbox.com/renew?sid={{1}}`
+  - URL Type: **Dynamic** – one parameter for the button: `{{1}}` = subscription ID.
+
+### Sample Content for Approval
+```
+Hi John Doe,
+
+Reminder: Your Monthly Premium subscription expires in 3 days. ⏰
+
+Renew now to continue enjoying delicious meals!
 ```
 
 ---
@@ -242,6 +283,7 @@ Once your templates are approved:
 1. **Note Template Names:** Make sure they match exactly:
    - `subscription_activated`
    - `subscription_expired`
+   - `subscription_expiring`
    - `wallet_credited`
 
 2. **Update Environment Variables:**

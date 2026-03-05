@@ -26,6 +26,7 @@ import {
   Check,
   Package,
   Eye,
+  Calendar,
 } from "lucide-react-native";
 import db from "@/db";
 import { Meal, Category, AddOn } from "@/types";
@@ -75,6 +76,10 @@ export default function AdminMealsScreen() {
   const [availableWeekTypes, setAvailableWeekTypes] = useState<
     ("mon-fri" | "mon-sat" | "everyday")[]
   >([]);
+  const [weeklyMenuByDate, setWeeklyMenuByDate] = useState<Record<string, string>>({});
+  const [newMenuDate, setNewMenuDate] = useState("");
+  const [newMenuText, setNewMenuText] = useState("");
+  const [showWeeklyMenuDatePicker, setShowWeeklyMenuDatePicker] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -171,6 +176,9 @@ export default function AdminMealsScreen() {
     setNonVegVariantPrice("");
     setAllowDaySelection(false);
     setAvailableWeekTypes([]);
+    setWeeklyMenuByDate({});
+    setNewMenuDate("");
+    setNewMenuText("");
   };
 
   const openAddModal = () => {
@@ -206,6 +214,9 @@ export default function AdminMealsScreen() {
     setNonVegVariantPrice(meal.variantPricing?.nonveg?.toString() || "");
     setAllowDaySelection(meal.allowDaySelection || false);
     setAvailableWeekTypes(meal.availableWeekTypes ?? []);
+    setWeeklyMenuByDate(meal.weeklyMenuByDate ?? {});
+    setNewMenuDate("");
+    setNewMenuText("");
     setShowEditModal(true);
   };
 
@@ -287,6 +298,13 @@ export default function AdminMealsScreen() {
         addonIds: selectedAddons.length > 0 ? selectedAddons : undefined,
         availableWeekTypes:
           availableWeekTypes.length > 0 ? availableWeekTypes : undefined,
+        weeklyMenuByDate: (() => {
+          const clean: Record<string, string> = {};
+          Object.entries(weeklyMenuByDate).forEach(([date, v]) => {
+            if (typeof v === "string" && v.trim()) clean[date] = v.trim();
+          });
+          return Object.keys(clean).length > 0 ? clean : undefined;
+        })(),
       });
 
       Alert.alert("Success", "Meal added successfully");
@@ -371,6 +389,13 @@ export default function AdminMealsScreen() {
         addonIds: selectedAddons.length > 0 ? selectedAddons : undefined,
         availableWeekTypes:
           availableWeekTypes.length > 0 ? availableWeekTypes : undefined,
+        weeklyMenuByDate: (() => {
+          const clean: Record<string, string> = {};
+          Object.entries(weeklyMenuByDate).forEach(([date, v]) => {
+            if (typeof v === "string" && v.trim()) clean[date] = v.trim();
+          });
+          return Object.keys(clean).length > 0 ? clean : undefined;
+        })(),
       });
 
       Alert.alert("Success", "Meal updated successfully");
@@ -454,6 +479,13 @@ export default function AdminMealsScreen() {
         addonIds: selectedAddons.length > 0 ? selectedAddons : undefined,
         availableWeekTypes:
           availableWeekTypes.length > 0 ? availableWeekTypes : undefined,
+        weeklyMenuByDate: (() => {
+          const clean: Record<string, string> = {};
+          Object.entries(weeklyMenuByDate).forEach(([date, v]) => {
+            if (typeof v === "string" && v.trim()) clean[date] = v.trim();
+          });
+          return Object.keys(clean).length > 0 ? clean : undefined;
+        })(),
       });
 
       Alert.alert("Success", "Meal saved as draft successfully");
@@ -850,6 +882,128 @@ export default function AdminMealsScreen() {
           );
         })}
       </View>
+
+      <Text style={styles.sectionTitle}>Weekly menu by date (optional)</Text>
+      <Text style={[styles.label, { marginBottom: 8 }]}>
+        Select a date and set menu text. The app shows only 7 dates (the current week) to users. You can add any number of future dates.
+      </Text>
+      <View style={{ flexDirection: "row", gap: 8, marginBottom: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <TouchableOpacity
+          style={[styles.input, { flex: 1, minWidth: 140, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
+          onPress={() => setShowWeeklyMenuDatePicker(true)}
+        >
+          <Text style={{ color: newMenuDate ? "#111827" : "#9CA3AF", fontSize: 16 }}>
+            {newMenuDate
+              ? (() => {
+                  const [y, m, day] = newMenuDate.split("-");
+                  const d = new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(day, 10));
+                  return d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+                })()
+              : "Select date"}
+          </Text>
+          <Calendar size={18} color="#6B7280" />
+        </TouchableOpacity>
+        <TextInput
+          style={[styles.input, { flex: 2, minWidth: 140 }]}
+          value={newMenuText}
+          onChangeText={setNewMenuText}
+          placeholder="e.g. Rice, Dal, Sabzi"
+          placeholderTextColor="#9CA3AF"
+        />
+        <TouchableOpacity
+          style={[styles.chip, styles.chipSelected, { paddingVertical: 12, paddingHorizontal: 14 }]}
+          onPress={() => {
+            if (!newMenuDate) {
+              Alert.alert("Select date", "Tap 'Select date' to choose a date first.");
+              return;
+            }
+            setWeeklyMenuByDate((prev) => ({ ...prev, [newMenuDate]: newMenuText.trim() }));
+            setNewMenuDate("");
+            setNewMenuText("");
+          }}
+        >
+          <Text style={[styles.chipLabel, styles.chipLabelSelected]}>Add date</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Modal
+        visible={showWeeklyMenuDatePicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowWeeklyMenuDatePicker(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+            <Text style={{ fontSize: 18, fontWeight: "600", color: "#111827" }}>Select date</Text>
+            <TouchableOpacity onPress={() => setShowWeeklyMenuDatePicker(false)} hitSlop={12}>
+              <X size={24} color="#374151" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+            {Array.from({ length: 90 }, (_, i) => {
+              const d = new Date();
+              d.setDate(d.getDate() + i);
+              const dateStr = d.toISOString().split("T")[0];
+              const label = d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+              const isToday = i === 0;
+              return (
+                <TouchableOpacity
+                  key={dateStr}
+                  style={{
+                    paddingVertical: 14,
+                    paddingHorizontal: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: "#F3F4F6",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                  onPress={() => {
+                    setNewMenuDate(dateStr);
+                    setShowWeeklyMenuDatePicker(false);
+                  }}
+                >
+                  <Text style={{ fontSize: 15, color: "#111827" }}>
+                    {isToday ? "Today" : label}
+                  </Text>
+                  {newMenuDate === dateStr && <Check size={20} color="#10B981" />}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+      {Object.entries(weeklyMenuByDate)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, text]) => (
+          <View key={date} style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 8, gap: 8 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>{date}</Text>
+              <TextInput
+                style={[styles.input, { minHeight: 40 }]}
+                value={text}
+                onChangeText={(t) =>
+                  setWeeklyMenuByDate((prev) => ({ ...prev, [date]: t }))
+                }
+                placeholder="Menu text"
+                placeholderTextColor="#9CA3AF"
+                multiline
+              />
+            </View>
+            <TouchableOpacity
+              style={{ padding: 10, justifyContent: "center" }}
+              onPress={() => {
+                setWeeklyMenuByDate((prev) => {
+                  const next = { ...prev };
+                  delete next[date];
+                  return next;
+                });
+              }}
+            >
+              <Trash2 size={20} color="#EF4444" />
+            </TouchableOpacity>
+          </View>
+        ))}
 
       {isBasicThali && (
         <>

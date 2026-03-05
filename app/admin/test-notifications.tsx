@@ -645,7 +645,14 @@ export default function TestNotificationsScreen() {
               data={userSubs}
               keyExtractor={(s) => s.id}
               renderItem={({ item }) => {
-                const statusColor = item.status === "active" ? "#10B981" : item.status === "paused" ? "#F59E0B" : "#EF4444";
+                const statusColor =
+                  item.status === "active" ||
+                  item.status === "renewed" ||
+                  item.status === "expiring"
+                    ? "#10B981"
+                    : item.status === "paused"
+                      ? "#F59E0B"
+                      : "#EF4444";
                 return (
                   <TouchableOpacity
                     style={[styles.listItem, item.id === selectedSub?.id && styles.listItemSelected]}

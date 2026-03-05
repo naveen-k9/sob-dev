@@ -2191,6 +2191,8 @@ class Database {
     availableWeekTypes?: ("mon-fri" | "mon-sat" | "everyday")[];
     ingredients?: string[];
     allergens?: string[];
+    weeklyMenu?: Partial<Record<"mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun", string>>;
+    weeklyMenuByDate?: Record<string, string>;
   }): Promise<Meal> {
     // Use getAllMealsAdmin to include drafts when adding new meals
     const meals = await this.getAllMealsAdmin();
@@ -2231,6 +2233,8 @@ class Database {
       addonIds: mealData.addonIds,
       availableTimeSlotIds: mealData.availableTimeSlotIds,
       availableWeekTypes: mealData.availableWeekTypes,
+      weeklyMenu: mealData.weeklyMenu,
+      weeklyMenuByDate: mealData.weeklyMenuByDate,
     };
 
     // Save to Firebase

@@ -113,7 +113,13 @@ export default function DeliveryDashboard() {
       meals.forEach((m) => mealsById.set(m.id, m));
 
       const orders: DeliveryOrder[] = subs
-        .filter((s: Subscription) => s.status === "active" && isActivePlanDate(today, s))
+        .filter(
+          (s: Subscription) =>
+            (s.status === "active" ||
+              s.status === "renewed" ||
+              s.status === "expiring") &&
+            isActivePlanDate(today, s)
+        )
         .map((s: Subscription) => {
           const u: User | undefined = users.find((us) => us.id === s.userId);
           const m = mealsById.get(s.mealId);

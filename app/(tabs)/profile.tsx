@@ -205,7 +205,9 @@ export default function ProfileScreen() {
         
         <View style={styles.subscriptionFooter}>
           <Text style={styles.totalAmount}>₹{item.totalAmount}</Text>
-          {item.status === 'active' && (
+          {(item.status === 'active' ||
+            item.status === 'renewed' ||
+            item.status === 'expiring') && (
             <TouchableOpacity style={styles.manageButton}>
               <Text style={styles.manageButtonText}>Manage</Text>
             </TouchableOpacity>

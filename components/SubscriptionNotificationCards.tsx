@@ -86,7 +86,12 @@ export default function SubscriptionNotificationCards({
         const list: NotificationMealItem[] = [];
 
         for (const subscription of subscriptions) {
-          if (subscription.status !== "active") continue;
+          if (
+            subscription.status !== "active" &&
+            subscription.status !== "renewed" &&
+            subscription.status !== "expiring"
+          )
+            continue;
           const subStart = new Date(subscription.startDate);
           const subEnd = new Date(subscription.endDate);
           subStart.setHours(0, 0, 0, 0);

@@ -74,19 +74,23 @@ function getWhatsAppClient() {
 
 /**
  * Helper: Send WhatsApp message
+ * @param includeOtpButton - when true, add URL button using first body param (e.g. OTP templates)
+ * @param buttonUrlPayload - when set, add CTA URL button with this value as the dynamic URL part (e.g. subscription ID for renew link; template URL must be like https://sameoldbox.com/renew?sid={{1}})
  */
 async function sendWhatsAppMessage(
   phoneNumber: string,
   templateName: string,
   parameters: Array<{ type: string; text?: string; image?: { link: string } }>,
-  includeButton?: boolean
+  includeOtpButton?: boolean,
+  buttonUrlPayload?: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const formattedPhone = phoneNumber.replace(/[^0-9]/g, "");
   console.log("[sendWhatsAppMessage] Sending", {
     template: templateName,
     to: formattedPhone ? `***${formattedPhone.slice(-4)}` : "(empty)",
     paramCount: parameters?.length ?? 0,
-    includeButton: !!includeButton,
+    includeOtpButton: !!includeOtpButton,
+    hasButtonUrlPayload: !!buttonUrlPayload,
   });
 
   try {
@@ -99,8 +103,8 @@ async function sendWhatsAppMessage(
       },
     ];
 
-    // Add button component if needed (e.g., for OTP templates)
-    if (includeButton && parameters.length > 0) {
+    // Add button component for OTP templates (copy code)
+    if (includeOtpButton && parameters.length > 0) {
       components.push({
         type: "button",
         sub_type: "url",
@@ -111,6 +115,16 @@ async function sendWhatsAppMessage(
             text: parameters[0].text, // Use first parameter (OTP) for button
           },
         ],
+      });
+    }
+
+    // Add CTA URL button for subscription renew (template URL e.g. https://sameoldbox.com/renew?sid={{1}})
+    if (buttonUrlPayload != null && buttonUrlPayload !== "") {
+      components.push({
+        type: "button",
+        sub_type: "url",
+        index: "0",
+        parameters: [{ type: "text", text: buttonUrlPayload }],
       });
     }
 
@@ -685,7 +699,7 @@ export const onSubscriptionStatusChange = onDocumentUpdated(
           parameters = [
             { type: "text", text: userName },
             { type: "text", text: planName },
-            { type: "text", text: `₹${after.amount || "0"}` },
+            { type: "text", text: `₹${after.totalAmount ?? after.amount ?? "0"}` },
           ];
           break;
         case "expiring":
@@ -721,7 +735,17 @@ export const onSubscriptionStatusChange = onDocumentUpdated(
       }
 
       if (phone && templateName) {
-        await sendWhatsAppMessage(phone, templateName, parameters);
+        const renewPayload =
+          status === "expiring" || status === "expired"
+            ? subscriptionId
+            : undefined;
+        await sendWhatsAppMessage(
+          phone,
+          templateName,
+          parameters,
+          undefined,
+          renewPayload
+        );
       }
 
       console.log(
@@ -1053,11 +1077,17 @@ export const checkExpiringSubscriptions = onSchedule("0 9 * * *", async () => {
         }
 
         if (phone) {
-          await sendWhatsAppMessage(phone, TEMPLATES.SUBSCRIPTION_EXPIRING, [
-            { type: "text", text: userName },
-            { type: "text", text: planName },
-            { type: "text", text: String(daysRemaining) },
-          ]);
+          await sendWhatsAppMessage(
+            phone,
+            TEMPLATES.SUBSCRIPTION_EXPIRING,
+            [
+              { type: "text", text: userName },
+              { type: "text", text: planName },
+              { type: "text", text: String(daysRemaining) },
+            ],
+            undefined,
+            subDoc.id
+          );
         }
 
         // Update subscription status to expiring
@@ -1108,10 +1138,16 @@ export const checkExpiringSubscriptions = onSchedule("0 9 * * *", async () => {
       }
 
       if (phone) {
-        await sendWhatsAppMessage(phone, TEMPLATES.SUBSCRIPTION_EXPIRED, [
-          { type: "text", text: userName },
-          { type: "text", text: planName },
-        ]);
+        await sendWhatsAppMessage(
+          phone,
+          TEMPLATES.SUBSCRIPTION_EXPIRED,
+          [
+            { type: "text", text: userName },
+            { type: "text", text: planName },
+          ],
+          undefined,
+          subDoc.id
+        );
       }
     }
 

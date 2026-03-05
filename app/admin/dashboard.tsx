@@ -126,8 +126,12 @@ export default function AdminDashboard() {
       // Update stats
       setStats({
         totalUsers: allUsers.length,
-        activeOrders: allSubscriptions.filter((sub) => sub.status === "active")
-          .length,
+        activeOrders: allSubscriptions.filter(
+          (sub) =>
+            sub.status === "active" ||
+            sub.status === "renewed" ||
+            sub.status === "expiring"
+        ).length,
         totalRevenue: `₹${allSubscriptions
           .reduce((sum, sub) => sum + sub.totalAmount, 0)
           .toLocaleString()}`,

@@ -594,6 +594,7 @@ export default function CheckoutScreen() {
           }
         }
 
+        const renewSubscriptionId = updatedDetails.renewSubscriptionId as string | undefined;
         const subscription = {
           userId: user?.id || "guest",
           mealId: updatedDetails.meal.id,
@@ -631,15 +632,45 @@ export default function CheckoutScreen() {
           promoDiscountAmount: orderSummary.promoDiscount ?? 0,
           walletPaidAmount: orderSummary.walletAppliedAmount ?? 0,
         };
-        console.log("Creating subscription:", subscription);
         let createdSubscriptionId: string | undefined;
         try {
-          const createdSubscription = await db.createSubscription(subscription);
-          createdSubscriptionId = createdSubscription.id;
-          console.log(
-            "Subscription created successfully with ID:",
-            createdSubscriptionId
-          );
+          if (renewSubscriptionId) {
+            console.log("Extending subscription (renewal):", renewSubscriptionId);
+            const extendUpdates = {
+              startDate: startDateVal,
+              endDate,
+              deliveryTime: updatedDetails.timeSlot?.time,
+              deliveryTimeSlot: updatedDetails.timeSlot?.time,
+              weekType: updatedDetails.weekType,
+              weekendExclusion: subscription.weekendExclusion,
+              excludeWeekends: subscription.excludeWeekends,
+              status: "renewed" as const,
+              expiredAt: null as unknown as undefined,
+              daysRemaining: undefined,
+              totalAmount: orderSummary.finalAmount,
+              paidAmount: orderSummary.finalAmount,
+              remainingDeliveries: updatedDetails.plan.duration,
+              totalDeliveries: updatedDetails.plan.duration,
+              addressId: selectedAddress?.id || "default",
+              addOns: updatedDetails.addOns ?? [],
+              specialInstructions: deliveryInstructions,
+              appliedOfferId: appliedOffer?.id ?? null,
+              promoCode: appliedOffer?.promoCode ?? appliedOffer?.code ?? null,
+              promoDiscountAmount: orderSummary.promoDiscount ?? 0,
+              walletPaidAmount: orderSummary.walletAppliedAmount ?? 0,
+            };
+            await db.updateSubscription(renewSubscriptionId, extendUpdates);
+            createdSubscriptionId = renewSubscriptionId;
+            console.log("Subscription extended successfully with ID:", createdSubscriptionId);
+          } else {
+            console.log("Creating subscription:", subscription);
+            const createdSubscription = await db.createSubscription(subscription);
+            createdSubscriptionId = createdSubscription.id;
+            console.log(
+              "Subscription created successfully with ID:",
+              createdSubscriptionId
+            );
+          }
           if (appliedOffer?.id) {
             db.incrementOfferUsedCount(appliedOffer.id).catch((e) =>
               console.log("incrementOfferUsedCount failed", e)
@@ -753,6 +784,7 @@ export default function CheckoutScreen() {
           updatedDetails.weekType
         );
 
+        const renewSubscriptionIdRazorpay = updatedDetails.renewSubscriptionId as string | undefined;
         const subscription = {
           userId: user?.id || "guest",
           mealId: updatedDetails.meal.id,
@@ -790,13 +822,43 @@ export default function CheckoutScreen() {
           promoDiscountAmount: orderSummary.promoDiscount ?? 0,
           walletPaidAmount: orderSummary.walletAppliedAmount ?? 0,
         };
-        console.log("Creating subscription:", subscription);
 
         let createdSubscriptionId: string | undefined;
         try {
-          const createdSubscription = await db.createSubscription(subscription);
-          createdSubscriptionId = createdSubscription.id;
-          console.log("Subscription created with ID:", createdSubscriptionId);
+          if (renewSubscriptionIdRazorpay) {
+            console.log("Extending subscription (renewal):", renewSubscriptionIdRazorpay);
+            const extendUpdates = {
+              startDate: startDateVal,
+              endDate,
+              deliveryTime: updatedDetails.timeSlot?.time,
+              deliveryTimeSlot: updatedDetails.timeSlot?.time,
+              weekType: updatedDetails.weekType,
+              weekendExclusion: subscription.weekendExclusion,
+              excludeWeekends: subscription.excludeWeekends,
+              status: "renewed" as const,
+              expiredAt: null as unknown as undefined,
+              daysRemaining: undefined,
+              totalAmount: orderSummary.finalAmount,
+              paidAmount: orderSummary.finalAmount,
+              remainingDeliveries: updatedDetails.plan.duration,
+              totalDeliveries: updatedDetails.plan.duration,
+              addressId: selectedAddress?.id || "default",
+              addOns: updatedDetails.addOns ?? [],
+              specialInstructions: deliveryInstructions,
+              appliedOfferId: appliedOffer?.id ?? null,
+              promoCode: appliedOffer?.promoCode ?? appliedOffer?.code ?? null,
+              promoDiscountAmount: orderSummary.promoDiscount ?? 0,
+              walletPaidAmount: orderSummary.walletAppliedAmount ?? 0,
+            };
+            await db.updateSubscription(renewSubscriptionIdRazorpay, extendUpdates);
+            createdSubscriptionId = renewSubscriptionIdRazorpay;
+            console.log("Subscription extended successfully with ID:", createdSubscriptionId);
+          } else {
+            console.log("Creating subscription:", subscription);
+            const createdSubscription = await db.createSubscription(subscription);
+            createdSubscriptionId = createdSubscription.id;
+            console.log("Subscription created with ID:", createdSubscriptionId);
+          }
           if (appliedOffer?.id) {
             db.incrementOfferUsedCount(appliedOffer.id).catch((e) =>
               console.log("incrementOfferUsedCount failed", e)
@@ -887,6 +949,7 @@ export default function CheckoutScreen() {
         subscriptionDetails.weekType
       );
 
+      const renewSubscriptionIdRetry = subscriptionDetails.renewSubscriptionId as string | undefined;
       const subscription = {
         userId: user?.id || "guest",
         mealId: subscriptionDetails.meal.id,
@@ -926,8 +989,36 @@ export default function CheckoutScreen() {
       };
 
       try {
-        await db.createSubscription(subscription);
-        console.log("Subscription created successfully on retry");
+        if (renewSubscriptionIdRetry) {
+          const extendUpdates = {
+            startDate,
+            endDate,
+            deliveryTime: subscriptionDetails.timeSlot.time,
+            deliveryTimeSlot: subscriptionDetails.timeSlot.time,
+            weekType: subscriptionDetails.weekType,
+            weekendExclusion: subscription.weekendExclusion,
+            excludeWeekends: subscription.excludeWeekends,
+            status: "renewed" as const,
+            expiredAt: null as unknown as undefined,
+            daysRemaining: undefined,
+            totalAmount: orderSummary.finalAmount,
+            paidAmount: orderSummary.finalAmount,
+            remainingDeliveries: subscriptionDetails.plan.duration,
+            totalDeliveries: subscriptionDetails.plan.duration,
+            addressId: selectedAddress?.id || "default",
+            addOns: subscriptionDetails.addOns ?? [],
+            specialInstructions: deliveryInstructions,
+            appliedOfferId: appliedOffer?.id ?? null,
+            promoCode: appliedOffer?.promoCode ?? appliedOffer?.code ?? null,
+            promoDiscountAmount: orderSummary.promoDiscount ?? 0,
+            walletPaidAmount: orderSummary.walletAppliedAmount ?? 0,
+          };
+          await db.updateSubscription(renewSubscriptionIdRetry, extendUpdates);
+          console.log("Subscription extended successfully on retry:", renewSubscriptionIdRetry);
+        } else {
+          await db.createSubscription(subscription);
+          console.log("Subscription created successfully on retry");
+        }
         if (appliedOffer?.id) {
           db.incrementOfferUsedCount(appliedOffer.id).catch((e) =>
             console.log("incrementOfferUsedCount failed", e)

@@ -29,7 +29,15 @@ import {
 } from "lucide-react-native";
 
 const WEEK_TYPES: Subscription["weekType"][] = ["none", "mon-fri", "mon-sat", "everyday"];
-const STATUSES: Subscription["status"][] = ["active", "paused", "cancelled", "completed"];
+const STATUSES: Subscription["status"][] = [
+  "active",
+  "renewed",
+  "expiring",
+  "expired",
+  "paused",
+  "cancelled",
+  "completed",
+];
 const TIME_SLOTS = [
   "12:00 PM - 2:00 PM",
   "7:00 PM - 9:00 PM",

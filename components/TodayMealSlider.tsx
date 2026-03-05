@@ -91,7 +91,12 @@ export default function TodayMealSlider({
       const todayMeals: TodayMealItem[] = [];
 
       for (const subscription of subscriptions) {
-        if (subscription.status !== "active") continue;
+        if (
+          subscription.status !== "active" &&
+          subscription.status !== "renewed" &&
+          subscription.status !== "expiring"
+        )
+          continue;
 
         const subStart = new Date(subscription.startDate);
         const subEnd = new Date(subscription.endDate);

@@ -75,6 +75,7 @@ function RootLayoutNav() {
       <Stack.Screen name="location/select" options={{ headerShown: false }} />
       <Stack.Screen name="meal/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="subscription" options={{ headerShown: false }} />
+      <Stack.Screen name="renew" options={{ headerShown: false }} />
       <Stack.Screen name="checkout" options={{ headerShown: false }} />
       <Stack.Screen name="admin/dashboard" options={{ headerShown: false }} />
       <Stack.Screen name="admin/subscriptions" options={{ headerShown: false }} />

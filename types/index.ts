@@ -111,6 +111,10 @@ export interface Meal {
   addonIds?: string[];
   /** If set, only these week types are offered for this meal. Otherwise all are shown. */
   availableWeekTypes?: ("mon-fri" | "mon-sat" | "everyday")[];
+  /** Weekly menu text per day (mon–sun). Fallback when weeklyMenuByDate not set for a date. */
+  weeklyMenu?: Partial<Record<"mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun", string>>;
+  /** Menu text by date (YYYY-MM-DD). User sees only the 7 dates in the week strip. */
+  weeklyMenuByDate?: Record<string, string>;
 }
 
 export interface AddOn {
@@ -145,10 +149,21 @@ export interface Subscription {
   excludeWeekends?: boolean;
   weekType: "none" | "mon-fri" | "mon-sat" | "everyday";
   weekendExclusion?: string;
-  status: "active" | "paused" | "cancelled" | "completed";
+  status:
+    | "active"
+    | "paused"
+    | "cancelled"
+    | "completed"
+    | "expiring"
+    | "expired"
+    | "renewed";
   paymentStatus?: "pending" | "paid" | "failed" | "refunded";
   totalAmount: number;
   paidAmount?: number;
+  /** Set by expiry job when status is expiring (days until endDate) */
+  daysRemaining?: number;
+  /** Set by expiry job when status becomes expired (ISO string) */
+  expiredAt?: string;
   remainingDeliveries?: number;
   totalDeliveries?: number;
   addressId?: string;

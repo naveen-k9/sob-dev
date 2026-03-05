@@ -33,7 +33,7 @@ import {
 } from "lucide-react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { router, useLocalSearchParams } from "expo-router";
-import { getUserSubscriptions, addOns } from "@/constants/data";
+import { addOns } from "@/constants/data";
 import { Subscription, Meal, AddOn, AppSettings, Order } from "@/types";
 import db from "@/db";
 import {
@@ -1182,6 +1182,10 @@ export default function OrdersScreen() {
                 "#48479B",
               ][index % 4];
               const mealForPlan = mealsMap[sub.mealId];
+              const showRenew =
+                daysRemaining <= 7 ||
+                sub.status === "expiring" ||
+                sub.status === "expired";
 
               return (
                 <TouchableOpacity
@@ -1235,7 +1239,11 @@ export default function OrdersScreen() {
                           styles.planStatusBadge,
                           {
                             backgroundColor:
-                              sub.status === "active" ? "#D1FAE5" : "#F3F4F6",
+                              sub.status === "active" ||
+                              sub.status === "renewed" ||
+                              sub.status === "expiring"
+                                ? "#D1FAE5"
+                                : "#F3F4F6",
                           },
                         ]}
                       >
@@ -1244,7 +1252,11 @@ export default function OrdersScreen() {
                             styles.planStatusDot,
                             {
                               backgroundColor:
-                                sub.status === "active" ? "#10B981" : "#9CA3AF",
+                                sub.status === "active" ||
+                                sub.status === "renewed" ||
+                                sub.status === "expiring"
+                                  ? "#10B981"
+                                  : "#9CA3AF",
                             },
                           ]}
                         />
@@ -1253,11 +1265,19 @@ export default function OrdersScreen() {
                             styles.planStatusText,
                             {
                               color:
-                                sub.status === "active" ? "#065F46" : "#6B7280",
+                                sub.status === "active" ||
+                                sub.status === "renewed" ||
+                                sub.status === "expiring"
+                                  ? "#065F46"
+                                  : "#6B7280",
                             },
                           ]}
                         >
-                          {sub.status === "active" ? "Active" : sub.status}
+                          {sub.status === "active" || sub.status === "renewed"
+                            ? "Active"
+                            : sub.status === "expiring"
+                              ? "Expiring soon"
+                              : sub.status}
                         </Text>
                       </View>
                     </View>
@@ -1314,6 +1334,25 @@ export default function OrdersScreen() {
                         year: "numeric",
                       })}
                     </Text>
+
+                    {/* Renew button when expiring soon or expired */}
+                    {showRenew && (
+                      <TouchableOpacity
+                        style={styles.planCardRenewButton}
+                        onPress={(e) => {
+                          e?.stopPropagation?.();
+                          router.push({
+                            pathname: "/renew",
+                            params: { sid: sub.id },
+                          });
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.planCardRenewButtonText}>
+                          {daysRemaining <= 0 ? "Renew plan" : "Renew"}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </TouchableOpacity>
               );
@@ -1824,6 +1863,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#9CA3AF",
     fontWeight: "500",
+  },
+  planCardRenewButton: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: "#10B981",
+    backgroundColor: "#ECFDF5",
+  },
+  planCardRenewButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#059669",
   },
   emptyPlansContainer: {
     alignItems: "center",

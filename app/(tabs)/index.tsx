@@ -63,7 +63,7 @@ import MealCard from "@/components/MealCard";
 import CategorySquareCard from "@/components/CategorySquareCard";
 import RoleSelector from "@/components/RoleSelector";
 import { Ionicons } from "@expo/vector-icons";
-import TodayMealSlider from "@/components/TodayMealSlider";
+import WeeklyMenuSlider from "@/components/WeeklyMenuSlider";
 import SubscriptionNotificationCards from "@/components/SubscriptionNotificationCards";
 import CategoryCardMealTime from "@/components/CategoryCardMealTime";
 import CategoryCardCollection from "@/components/CategoryCardCollection";
@@ -624,7 +624,7 @@ function CustomerHomeScreen({
           )}
         </View>
 
-        {/* Today's Meals Section - Only show for logged-in users with active subscriptions */}
+        {/* Weekly Menu Section - Only show for logged-in users with active subscriptions */}
         {!isGuest && user && mySubscriptions.length > 0 && (
           <View style={styles.section}>
             <View style={styles.centeredSectionHeader}>
@@ -634,13 +634,13 @@ function CustomerHomeScreen({
               <Text
                 style={[styles.centeredSectionTitle, { color: colors.mutedText }]}
               >
-                TODAY'S DELIVERIES
+                WEEKLY MENU
               </Text>
               <View
                 style={[styles.headerLine, { backgroundColor: colors.mutedText }]}
               />
             </View>
-            <TodayMealSlider
+            <WeeklyMenuSlider
               userId={user.id}
               subscriptions={mySubscriptions}
               onRefresh={onRefresh}
