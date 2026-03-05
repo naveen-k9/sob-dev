@@ -6,18 +6,19 @@ import {
   Image,
   Text,
   StyleSheet,
-  Dimensions,
-  Platform,
   ViewStyle,
   StyleProp,
 } from "react-native";
 import { router } from "expo-router";
 
 import { Meal } from "@/types";
-import { Colors, getColors } from "@/constants/colors";
+import { getColors } from "@/constants/colors";
 import { useTheme } from "@/contexts/ThemeContext";
 import { setMealOpenInTrialMode } from "@/lib/mealNavigationIntent";
-import { LinearGradient } from "expo-linear-gradient";
+import { CARD_WIDTH } from "@/src/ui/grid";
+import { RADIUS, SPACING } from "@/src/ui/layout";
+import { scale } from "@/src/ui/responsive";
+import { FONT_SIZE } from "@/src/ui/typography";
 
 export type MealCardVariant = "carousel" | "grid" | "list";
 
@@ -39,9 +40,6 @@ interface MealCardProps {
   containerStyle?: StyleProp<ViewStyle>;
 }
 
-const { width: screenWidth } = Dimensions.get("window");
-const DEFAULT_GRID_CARD_WIDTH = (screenWidth - 48) / 2; // legacy layout fallback
-
 export default function MealCard({
   meal,
   onPress,
@@ -57,47 +55,47 @@ export default function MealCard({
   const sizing = useMemo(() => {
     if (variant === "carousel") {
       return {
-        imageHeight: 144,
+        imageAspectRatio: 153 / 135,
         cardPadding: 0,
-        imageRadius: 12,
-        contentPadTop: 9,
-        contentPadBottom: 9,
-        titleSize: 14,
+        imageRadius: RADIUS.md,
+        contentPadTop: SPACING.sm,
+        contentPadBottom: SPACING.sm,
+        titleSize: FONT_SIZE.sm,
         titleLines: 2,
-        ctaHeight: 36,
-        ctaMarginTop: 9,
-        cardWidth: 171,
+        ctaHeight: scale(27),
+        ctaMarginTop: SPACING.sm,
+        cardWidth: scale(153),
         cardMarginBottom: 0,
       };
     }
 
     if (variant === "list" || columns === 1) {
       return {
-        imageHeight: 140,
-        cardPadding: 14,
-        imageRadius: 12,
-        contentPadTop: 14,
-        contentPadBottom: 14,
-        titleSize: 22,
+        imageAspectRatio: 2.25,
+        cardPadding: SPACING.md,
+        imageRadius: RADIUS.md,
+        contentPadTop: SPACING.md,
+        contentPadBottom: SPACING.md,
+        titleSize: FONT_SIZE.xl,
         titleLines: 2,
-        ctaHeight: 46,
-        ctaMarginTop: 14,
-        cardWidth: screenWidth - 32,
-        cardMarginBottom: 14,
+        ctaHeight: scale(44),
+        ctaMarginTop: SPACING.md,
+        cardWidth: "100%" as const,
+        cardMarginBottom: SPACING.md,
       };
     }
 
     return {
-      imageHeight: 180,
+      imageAspectRatio: 205 / 180,
         cardPadding: 0,
-        imageRadius: 12,
-        contentPadTop: 9,
-        contentPadBottom: 9,
-        titleSize: 14,
+        imageRadius: RADIUS.md,
+        contentPadTop: SPACING.sm,
+        contentPadBottom: SPACING.sm,
+        titleSize: FONT_SIZE.sm,
         titleLines: 2,
-        ctaHeight: 36,
-        ctaMarginTop: 9,
-        cardWidth: 205,
+        ctaHeight: scale(27),
+        ctaMarginTop: SPACING.sm,
+        cardWidth: CARD_WIDTH,
         cardMarginBottom: 0,
     };
   }, [columns, variant]);
@@ -137,27 +135,14 @@ export default function MealCard({
     router.push(`/meal/${meal.id}`);
   }, [meal.id, onPress]);
 
-  const cardGlowColor = colors.mealCardGlow;
-  const cardShadow =
-    Platform.OS === "ios"
-      ? {
-          shadowColor: cardGlowColor,
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.45,
-          shadowRadius: 16,
-        }
-      : { elevation: 10 };
-
   const cardContainerStyle = [
     styles.card,
     {
-      // backgroundColor: colors.mealCardSurface,
+      // backgroundColor: colors.card,
+      
       width: sizing.cardWidth,
       marginBottom: sizing.cardMarginBottom,
       padding: sizing.cardPadding,
-      // borderWidth: 1.5,
-      // borderColor: cardGlowColor,
-      // ...cardShadow,
     },
     containerStyle,
   ];
@@ -179,9 +164,9 @@ export default function MealCard({
           style={[
             styles.imageWrap,
             {
-              height: sizing.imageHeight,
+              aspectRatio: sizing.imageAspectRatio,
               borderRadius: sizing.imageRadius,
-              backgroundColor: isDark ? "#121225" : "#EBEBEB",
+              backgroundColor: colors.surfaceSecondary,
             },
           ]}
         >
@@ -205,6 +190,7 @@ export default function MealCard({
               {
                 color: colors.mealCardTitle,
                 fontSize: sizing.titleSize,
+                lineHeight: sizing.titleSize * 1.3,
               },
             ]}
             numberOfLines={sizing.titleLines}
@@ -229,7 +215,14 @@ export default function MealCard({
         ]}
       >
         <TouchableOpacity
-          style={[styles.secondaryBtn, { height: sizing.ctaHeight }]}
+          style={[
+            styles.secondaryBtn,
+            {
+              height: sizing.ctaHeight,
+              borderColor: colors.primary,
+              backgroundColor: colors.surface,
+            },
+          ]}
           onPress={handleTryNow}
           testID={`try-now-${meal.id}`}
           accessibilityRole="button"
@@ -268,7 +261,8 @@ export default function MealCard({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
+    borderRadius: RADIUS.lg,
+    // borderWidth: 1,
   },
   cardPressable: {
     flex: 0,
@@ -284,21 +278,19 @@ const styles = StyleSheet.create({
   },
   content: {},
   title: {
-    fontSize: 20,
     fontWeight: "700",
     letterSpacing: 0.2,
-    lineHeight: 18,
     padding: 3,
   },
   startingFrom: {
     padding: 3,
-    fontSize: 12,
+    fontSize: FONT_SIZE.xs,
     fontWeight: "400",
     letterSpacing: 0.15,
   },
   ctaRowWrap: {
     flexDirection: "row",
-    gap: 6,
+    gap: SPACING.xs,
     padding: 3,
   },
   ctaRow: {
@@ -310,10 +302,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 9,
+    borderRadius: RADIUS.sm,
     minHeight: 36,
     borderWidth: 1.5,
-    borderColor: Colors.primary,
     // ...(Platform.select({
     //   ios: {
     //     shadowColor: "#000",
@@ -327,14 +318,14 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: {
     fontWeight: "600",
-    fontSize: 12,
+    fontSize: FONT_SIZE.xs,
     letterSpacing: 0.3,
   },
   primaryBtn: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 9,
+    borderRadius: RADIUS.sm,
     minHeight: 36,
     // ...(Platform.select({
     //   ios: {
@@ -349,7 +340,7 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: {
     fontWeight: "600",
-    fontSize: 12,
+    fontSize: FONT_SIZE.xs,
     letterSpacing: 0.35,
   },
 });

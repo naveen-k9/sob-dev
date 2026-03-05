@@ -12,7 +12,10 @@ import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, Plus, Minus } from 'lucide-react-native';
 import { AddOn } from '@/types';
-import { Colors } from '@/constants/colors';
+import { getColors } from '@/constants/colors';
+import { useTheme } from '@/contexts/ThemeContext';
+import { FONT_SIZE } from '@/src/ui/typography';
+import { RADIUS, SPACING } from '@/src/ui/layout';
 
 type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
 
@@ -43,6 +46,8 @@ export default function AddOnsModal({
   planDuration = 0,
   isTrialMode = false,
 }: AddOnsModalProps) {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
   const availableDays: { key: DayKey; label: string; short: string }[] = isTrialMode
     ? [
         { key: 'mon', label: 'Day 1', short: '1' },
@@ -126,24 +131,24 @@ export default function AddOnsModal({
           onPress={onClose}
           activeOpacity={0.8}
         >
-          <X size={24} color="#FFFFFF" />
+          <X size={24} color={colors.surface} />
         </TouchableOpacity>
 
-        <View style={styles.bottomSheet}>
+        <View style={[styles.bottomSheet, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
           <SafeAreaView edges={['bottom']} style={styles.safeArea}>
             {/* <View style={styles.handleBar} /> */}
             
             <View style={styles.sheetContent}>
               {/* Header */}
-              <View style={styles.header}>
-                <View style={styles.headerIcon}>
+              <View style={[styles.header, { borderBottomColor: colors.border }]}>
+                <View style={[styles.headerIcon, { backgroundColor: colors.surfaceSecondary }]}>
                   <Text style={styles.headerIconText}>🍱</Text>
                 </View>
                 <View style={styles.headerTextContainer}>
-                  <Text style={styles.headerTitle}>
-                    Add Ons <Text style={styles.headerCount}>({addOns.length})</Text>
+                  <Text style={[styles.headerTitle, { color: colors.text }]}>
+                    Add Ons <Text style={[styles.headerCount, { color: colors.mutedText }]}>({addOns.length})</Text>
                   </Text>
-                  <Text style={styles.headerSubtitle}>
+                  <Text style={[styles.headerSubtitle, { color: colors.mutedText }]}>
                     Add more items to your plan.
                   </Text>
                 </View>
@@ -151,7 +156,7 @@ export default function AddOnsModal({
 
               {/* Scrollable Content */}
               <ScrollView 
-                style={styles.scrollView}
+                style={[styles.scrollView, { backgroundColor: colors.background }]}
                 contentContainerStyle={{ paddingBottom: 20 }}
                 showsVerticalScrollIndicator={false}
                 bounces={true}
@@ -162,7 +167,7 @@ export default function AddOnsModal({
                   const selectedDays = selectedAddOnDays[addOn.id] || [];
                   
                   return (
-                    <View key={addOn.id} style={styles.addOnCard}>
+                    <View key={addOn.id} style={[styles.addOnCard, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
                       <View style={styles.addOnMain}>
                         <View style={styles.addOnLeft}>
                           <View style={[styles.addOnImage, styles.addOnImageContainer]}>
@@ -181,12 +186,12 @@ export default function AddOnsModal({
                           <View style={styles.addOnInfo}>
                             <View style={styles.addOnTitleRow}>
                               {/* <View style={[styles.vegBadge, !addOn.isVeg && styles.nonVegBadge]} /> */}
-                              <Text style={styles.addOnName}>{addOn.name}</Text>
+                              <Text style={[styles.addOnName, { color: colors.text }]}>{addOn.name}</Text>
                             </View>
                             {/* <Text style={styles.addOnDescription} numberOfLines={2}>
                               {addOn.description}
                             </Text> */}
-                            <Text style={styles.addOnPrice}>
+                            <Text style={[styles.addOnPrice, { color: colors.primary }]}>
                               ₹{addOn.price}<Text style={styles.addOnPriceUnit}>/day</Text>
                             </Text>
                           </View>
@@ -196,16 +201,16 @@ export default function AddOnsModal({
                         <View style={styles.addOnActions}>
                           {!isSelected ? (
                             <TouchableOpacity 
-                              style={styles.addButton} 
+                              style={[styles.addButton, { backgroundColor: colors.accent, shadowColor: colors.accent }]} 
                               onPress={() => onToggleAddOn(addOn.id)}
                               activeOpacity={0.8}
                             >
-                              <Plus size={18} color="white" strokeWidth={3} />
+                              <Plus size={18} color={colors.surface} strokeWidth={3} />
                               <Text style={styles.addButtonText}>Add</Text>
                             </TouchableOpacity>
                           ) : (
                             <TouchableOpacity 
-                              style={styles.removeButton} 
+                              style={[styles.removeButton, { backgroundColor: colors.error, shadowColor: colors.error }]} 
                               onPress={() => onToggleAddOn(addOn.id)}
                               activeOpacity={0.8}
                             >
@@ -220,9 +225,9 @@ export default function AddOnsModal({
                       {isSelected && onToggleAddOnDay && (
                         <View style={styles.daySelector}>
                           <View style={styles.daySelectorHeader}>
-                            <Text style={styles.daySelectorLabel}>Select days</Text>
+                            <Text style={[styles.daySelectorLabel, { color: colors.textSecondary }]}>Select days</Text>
                             {selectedDays.length === 0 && (
-                              <Text style={styles.dayNote}>All days selected</Text>
+                              <Text style={[styles.dayNote, { color: colors.success }]}>All days selected</Text>
                             )}
                           </View>
                           <View style={styles.daysRow}>
@@ -231,11 +236,15 @@ export default function AddOnsModal({
                               return (
                                 <TouchableOpacity
                                   key={d.key}
-                                  style={[styles.dayChip, active && styles.dayChipActive]}
+                                  style={[
+                                    styles.dayChip,
+                                    { borderColor: colors.border, backgroundColor: colors.surfaceSecondary },
+                                    active && [styles.dayChipActive, { borderColor: colors.primary, backgroundColor: colors.primary }],
+                                  ]}
                                   onPress={() => onToggleAddOnDay(addOn.id, d.key)}
                                   activeOpacity={0.6}
                                 >
-                                  <Text style={[styles.dayChipText, active && styles.dayChipTextActive]}>
+                                  <Text style={[styles.dayChipText, { color: colors.mutedText }, active && styles.dayChipTextActive]}>
                                     {d.label}
                                   </Text>
                                 </TouchableOpacity>
@@ -251,28 +260,28 @@ export default function AddOnsModal({
               </ScrollView>
 
               {/* Footer */}
-              <View style={styles.footer}>
+              <View style={[styles.footer, { borderTopColor: colors.border, backgroundColor: colors.surface }]}>
               <View style={styles.footerInfo}>
                 {planPrice > 0 ? (
                   <>
-                    <Text style={styles.footerLabel}>
+                    <Text style={[styles.footerLabel, { color: colors.mutedText }]}>
                       Plan: ₹{planPrice}{addOnsPrice > 0 && ` + Add-ons: ₹${addOnsPrice}`}
                     </Text>
-                    <Text style={styles.footerTotal}>Total: ₹{totalPrice}</Text>
+                    <Text style={[styles.footerTotal, { color: colors.text }]}>Total: ₹{totalPrice}</Text>
                   </>
                 ) : (
                   <>
-                    <Text style={styles.footerLabel}>Add-ons Total</Text>
-                    <Text style={styles.footerTotal}>₹{addOnsPrice}</Text>
+                    <Text style={[styles.footerLabel, { color: colors.mutedText }]}>Add-ons Total</Text>
+                    <Text style={[styles.footerTotal, { color: colors.text }]}>₹{addOnsPrice}</Text>
                   </>
                 )}
                
-                  <Text style={styles.footerCount}>
+                  <Text style={[styles.footerCount, { color: colors.success }]}>
                     {selectedAddOns.length} item{selectedAddOns.length > 1 ? 's' : ''} selected
                   </Text>
                
               </View>
-              <TouchableOpacity style={styles.continueButton} onPress={onClose} activeOpacity={0.8}>
+              <TouchableOpacity style={[styles.continueButton, { backgroundColor: colors.primary }]} onPress={onClose} activeOpacity={0.8}>
                 <Text style={styles.continueButtonText}>Continue</Text>
               </TouchableOpacity>
             </View>
@@ -310,11 +319,9 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   bottomSheet: {
-    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     height: '72%',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.25,
     shadowRadius: 16,
@@ -339,9 +346,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
     gap: 16,
   },
   headerIcon: {
@@ -359,9 +365,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: FONT_SIZE.xl,
     fontWeight: '700',
-    color: '#111827',
     marginBottom: 4,
   },
   headerCount: {
@@ -369,8 +374,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   headerSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
+    fontSize: FONT_SIZE.sm,
   },
   scrollView: {
     flex: 1,
@@ -381,13 +385,10 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   addOnCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     padding: 12,
     marginBottom: 9,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.01,
     shadowRadius: 6,
@@ -448,9 +449,8 @@ const styles = StyleSheet.create({
     borderColor: '#B91C1C',
   },
   addOnName: {
-    fontSize: 15,
+    fontSize: FONT_SIZE.md,
     fontWeight: '700',
-    color: '#111827',
     flex: 1,
     lineHeight: 20,
   },
@@ -461,9 +461,8 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   addOnPrice: {
-    fontSize: 15,
+    fontSize: FONT_SIZE.md,
     fontWeight: '700',
-    color: Colors.primary,
   },
   addOnPriceUnit: {
     fontSize: 11,
@@ -477,11 +476,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: Colors.accent,
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 10,
-    shadowColor: Colors.accent,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
@@ -496,11 +493,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#EF4444',
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 10,
-    shadowColor: '#EF4444',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
@@ -524,9 +519,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   daySelectorLabel: {
-    fontSize: 13,
+    fontSize: FONT_SIZE.sm,
     fontWeight: '600',
-    color: '#374151',
   },
   daysRow: {
     flexDirection: 'row',
@@ -538,19 +532,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 9,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#F9FAFB',
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 54,
   },
   dayChipActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primary,
+    borderColor: '#48479B',
+    backgroundColor: '#48479B',
   },
   dayChipText: {
-    fontSize: 13,
-    color: '#6B7280',
+    fontSize: FONT_SIZE.sm,
     fontWeight: '500',
   },
   dayChipTextActive: {
@@ -558,8 +549,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   dayNote: {
-    fontSize: 11,
-    color: '#10B981',
+    fontSize: FONT_SIZE.xs,
     fontWeight: '500',
   },
   footer: {
@@ -567,40 +557,34 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    backgroundColor: '#FFFFFF',
   },
   footerInfo: {
     flex: 1,
     marginRight: 16,
   },
   footerLabel: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: FONT_SIZE.xs,
     marginBottom: 2,
   },
   footerTotal: {
-    fontSize: 18,
+    fontSize: FONT_SIZE.xl,
     fontWeight: '700',
-    color: '#111827',
   },
   footerCount: {
-    fontSize: 11,
-    color: '#10B981',
+    fontSize: FONT_SIZE.xs,
     fontWeight: '600',
     marginTop: 2,
   },
   continueButton: {
-    backgroundColor: Colors.primary,
     paddingHorizontal: 32,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
   },
   continueButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: FONT_SIZE.lg,
     fontWeight: '700',
   },
 });

@@ -13,6 +13,10 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
+import { useTheme } from "@/contexts/ThemeContext";
+import { getColors } from "@/constants/colors";
+import { FONT_SIZE } from "@/src/ui/typography";
+import { RADIUS, SCREEN_PADDING, SPACING } from "@/src/ui/layout";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -141,6 +145,8 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
   onLocationSelect,
   initialQuery = "",
 }) => {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [fallbackResults, setFallbackResults] = useState<SearchResult[]>([]);
@@ -323,7 +329,7 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
       activeOpacity={0.7}
     >
       <View style={styles.resultIcon}>
-        <Ionicons name="location-outline" size={20} color="#48479B" />
+        <Ionicons name="location-outline" size={20} color={colors.primary} />
       </View>
       <View style={styles.resultContent}>
         <Text style={styles.resultTitle} numberOfLines={1}>
@@ -333,7 +339,7 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
           {item.structured_formatting.secondary_text}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={16} color="#C7C7CC" />
+      <Ionicons name="chevron-forward" size={16} color={colors.mutedText} />
     </TouchableOpacity>
   );
 
@@ -344,13 +350,13 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
       activeOpacity={0.7}
     >
       <View style={styles.resultIcon}>
-        <Ionicons name="location-outline" size={20} color="#48479B" />
+        <Ionicons name="location-outline" size={20} color={colors.primary} />
       </View>
       <View style={styles.resultContent}>
         <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
         <Text style={styles.resultDescription} numberOfLines={2}>{item.description}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={16} color="#C7C7CC" />
+      <Ionicons name="chevron-forward" size={16} color={colors.mutedText} />
     </TouchableOpacity>
   );
 
@@ -360,14 +366,14 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
       onPress={() => saveAndSelect(item)}
       activeOpacity={0.7}
     >
-      <View style={[styles.resultIcon, { backgroundColor: "#F5F5F5" }]}>
-        <Ionicons name="time-outline" size={20} color="#8E8E93" />
+      <View style={[styles.resultIcon, { backgroundColor: colors.surfaceSecondary }]}>
+        <Ionicons name="time-outline" size={20} color={colors.mutedText} />
       </View>
       <View style={styles.resultContent}>
         <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
         <Text style={styles.resultDescription} numberOfLines={1}>{item.description}</Text>
       </View>
-      <Ionicons name="arrow-up-outline" size={16} color="#C7C7CC" />
+      <Ionicons name="arrow-up-outline" size={16} color={colors.mutedText} />
     </TouchableOpacity>
   );
 
@@ -378,28 +384,28 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
       presentationStyle="pageSheet"
       onRequestClose={handleClose}
     >
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <TouchableOpacity
             onPress={handleClose}
             style={styles.closeBtn}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="arrow-back" size={22} color="#111" />
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>Search Address</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Search Address</Text>
         </View>
 
         {/* Search Bar */}
-        <View style={styles.searchBarWrapper}>
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={20} color="#8E8E93" />
+        <View style={[styles.searchBarWrapper, { backgroundColor: colors.surfaceSecondary, borderBottomColor: colors.border }]}>
+          <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.primary, shadowColor: colors.primary }]}>
+            <Ionicons name="search" size={20} color={colors.mutedText} />
             <TextInput
               ref={searchInputRef}
               style={styles.searchInput}
               placeholder="Search area, street, landmark…"
-              placeholderTextColor="#ADADAD"
+              placeholderTextColor={colors.mutedText}
               value={searchQuery}
               onChangeText={setSearchQuery}
               returnKeyType="search"
@@ -408,13 +414,13 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
               autoCapitalize="none"
             />
             {isSearching ? (
-              <ActivityIndicator size="small" color="#48479B" />
+              <ActivityIndicator size="small" color={colors.primary} />
             ) : searchQuery.length > 0 ? (
               <TouchableOpacity
                 onPress={handleClear}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Ionicons name="close-circle" size={20} color="#ADADAD" />
+                <Ionicons name="close-circle" size={20} color={colors.mutedText} />
               </TouchableOpacity>
             ) : null}
           </View>
@@ -430,41 +436,41 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
           {isLocating ? (
             <ActivityIndicator
               size="small"
-              color="#48479B"
+              color={colors.primary}
               style={{ marginRight: 12 }}
             />
           ) : (
-            <View style={styles.currentLocationIcon}>
-              <Ionicons name="navigate" size={18} color="#48479B" />
+            <View style={[styles.currentLocationIcon, { backgroundColor: colors.surfaceSecondary }]}>
+              <Ionicons name="navigate" size={18} color={colors.primary} />
             </View>
           )}
           <View>
-            <Text style={styles.currentLocationTitle}>Use current location</Text>
-            <Text style={styles.currentLocationSub}>GPS will pinpoint your position</Text>
+            <Text style={[styles.currentLocationTitle, { color: colors.primary }]}>Use current location</Text>
+            <Text style={[styles.currentLocationSub, { color: colors.mutedText }]}>GPS will pinpoint your position</Text>
           </View>
           <Ionicons
             name="chevron-forward"
             size={16}
-            color="#C7C7CC"
+            color={colors.mutedText}
             style={{ marginLeft: "auto" }}
           />
         </TouchableOpacity>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.surfaceSecondary }]} />
 
         {/* Fetching details overlay */}
         {isFetchingDetails && (
-          <View style={styles.detailsOverlay}>
-            <ActivityIndicator color="#48479B" />
-            <Text style={styles.detailsText}>Getting location…</Text>
+          <View style={[styles.detailsOverlay, { backgroundColor: colors.surfaceSecondary, borderBottomColor: colors.border }]}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={[styles.detailsText, { color: colors.primary }]}>Getting location…</Text>
           </View>
         )}
 
         {/* Error */}
         {error && !isSearching && (
-          <View style={styles.errorRow}>
-            <Ionicons name="alert-circle-outline" size={16} color="#EF4444" />
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={[styles.errorRow, { backgroundColor: colors.surfaceSecondary }]}>
+            <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
+            <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
           </View>
         )}
 
@@ -472,8 +478,8 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
         {hasQuery ? (
           isSearching ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#48479B" />
-              <Text style={styles.loadingText}>Searching…</Text>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={[styles.loadingText, { color: colors.mutedText }]}>Searching…</Text>
             </View>
           ) : hasResults ? (
             useFallback ? (
@@ -497,16 +503,16 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
             )
           ) : !error ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="search-outline" size={44} color="#C7C7CC" />
-              <Text style={styles.emptyText}>No results found</Text>
-              <Text style={styles.emptySubText}>
+              <Ionicons name="search-outline" size={44} color={colors.mutedText} />
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No results found</Text>
+              <Text style={[styles.emptySubText, { color: colors.mutedText }]}>
                 Try a different area name, landmark, or pincode
               </Text>
             </View>
           ) : null
         ) : showRecents ? (
           <>
-            <Text style={styles.sectionLabel}>Recent Searches</Text>
+            <Text style={[styles.sectionLabel, { color: colors.mutedText }]}>Recent Searches</Text>
             <FlatList
               data={recentSearches}
               keyExtractor={(item) => item.id}
@@ -518,9 +524,9 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
           </>
         ) : (
           <View style={styles.emptyContainer}>
-            <Ionicons name="map-outline" size={44} color="#E8E8E8" />
-            <Text style={styles.emptyText}>Find your location</Text>
-            <Text style={styles.emptySubText}>
+            <Ionicons name="map-outline" size={44} color={colors.border} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Find your location</Text>
+            <Text style={[styles.emptySubText, { color: colors.mutedText }]}>
               Type an area, landmark, or street above
             </Text>
           </View>
@@ -534,11 +540,11 @@ const AddressSearchModal: React.FC<AddressSearchModalProps> = ({
 // Styles
 // ---------------------------------------------------------------------------
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: SCREEN_PADDING,
     paddingTop: Platform.OS === "android" ? 16 : 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
@@ -546,19 +552,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   closeBtn: { padding: 4 },
-  title: { fontSize: 18, fontWeight: "700", color: "#111" },
+  title: { fontSize: FONT_SIZE.xl, fontWeight: "700" },
   searchBarWrapper: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#FAFAFA",
+    paddingHorizontal: SCREEN_PADDING,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: "#F0F0F0",
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === "ios" ? 12 : 8,
     gap: 10,
@@ -570,11 +574,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  searchInput: { flex: 1, fontSize: 15, color: "#111" },
+  searchInput: { flex: 1, fontSize: FONT_SIZE.md },
   currentLocationRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: SCREEN_PADDING,
     paddingVertical: 14,
     gap: 12,
   },
@@ -586,8 +590,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  currentLocationTitle: { fontSize: 15, fontWeight: "700", color: "#48479B" },
-  currentLocationSub: { fontSize: 12, color: "#9CA3AF", marginTop: 1 },
+  currentLocationTitle: { fontSize: FONT_SIZE.md, fontWeight: "700" },
+  currentLocationSub: { fontSize: FONT_SIZE.xs, marginTop: 1 },
   divider: { height: 6, backgroundColor: "#F5F5F5" },
   detailsOverlay: {
     flexDirection: "row",
@@ -599,7 +603,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#FECACA",
   },
-  detailsText: { color: "#48479B", fontSize: 13 },
+  detailsText: { fontSize: FONT_SIZE.sm },
   errorRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -608,14 +612,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: "#FEF2F2",
   },
-  errorText: { color: "#EF4444", fontSize: 13, flex: 1 },
+  errorText: { fontSize: FONT_SIZE.sm, flex: 1 },
   sectionLabel: {
-    fontSize: 12,
+    fontSize: FONT_SIZE.xs,
     fontWeight: "700",
-    color: "#9CA3AF",
     textTransform: "uppercase",
     letterSpacing: 0.5,
-    paddingHorizontal: 16,
+    paddingHorizontal: SCREEN_PADDING,
     paddingTop: 16,
     paddingBottom: 6,
   },
@@ -637,12 +640,11 @@ const styles = StyleSheet.create({
   },
   resultContent: { flex: 1 },
   resultTitle: {
-    fontSize: 15,
+    fontSize: FONT_SIZE.md,
     fontWeight: "600",
-    color: "#111",
     marginBottom: 2,
   },
-  resultDescription: { fontSize: 13, color: "#8E8E93", lineHeight: 18 },
+  resultDescription: { fontSize: FONT_SIZE.sm, lineHeight: 18 },
   separator: {
     height: 1,
     backgroundColor: "#F5F5F5",
@@ -655,7 +657,7 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
     gap: 12,
   },
-  loadingText: { fontSize: 15, color: "#8E8E93" },
+  loadingText: { fontSize: FONT_SIZE.md },
   emptyContainer: {
     flex: 1,
     alignItems: "center",
@@ -665,14 +667,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyText: {
-    fontSize: 17,
+    fontSize: FONT_SIZE.xl,
     fontWeight: "700",
-    color: "#6B7280",
     marginTop: 8,
   },
   emptySubText: {
-    fontSize: 14,
-    color: "#9CA3AF",
+    fontSize: FONT_SIZE.md,
     textAlign: "center",
     lineHeight: 20,
   },

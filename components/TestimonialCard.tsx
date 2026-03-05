@@ -2,18 +2,26 @@ import React from 'react';
 import { View, Image, Text, StyleSheet } from 'react-native';
 import { Star } from 'lucide-react-native';
 import { Testimonial } from '@/types';
+import { useTheme } from '@/contexts/ThemeContext';
+import { getColors } from '@/constants/colors';
+import { RADIUS, SPACING } from '@/src/ui/layout';
+import { FONT_SIZE } from '@/src/ui/typography';
+import { scale } from '@/src/ui/responsive';
 
 interface TestimonialCardProps {
   testimonial: Testimonial;
 }
 
 export default function TestimonialCard({ testimonial }: TestimonialCardProps) {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
       <View style={styles.header}>
         <Image source={{ uri: testimonial.userImage }} style={styles.avatar} />
         <View style={styles.userInfo}>
-          <Text style={styles.name}>{testimonial.userName}</Text>
+          <Text style={[styles.name, { color: colors.text }]}>{testimonial.userName}</Text>
           {/* <Text style={styles.location}>{testimonial.}</Text> */}
         </View>
         <View style={styles.rating}>
@@ -22,19 +30,17 @@ export default function TestimonialCard({ testimonial }: TestimonialCardProps) {
           ))}
         </View>
       </View>
-      <Text style={styles.comment}>{testimonial.comment}</Text>
+      <Text style={[styles.comment, { color: colors.mutedText }]}>{testimonial.comment}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginRight: 16,
-    width: 300,
-    shadowColor: '#000',
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginRight: SPACING.lg,
+    width: scale(300),
     shadowOffset: {
       width: 0,
       height: 2,
@@ -42,6 +48,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    borderWidth: 1,
   },
   header: {
     flexDirection: 'row',
@@ -49,18 +56,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
+    width: scale(40),
+    aspectRatio: 1,
+    borderRadius: scale(20),
+    marginRight: SPACING.md,
   },
   userInfo: {
     flex: 1,
   },
   name: {
-    fontSize: 16,
+    fontSize: FONT_SIZE.lg,
     fontWeight: '600',
-    color: '#333',
   },
   location: {
     fontSize: 12,
@@ -70,8 +76,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   comment: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
     lineHeight: 20,
   },
 });

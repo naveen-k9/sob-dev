@@ -15,6 +15,8 @@ import { router } from "expo-router";
 import { Colors, getColors } from "@/constants/colors";
 import { useTheme } from "@/contexts/ThemeContext";
 import { isActivePlanDate } from "@/utils/subscriptionDateUtils";
+import { scale } from "@/src/ui/responsive";
+import { isSmallDevice, isTablet } from "@/src/ui/breakpoints";
 
 const DAY_LABELS: Record<number, string> = {
   0: "Sun",
@@ -36,6 +38,14 @@ const DAY_KEYS: ("sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat")[] = [
   "fri",
   "sat",
 ];
+const getResponsiveWeeklyImageHeight = () => {
+  if (isTablet) return 164;
+  if (isSmallDevice) return 104;
+  return Math.round(Math.max(108, Math.min(scale(120), 144)));
+};
+
+const WEEKLY_IMAGE_HEIGHT = getResponsiveWeeklyImageHeight();
+const WEEKLY_CARD_MIN_HEIGHT = WEEKLY_IMAGE_HEIGHT;
 
 function getDayKey(date: Date): "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun" {
   return DAY_KEYS[date.getDay()] as "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
@@ -90,6 +100,13 @@ interface WeeklyMenuSliderProps {
   subscriptions: Subscription[];
   onRefresh?: () => void;
 }
+
+const toLocalDateKey = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
 
 export default function WeeklyMenuSlider({
   userId,
@@ -280,7 +297,16 @@ export default function WeeklyMenuSlider({
             <TouchableOpacity
               key={meal.id}
               activeOpacity={0.9}
-              onPress={() => router.push("/(tabs)/orders")}
+              onPress={() =>
+                router.push({
+                  pathname: "/(tabs)/orders",
+                  params: {
+                    action: "viewSubscriptionDay",
+                    subscriptionId: meal.subscriptionId,
+                    date: toLocalDateKey(selectedDate),
+                  },
+                })
+              }
               style={styles.cardWrapper}
             >
               <LinearGradient
@@ -306,7 +332,7 @@ export default function WeeklyMenuSlider({
                     <Text style={[styles.mealName, { color: colors.text }]} numberOfLines={1}>
                       {meal.mealName}
                     </Text>
-                    <Text style={styles.deliveryTime}>{meal.deliveryTime}</Text>
+                    {/* <Text style={styles.deliveryTime}>{meal.deliveryTime}</Text> */}
 
                     {meal.weeklyMenuText ? (
                       <View style={styles.weeklyMenuContainer}>
@@ -321,7 +347,7 @@ export default function WeeklyMenuSlider({
 
                     {meal.addOns.length > 0 && (
                       <View style={styles.addOnsContainer}>
-                        <Text style={[styles.addOnsLabel, { color: colors.text }]}>
+                        <Text style={[styles.addOnsLabel, { color: colors.mutedText }]}>
                           Addons
                         </Text>
                         <View style={styles.addOnsImagesRow}>
@@ -461,17 +487,16 @@ const styles = StyleSheet.create({
   },
   cardInner: {
     flexDirection: "row",
-    minHeight: 120,
+    minHeight: WEEKLY_CARD_MIN_HEIGHT,
   },
   mealImageContainer: {
     width: "42%",
-    minHeight: 120,
+    height: WEEKLY_IMAGE_HEIGHT,
     position: "relative",
   },
   mealImage: {
     width: "100%",
-    height: "100%",
-    minHeight: 120,
+    height: WEEKLY_IMAGE_HEIGHT,
   },
   mealImagePlaceholder: {
     backgroundColor: "#2A2A3E",
@@ -483,14 +508,14 @@ const styles = StyleSheet.create({
   },
   mealDetails: {
     flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    paddingVertical: 9,
+    paddingHorizontal: 9,
     paddingRight: 16,
     justifyContent: "space-between",
   },
   mealName: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "600",
     marginBottom: 4,
   },
   deliveryTime: {
@@ -509,7 +534,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   addOnsLabel: {
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: "600",
     marginBottom: 6,
   },

@@ -3,11 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
   Platform,
   Pressable,
   FlatList,
   ListRenderItemInfo,
+  useWindowDimensions,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { LinearGradient } from "expo-linear-gradient";
@@ -15,8 +15,9 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { getColors } from "@/constants/colors";
 import db from "@/db";
 import { Offer } from "@/types";
-
-const { width } = Dimensions.get("window");
+import { SCREEN_PADDING, SPACING, RADIUS } from "@/src/ui/layout";
+import { FONT_SIZE } from "@/src/ui/typography";
+import { scale } from "@/src/ui/responsive";
 
 function mapOfferToDisplay(o: Offer): { id: string; code: string; discount: string; minOrder: string } {
   const code = (o.promoCode ?? o.code ?? o.id).toString();
@@ -31,14 +32,11 @@ function mapOfferToDisplay(o: Offer): { id: string; code: string; discount: stri
   return { id: o.id, code, discount, minOrder };
 }
 
-const HORIZONTAL_PADDING = 16;
-const SPACING = 10;
-// Calculate card width so all 3 cards fit perfectly
-const CARD_WIDTH = (width - (2 * HORIZONTAL_PADDING) - (2 * SPACING)) / 3;
-const CARD_HEIGHT = 72;
-const NOTCH_SIZE = 14;
+const CARD_HEIGHT = scale(54);
+const NOTCH_SIZE = scale(12);
 
 export default function MenuOffers() {
+  const { width } = useWindowDimensions();
   const { isDark } = useTheme();
   const colors = getColors(isDark);
   const [activeOffers, setActiveOffers] = useState<Offer[]>([]);
@@ -82,13 +80,17 @@ export default function MenuOffers() {
   const cardBgColor = isDark ? colors.surface : "#fff";
   const discountTextColor = isDark ? "#a78bfa" : "#5b21b6";
   const dashColor = isDark ? "#6366f1" : "#c4b5fd";
+  const cardWidth = useMemo(
+    () => (width - SCREEN_PADDING * 2 - SPACING.md * 2) / 3,
+    [width]
+  );
 
   const renderItem = ({ item, index }: ListRenderItemInfo<{ id: string; code: string; discount: string; minOrder: string }>) => {
     const isLast = index === displayOffers.length - 1;
     return (
       <Pressable
         onPress={() => handleCopy(item.code)}
-        style={[styles.cardWrapper, isLast && { marginRight: 0 }]}
+        style={[styles.cardWrapper, { width: cardWidth }, isLast && { marginRight: 0 }]}
       >
         <View style={[styles.card, { backgroundColor: cardBgColor }]}>
           {/* Left notch cutout */}
@@ -143,18 +145,17 @@ export default function MenuOffers() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 14,
+    paddingVertical: SPACING.md,
   },
   scrollContent: {
-    paddingHorizontal: HORIZONTAL_PADDING,
+    paddingHorizontal: SCREEN_PADDING,
   },
   cardWrapper: {
-    width: CARD_WIDTH,
-    marginRight: SPACING,
+    marginRight: SPACING.md,
   },
   card: {
     height: CARD_HEIGHT,
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     shadowColor: "#8b5cf6",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
@@ -187,11 +188,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 10,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.sm,
   },
   discountText: {
-    fontSize: 18,
+    fontSize: FONT_SIZE.sm,
     fontWeight: "700",
     letterSpacing: -0.3,
     marginBottom: 1,
@@ -200,17 +201,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
-    marginVertical: 4,
+    gap: SPACING.xs,
+    marginVertical: SPACING.xs,
     width: "80%",
   },
   dash: {
-    width: 5,
+    width: scale(5),
     height: 0.9,
     borderRadius: 1,
   },
   minOrderText: {
-    fontSize: 11,
+    fontSize: FONT_SIZE.xs,
     fontWeight: "500",
     marginTop: 2,
     textAlign: "center",

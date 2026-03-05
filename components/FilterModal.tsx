@@ -8,6 +8,10 @@ import {
   StyleSheet,
 } from 'react-native';
 import { X, Check } from 'lucide-react-native';
+import { useTheme } from '@/contexts/ThemeContext';
+import { getColors } from '@/constants/colors';
+import { FONT_SIZE } from '@/src/ui/typography';
+import { RADIUS, SCREEN_PADDING, SPACING } from '@/src/ui/layout';
 
 interface FilterOption {
   id: string;
@@ -38,6 +42,9 @@ export default function FilterModal({
   onApply,
   onClear
 }: FilterModalProps) {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
+
   return (
     <Modal
       visible={visible}
@@ -45,30 +52,30 @@ export default function FilterModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
-        <View style={styles.header}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TouchableOpacity onPress={onClose}>
-            <X size={24} color="#333" />
+            <X size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>Filters</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Filters</Text>
           <TouchableOpacity onPress={onClear}>
-            <Text style={styles.clearText}>Clear</Text>
+            <Text style={[styles.clearText, { color: colors.primary }]}>Clear</Text>
           </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.content}>
           {sections.map((section) => (
-            <View key={section.id} style={styles.section}>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
+            <View key={section.id} style={[styles.section, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
               {section.options.map((option) => (
                 <TouchableOpacity
                   key={option.id}
                   style={styles.option}
                   onPress={() => onOptionToggle(section.id, option.id)}
                 >
-                  <Text style={styles.optionText}>{option.label}</Text>
+                  <Text style={[styles.optionText, { color: colors.text }]}>{option.label}</Text>
                   {option.selected && (
-                    <Check size={20} color="#48479B" />
+                    <Check size={20} color={colors.primary} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -76,8 +83,8 @@ export default function FilterModal({
           ))}
         </ScrollView>
 
-        <View style={styles.footer}>
-          <TouchableOpacity style={styles.applyButton} onPress={onApply}>
+        <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <TouchableOpacity style={[styles.applyButton, { backgroundColor: colors.primary }]} onPress={onApply}>
             <Text style={styles.applyButtonText}>Apply Filters</Text>
           </TouchableOpacity>
         </View>
@@ -89,69 +96,58 @@ export default function FilterModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: 'white',
+    paddingHorizontal: SCREEN_PADDING,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
   },
   title: {
-    fontSize: 18,
+    fontSize: FONT_SIZE.xl,
     fontWeight: '600',
-    color: '#333',
   },
   clearText: {
-    fontSize: 16,
-    color: '#48479B',
+    fontSize: FONT_SIZE.lg,
     fontWeight: '500',
   },
   content: {
     flex: 1,
   },
   section: {
-    backgroundColor: 'white',
-    marginTop: 12,
-    paddingVertical: 16,
+    marginTop: SPACING.md,
+    paddingVertical: SPACING.md,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: FONT_SIZE.lg,
     fontWeight: '600',
-    color: '#333',
-    paddingHorizontal: 20,
-    marginBottom: 12,
+    paddingHorizontal: SCREEN_PADDING,
+    marginBottom: SPACING.md,
   },
   option: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingVertical: SPACING.md,
   },
   optionText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: FONT_SIZE.lg,
   },
   footer: {
-    backgroundColor: 'white',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingVertical: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
   },
   applyButton: {
-    backgroundColor: '#48479B',
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
     alignItems: 'center',
   },
   applyButtonText: {
-    fontSize: 16,
+    fontSize: FONT_SIZE.lg,
     fontWeight: '600',
     color: 'white',
   },

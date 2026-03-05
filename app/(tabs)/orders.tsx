@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   RefreshControl,
   TextInput,
   Image,
+  Dimensions,
 } from "react-native";
 import {
   ShoppingBag,
@@ -42,6 +43,10 @@ import {
 } from "react-native-safe-area-context";
 import RazorpayCheckout from "react-native-razorpay";
 import { sendAddonPurchaseNotificationCallable } from "@/services/firebaseFunctions";
+
+const PLAN_CAROUSEL_CARD_WIDTH = Dimensions.get("window").width * 0.85;
+const PLAN_CAROUSEL_ITEM_GAP = 12;
+const PLAN_ACCENT_COLOR = "#48479B";
 
 interface CalendarDay {
   date: Date;
@@ -86,7 +91,12 @@ interface DeliveryDetails {
 
 export default function OrdersScreen() {
   const { user, isGuest, updateUser } = useAuth();
-  const params = useLocalSearchParams<{ action?: string; subscriptionId?: string }>();
+  const plansCarouselRef = useRef<ScrollView>(null);
+  const params = useLocalSearchParams<{
+    action?: string;
+    subscriptionId?: string;
+    date?: string;
+  }>();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
@@ -109,6 +119,20 @@ export default function OrdersScreen() {
   const [mealsMap, setMealsMap] = useState<Record<string, Meal>>({});
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [editingPlanNames, setEditingPlanNames] = useState<Record<string, string>>({});
+  const [showAllPlans, setShowAllPlans] = useState(false);
+
+  const isPlanActiveStatus = (sub: Subscription) =>
+    sub.status === "active" ||
+    sub.status === "renewed" ||
+    sub.status === "expiring";
+  const activeSubscriptions = useMemo(
+    () => userSubscriptions.filter(isPlanActiveStatus),
+    [userSubscriptions]
+  );
+  const displayedSubscriptions = useMemo(
+    () => (showAllPlans ? userSubscriptions : activeSubscriptions),
+    [showAllPlans, userSubscriptions, activeSubscriptions]
+  );
 
   const handleLoginPrompt = () => {
     router.push("/auth/login");
@@ -143,13 +167,67 @@ export default function OrdersScreen() {
 
   useEffect(() => {
     if (user && userSubscriptions.length > 0) {
-      if (!selectedPlanId && userSubscriptions.length > 0) {
-        setSelectedPlanId(userSubscriptions[0].id);
+      if (!selectedPlanId && displayedSubscriptions.length > 0) {
+        setSelectedPlanId(displayedSubscriptions[0].id);
       }
       generateCalendarDays();
       loadSelectedDateDelivery();
     }
-  }, [user, currentDate, userSubscriptions, selectedDate, selectedPlanId, mealsMap]);
+  }, [
+    user,
+    currentDate,
+    userSubscriptions,
+    selectedDate,
+    selectedPlanId,
+    mealsMap,
+    displayedSubscriptions,
+  ]);
+
+  useEffect(() => {
+    if (showAllPlans || !selectedPlanId) return;
+    const selectedSub = userSubscriptions.find((sub) => sub.id === selectedPlanId);
+    if (selectedSub && !isPlanActiveStatus(selectedSub) && activeSubscriptions.length > 0) {
+      setSelectedPlanId(activeSubscriptions[0].id);
+    }
+  }, [showAllPlans, selectedPlanId, userSubscriptions, activeSubscriptions]);
+
+  // Keep selected plan visible in horizontal carousel (tap, deep-link, initial selection)
+  useEffect(() => {
+    if (!selectedPlanId || displayedSubscriptions.length === 0) return;
+    const selectedIndex = displayedSubscriptions.findIndex(
+      (sub) => sub.id === selectedPlanId
+    );
+    if (selectedIndex < 0) return;
+
+    const targetX = selectedIndex * (PLAN_CAROUSEL_CARD_WIDTH + PLAN_CAROUSEL_ITEM_GAP);
+    requestAnimationFrame(() => {
+      plansCarouselRef.current?.scrollTo({ x: targetX, animated: true });
+    });
+  }, [selectedPlanId, displayedSubscriptions]);
+
+  // Handle deep-link from WeeklyMenuSlider card tap
+  useEffect(() => {
+    const rawDate = Array.isArray(params.date) ? params.date[0] : params.date;
+    if (
+      params.action === "viewSubscriptionDay" &&
+      params.subscriptionId &&
+      rawDate &&
+      userSubscriptions.length > 0
+    ) {
+      const sub = userSubscriptions.find((s) => s.id === params.subscriptionId);
+      if (!sub) return;
+
+      const [year, month, day] = rawDate.split("-").map(Number);
+      if (!year || !month || !day) return;
+      const targetDate = new Date(year, month - 1, day);
+      if (Number.isNaN(targetDate.getTime())) return;
+      targetDate.setHours(0, 0, 0, 0);
+
+      setSelectedPlanId(sub.id);
+      setSelectedDate(targetDate);
+      setCurrentDate(targetDate);
+    }
+  }, [params.action, params.subscriptionId, params.date, userSubscriptions]);
 
   // Handle deep-link from TodayMealSlider "Add Items" button
   useEffect(() => {
@@ -1147,8 +1225,8 @@ export default function OrdersScreen() {
         <View style={styles.screenHeaderText}>
           <Text style={styles.screenHeaderTitle}>My Orders</Text>
           <Text style={styles.screenHeaderSub}>
-            {userSubscriptions.length} active plan
-            {userSubscriptions.length !== 1 ? "s" : ""}
+            {activeSubscriptions.length} active plan
+            {activeSubscriptions.length !== 1 ? "s" : ""}
           </Text>
         </View>
       </View>
@@ -1163,200 +1241,212 @@ export default function OrdersScreen() {
         {/* ── Active Plans ─────────────────────────────────────────── */}
         {userSubscriptions.length > 0 ? (
           <View style={styles.plansSection}>
-            <Text style={styles.plansSectionTitle}>Active Plans</Text>
-            {userSubscriptions.map((sub, index) => {
-              const isSelected = selectedPlanId === sub.id;
-              const isEditing = editingPlanId === sub.id;
-              const displayName = getPlanDisplayName(sub, index);
-              const daysRemaining = Math.max(
-                0,
-                Math.ceil(
-                  (new Date(sub.endDate).getTime() - Date.now()) /
-                    (1000 * 60 * 60 * 24)
-                )
-              );
-              const accentColor = [
-                "#48479B",
-                "#10B981",
-                "#F59E0B",
-                "#48479B",
-              ][index % 4];
-              const mealForPlan = mealsMap[sub.mealId];
-              const showRenew =
-                daysRemaining <= 7 ||
-                sub.status === "expiring" ||
-                sub.status === "expired";
-
-              return (
-                <TouchableOpacity
-                  key={sub.id}
+            <View style={styles.plansSectionHeader}>
+              <Text style={styles.plansSectionTitle}>Active Plans</Text>
+              <TouchableOpacity
+                style={styles.plansToggleWrap}
+                onPress={() => setShowAllPlans((prev) => !prev)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.plansToggleLabel}>Show all</Text>
+                <View
                   style={[
-                    styles.planCard,
-                    isSelected && styles.planCardSelected,
-                    isSelected && { borderColor: accentColor },
+                    styles.plansToggleTrack,
+                    showAllPlans && styles.plansToggleTrackActive,
                   ]}
-                  onPress={() => setSelectedPlanId(sub.id)}
-                  activeOpacity={0.85}
                 >
                   <View
-                    style={[styles.planCardAccent, { backgroundColor: accentColor }]}
+                    style={[
+                      styles.plansToggleThumb,
+                      showAllPlans && styles.plansToggleThumbActive,
+                    ]}
                   />
-                  <View style={styles.planCardBody}>
-                    {/* Name row */}
-                    <View style={styles.planCardTopRow}>
-                      {isEditing ? (
-                        <TextInput
-                          style={styles.planCardNameInput}
-                          value={editingPlanNames[sub.id] ?? displayName}
-                          onChangeText={(v) =>
-                            setEditingPlanNames((p) => ({ ...p, [sub.id]: v }))
-                          }
-                          onBlur={() => handleSavePlanName(sub.id)}
-                          autoFocus
-                          returnKeyType="done"
-                          onSubmitEditing={() => handleSavePlanName(sub.id)}
-                        />
-                      ) : (
-                        <TouchableOpacity
-                          style={styles.planCardNameRow}
-                          onLongPress={() => {
-                            setEditingPlanId(sub.id);
-                            setEditingPlanNames((p) => ({
-                              ...p,
-                              [sub.id]: displayName,
-                            }));
-                          }}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={styles.planCardName} numberOfLines={1}>
-                            {displayName}
-                          </Text>
-                          <Pencil size={12} color="#9CA3AF" style={{ marginLeft: 6 }} />
-                        </TouchableOpacity>
-                      )}
-                      <View
-                        style={[
-                          styles.planStatusBadge,
-                          {
-                            backgroundColor:
-                              sub.status === "active" ||
-                              sub.status === "renewed" ||
-                              sub.status === "expiring"
-                                ? "#D1FAE5"
-                                : "#F3F4F6",
-                          },
-                        ]}
-                      >
+                </View>
+              </TouchableOpacity>
+            </View>
+            {displayedSubscriptions.length > 0 ? (
+              <ScrollView
+                ref={plansCarouselRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                decelerationRate="fast"
+                snapToInterval={PLAN_CAROUSEL_CARD_WIDTH + PLAN_CAROUSEL_ITEM_GAP}
+                snapToAlignment="start"
+                contentContainerStyle={styles.planCarouselContent}
+              >
+                {displayedSubscriptions.map((sub, index) => {
+                const isSelected = selectedPlanId === sub.id;
+                const isEditing = editingPlanId === sub.id;
+                const displayName = getPlanDisplayName(sub, index);
+                const daysRemaining = Math.max(
+                  0,
+                  Math.ceil(
+                    (new Date(sub.endDate).getTime() - Date.now()) /
+                      (1000 * 60 * 60 * 24)
+                  )
+                );
+                const mealForPlan = mealsMap[sub.mealId];
+                const showRenew =
+                  daysRemaining <= 7 ||
+                  sub.status === "expiring" ||
+                  sub.status === "expired";
+
+                return (
+                  <TouchableOpacity
+                    key={sub.id}
+                    style={[
+                      styles.planCard,
+                      styles.planCardCarouselItem,
+                      isSelected && styles.planCardSelected,
+                      isSelected && { borderColor: PLAN_ACCENT_COLOR },
+                    ]}
+                    onPress={() => setSelectedPlanId(sub.id)}
+                    activeOpacity={0.85}
+                  >
+                    <View
+                      style={[styles.planCardAccent, { backgroundColor: PLAN_ACCENT_COLOR }]}
+                    />
+                    <View style={styles.planCardBody}>
+                      {/* Name row */}
+                      <View style={styles.planCardTopRow}>
+                        {isEditing ? (
+                          <TextInput
+                            style={styles.planCardNameInput}
+                            value={editingPlanNames[sub.id] ?? displayName}
+                            onChangeText={(v) =>
+                              setEditingPlanNames((p) => ({ ...p, [sub.id]: v }))
+                            }
+                            onBlur={() => handleSavePlanName(sub.id)}
+                            autoFocus
+                            returnKeyType="done"
+                            onSubmitEditing={() => handleSavePlanName(sub.id)}
+                          />
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.planCardNameRow}
+                            onLongPress={() => {
+                              setEditingPlanId(sub.id);
+                              setEditingPlanNames((p) => ({
+                                ...p,
+                                [sub.id]: displayName,
+                              }));
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={styles.planCardName} numberOfLines={1}>
+                              {displayName}
+                            </Text>
+                            <Pencil size={12} color="#9CA3AF" style={{ marginLeft: 6 }} />
+                          </TouchableOpacity>
+                        )}
                         <View
                           style={[
-                            styles.planStatusDot,
+                            styles.planStatusBadge,
                             {
                               backgroundColor:
                                 sub.status === "active" ||
                                 sub.status === "renewed" ||
                                 sub.status === "expiring"
-                                  ? "#10B981"
-                                  : "#9CA3AF",
-                            },
-                          ]}
-                        />
-                        <Text
-                          style={[
-                            styles.planStatusText,
-                            {
-                              color:
-                                sub.status === "active" ||
-                                sub.status === "renewed" ||
-                                sub.status === "expiring"
-                                  ? "#065F46"
-                                  : "#6B7280",
+                                  ? "rgba(72, 71, 155, 0.12)"
+                                  : "#F3F4F6",
                             },
                           ]}
                         >
-                          {sub.status === "active" || sub.status === "renewed"
-                            ? "Active"
-                            : sub.status === "expiring"
-                              ? "Expiring soon"
-                              : sub.status}
+                          <View
+                            style={[
+                              styles.planStatusDot,
+                              {
+                                backgroundColor:
+                                  sub.status === "active" ||
+                                  sub.status === "renewed" ||
+                                  sub.status === "expiring"
+                                    ? PLAN_ACCENT_COLOR
+                                    : "#9CA3AF",
+                              },
+                            ]}
+                          />
+                          <Text
+                            style={[
+                              styles.planStatusText,
+                              {
+                                color:
+                                  sub.status === "active" ||
+                                  sub.status === "renewed" ||
+                                  sub.status === "expiring"
+                                    ? PLAN_ACCENT_COLOR
+                                    : "#6B7280",
+                              },
+                            ]}
+                          >
+                            {sub.status === "active" || sub.status === "renewed"
+                              ? "Active"
+                              : sub.status === "expiring"
+                                ? "Expiring soon"
+                                : sub.status}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Meal name */}
+                      {mealForPlan && (
+                        <View style={styles.planMealHighlight}>
+                          <Text style={styles.planCardMealName} numberOfLines={1}>
+                            {mealForPlan.name}
+                          </Text>
+                        </View>
+                      )}
+
+                    <View style={styles.planMetaRow}>
+                      <View style={styles.planMetaPill}>
+                        <Calendar size={12} color="#6B7280" />
+                        <Text style={styles.planMetaText} numberOfLines={1}>
+                          {new Date(sub.startDate).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                          })}{" "}
+                          -{" "}
+                          {new Date(sub.endDate).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "2-digit",
+                          })} ( {daysRemaining} days remaining)
                         </Text>
                       </View>
+                      
                     </View>
 
-                    {/* Meal name */}
-                    {mealForPlan && (
-                      <Text style={styles.planCardMealName} numberOfLines={1}>
-                        🍽 {mealForPlan.name}
-                      </Text>
-                    )}
+                 
 
-                    {/* Stats */}
-                    <View style={styles.planCardStatsRow}>
-                      <View style={styles.planCardStat}>
-                        <Text style={[styles.planCardStatValue, { color: accentColor }]}>
-                          {sub.duration}
-                        </Text>
-                        <Text style={styles.planCardStatLabel}>days</Text>
-                      </View>
-                      <View style={styles.planCardStatDivider} />
-                      <View style={styles.planCardStat}>
-                        <Text
-                          style={[
-                            styles.planCardStatValue,
-                            { color: daysRemaining > 0 ? "#10B981" : "#EF4444" },
-                          ]}
+                      {/* Renew button when expiring soon or expired */}
+                      {/* {showRenew && (
+                        <TouchableOpacity
+                          style={styles.planCardRenewButton}
+                          onPress={(e) => {
+                            e?.stopPropagation?.();
+                            router.push({
+                              pathname: "/renew",
+                              params: { sid: sub.id },
+                            });
+                          }}
+                          activeOpacity={0.8}
                         >
-                          {daysRemaining}
-                        </Text>
-                        <Text style={styles.planCardStatLabel}>remaining</Text>
-                      </View>
-                      <View style={styles.planCardStatDivider} />
-                      <View style={styles.planCardStat}>
-                        <Text
-                          style={styles.planCardStatValue}
-                          numberOfLines={1}
-                        >
-                          {sub.deliveryTimeSlot || sub.deliveryTime || "–"}
-                        </Text>
-                        <Text style={styles.planCardStatLabel}>slot</Text>
-                      </View>
+                          <Text style={styles.planCardRenewButtonText}>
+                            {daysRemaining <= 0 ? "Renew plan" : "Renew"}
+                          </Text>
+                        </TouchableOpacity>
+                      )} */}
                     </View>
-
-                    {/* Date range */}
-                    <Text style={styles.planCardDateRange}>
-                      {new Date(sub.startDate).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                      })}{" "}
-                      →{" "}
-                      {new Date(sub.endDate).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </Text>
-
-                    {/* Renew button when expiring soon or expired */}
-                    {showRenew && (
-                      <TouchableOpacity
-                        style={styles.planCardRenewButton}
-                        onPress={(e) => {
-                          e?.stopPropagation?.();
-                          router.push({
-                            pathname: "/renew",
-                            params: { sid: sub.id },
-                          });
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.planCardRenewButtonText}>
-                          {daysRemaining <= 0 ? "Renew plan" : "Renew"}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+                  </TouchableOpacity>
+                );
+                })}
+              </ScrollView>
+            ) : (
+              <View style={styles.filteredEmptyPlans}>
+                <Text style={styles.filteredEmptyPlansText}>
+                  No active plans. Turn on Show all to view completed/inactive plans.
+                </Text>
+              </View>
+            )}
           </View>
         ) : (
           <View style={styles.emptyPlansContainer}>
@@ -1743,9 +1833,16 @@ const styles = StyleSheet.create({
   },
   // ── Active Plans section ───────────────────────────────────────────
   plansSection: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     paddingTop: 20,
     paddingBottom: 4,
+  },
+  plansSectionHeader: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   plansSectionTitle: {
     fontSize: 13,
@@ -1753,25 +1850,77 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     textTransform: "uppercase",
     letterSpacing: 0.8,
-    marginBottom: 12,
+  },
+  plansToggleWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  plansToggleLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  plansToggleTrack: {
+    width: 34,
+    height: 20,
+    borderRadius: 999,
+    backgroundColor: "#D1D5DB",
+    padding: 2,
+    justifyContent: "center",
+  },
+  plansToggleTrackActive: {
+    backgroundColor: PLAN_ACCENT_COLOR,
+  },
+  plansToggleThumb: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+  },
+  plansToggleThumbActive: {
+    alignSelf: "flex-end",
+  },
+  planCarouselContent: {
+    paddingHorizontal: 16,
+  },
+  filteredEmptyPlans: {
+    marginHorizontal: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F9FAFB",
+  },
+  filteredEmptyPlansText: {
+    fontSize: 13,
+    color: "#6B7280",
+    lineHeight: 18,
+    textAlign: "center",
   },
   planCard: {
     flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
     marginBottom: 12,
-    borderWidth: 2,
-    borderColor: "#E5E7EB",
+    borderWidth: 1.5,
+    borderColor: "#E6E9F2",
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 5,
+  },
+  planCardCarouselItem: {
+    width: PLAN_CAROUSEL_CARD_WIDTH,
+    marginRight: PLAN_CAROUSEL_ITEM_GAP,
   },
   planCardSelected: {
     shadowOpacity: 0.14,
-    elevation: 6,
+    elevation: 8,
+    transform: [{ translateY: -1 }],
   },
   planCardAccent: {
     width: 5,
@@ -1779,7 +1928,8 @@ const styles = StyleSheet.create({
   },
   planCardBody: {
     flex: 1,
-    padding: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
   },
   planCardTopRow: {
     flexDirection: "row",
@@ -1794,8 +1944,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   planCardName: {
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "800",
     color: "#111827",
     flex: 1,
   },
@@ -1805,7 +1955,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#111827",
     borderBottomWidth: 1.5,
-    borderBottomColor: "#48479B",
+    borderBottomColor: PLAN_ACCENT_COLOR,
     paddingVertical: 2,
     marginRight: 8,
   },
@@ -1827,16 +1977,55 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "capitalize",
   },
+  planMealHighlight: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(72, 71, 155, 0.09)",
+    borderColor: "rgba(72, 71, 155, 0.22)",
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 8,
+  },
   planCardMealName: {
     fontSize: 13,
-    color: "#6B7280",
+    color: PLAN_ACCENT_COLOR,
+    fontWeight: "700",
+  },
+  planMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     marginBottom: 10,
-    fontWeight: "500",
+  },
+  planMetaPill: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#EEF2F7",
+  },
+  planMetaText: {
+    flex: 1,
+    fontSize: 11,
+    color: "#64748B",
+    fontWeight: "600",
   },
   planCardStatsRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 8,
+    backgroundColor: "#FAFBFF",
+    borderWidth: 1,
+    borderColor: "#EEF2F7",
+    borderRadius: 12,
+    paddingVertical: 8,
   },
   planCardStat: {
     flex: 1,
@@ -1848,10 +2037,10 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
   planCardStatLabel: {
-    fontSize: 10,
+    fontSize: 11,
     color: "#9CA3AF",
-    marginTop: 2,
-    fontWeight: "500",
+    marginTop: 1,
+    fontWeight: "600",
   },
   planCardStatDivider: {
     width: 1,
@@ -1859,25 +2048,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#E5E7EB",
     marginHorizontal: 4,
   },
-  planCardDateRange: {
-    fontSize: 12,
-    color: "#9CA3AF",
-    fontWeight: "500",
-  },
   planCardRenewButton: {
     marginTop: 10,
     alignSelf: "flex-start",
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: "#10B981",
-    backgroundColor: "#ECFDF5",
+    paddingVertical: 7,
+    paddingHorizontal: 13,
+    borderRadius: 999,
+    borderWidth: 1.25,
+    borderColor: PLAN_ACCENT_COLOR,
+    backgroundColor: "rgba(72, 71, 155, 0.08)",
   },
   planCardRenewButtonText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#059669",
+    color: PLAN_ACCENT_COLOR,
   },
   emptyPlansContainer: {
     alignItems: "center",

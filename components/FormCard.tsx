@@ -1,8 +1,12 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, View, ImageBackground } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowRight, ChevronRight } from 'lucide-react-native';
-import { Colors } from '@/constants/colors';
+import React from "react";
+import { TouchableOpacity, Text, StyleSheet, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { ArrowRight } from "lucide-react-native";
+import { getColors } from "@/constants/colors";
+import { useTheme } from "@/contexts/ThemeContext";
+import { FONT_SIZE } from "@/src/ui/typography";
+import { RADIUS, SCREEN_PADDING, SPACING } from "@/src/ui/layout";
+import { scale } from "@/src/ui/responsive";
 
 interface FormCardProps {
   title: string;
@@ -19,42 +23,55 @@ export default function FormCard({
   gradientColors,
   onPress,
 }: FormCardProps) {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
+
   return (
     <TouchableOpacity
       style={styles.container}
       onPress={onPress}
-      activeOpacity={0.95}
+      activeOpacity={0.9}
     >
       <LinearGradient
         colors={gradientColors}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        end={{ x: 1, y: 0.95 }}
         style={styles.gradient}
       >
-        {/* Header with Icon and Title */}
-        <View style={styles.header}>
-          
-          <View style={styles.headerText}>
-            <Text style={styles.title}>{title}</Text>
-            {/* {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>} */}
+        <View style={styles.overlay} />
+        <View style={styles.content}>
+          <View style={styles.header}>
+            {subtitle ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText} numberOfLines={1}>
+                  {subtitle}
+                </Text>
+              </View>
+            ) : (
+              <View />
+            )}
+            {/* <View style={styles.iconCapsule}>
+              <ArrowRight size={15} color="#FFFFFF" strokeWidth={2.6} />
+            </View> */}
           </View>
 
-          <TouchableOpacity 
-            style={styles.ctaButton}
-            onPress={onPress}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.arrowText}><ArrowRight /></Text>
-          </TouchableOpacity>
+          <Text style={styles.title} numberOfLines={1}>
+            {title}
+          </Text>
+          <Text style={styles.description} numberOfLines={2}>
+            {description}
+          </Text>
+
+          <View style={styles.footer}>
+            <View style={styles.ctaRow}>
+              <Text style={styles.ctaText}>Explore</Text>
+              <ArrowRight size={16} color={colors.primary} strokeWidth={2.7} />
+            </View>
+          </View>
         </View>
-
-        {/* Description */}
-        <Text style={styles.description}>{description}</Text>
-
-       
-        {/* Decorative Elements */}
         <View style={styles.decorativeCircle1} />
         <View style={styles.decorativeCircle2} />
+        <View style={styles.decorativeCircle3} />
       </LinearGradient>
     </TouchableOpacity>
   );
@@ -62,155 +79,122 @@ export default function FormCard({
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 18,
-    marginVertical: 8,
-    borderRadius: 18,
+    marginHorizontal: SCREEN_PADDING,
+    marginVertical: SPACING.xs,
+    borderRadius: RADIUS.lg,
     overflow: 'hidden',
     elevation: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
     shadowRadius: 10,
   },
   gradient: {
-    padding: 16,
-    paddingBottom: 14,
+    minHeight: scale(128),
     position: 'relative',
-    minHeight: 144,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.12)",
+  },
+  content: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    minHeight: scale(128),
+    justifyContent: "space-between",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
   },
-  iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  icon: {
-    fontSize: 32,
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 3,
-    letterSpacing: 0.2,
-  },
-  subtitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.95)',
-  },
-  description: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.95)',
-    lineHeight: 20,
-    marginBottom: 16,
-    fontWeight: '500',
-  },
-  featuresContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 18,
-  },
-  featurePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  checkIcon: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#10B981',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 6,
-  },
-  checkText: {
-    fontSize: 10,
-    color: '#FFFFFF',
-    fontWeight: '900',
-  },
-  featureText: {
-    fontSize: 12,
-    color: '#1F2937',
-    fontWeight: '700',
-  },
-  bottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 'auto',
-  },
-  badgeContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    flex: 1,
-    marginRight: 12,
+  badge: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.4)",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+    maxWidth: "68%",
   },
   badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontSize: FONT_SIZE.xs,
+    color: "#FFFFFF",
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
-  ctaButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 5,
+  iconCapsule: {
+    width: scale(30),
+    height: scale(30),
+    borderRadius: scale(15),
+    backgroundColor: "rgba(255, 255, 255, 0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.35)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  arrowText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: Colors.primary,
+  title: {
+    fontSize: scale(18),
+    lineHeight: scale(22),
+    fontWeight: "800",
+    color: "#FFFFFF",
+    marginBottom: 4,
+    letterSpacing: 0.3,
+  },
+  description: {
+    fontSize: FONT_SIZE.xs,
+    color: "rgba(255, 255, 255, 0.92)",
+    lineHeight: scale(16),
+    fontWeight: "500",
+  },
+  footer: {
+    marginTop: SPACING.xs,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
+  ctaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  ctaText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: "700",
+    color: "#24245E",
+    letterSpacing: 0.2,
   },
   decorativeCircle1: {
     position: 'absolute',
-    top: -40,
-    right: -40,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    top: -44,
+    right: -28,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   decorativeCircle2: {
     position: 'absolute',
     bottom: -30,
-    left: -30,
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    left: -18,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+  },
+  decorativeCircle3: {
+    position: "absolute",
+    top: scale(42),
+    right: scale(22),
+    width: scale(12),
+    height: scale(12),
+    borderRadius: scale(6),
+    backgroundColor: "rgba(255, 255, 255, 0.28)",
   },
 });
 

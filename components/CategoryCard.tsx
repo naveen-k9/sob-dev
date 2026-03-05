@@ -3,6 +3,9 @@ import { TouchableOpacity, Image, Text, StyleSheet, View, Animated } from 'react
 import { Category } from '@/types';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getColors } from '@/constants/colors';
+import { FONT_SIZE } from '@/src/ui/typography';
+import { RADIUS, SPACING } from '@/src/ui/layout';
+import { scale } from '@/src/ui/responsive';
 
 interface CategoryCardProps {
   category: Category;
@@ -69,14 +72,14 @@ export default function CategoryCard({ category, onPress, isActive = false }: Ca
 
 const styles = StyleSheet.create({
   container: {
-    width: 108,
-    marginRight: 9,
+    width: scale(90),
+    marginRight: SPACING.sm,
     alignItems: 'center',
   },
   imageWrap: {
     padding: 0,
-    borderRadius: 60,
-    marginBottom: 3,
+    borderRadius: RADIUS.lg * 3,
+    marginBottom: SPACING.xs,
   },
   imageWrapActive: {
     borderWidth: 3,
@@ -85,12 +88,12 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   image: {
-    width: 108,
-    height: 90,
-    borderRadius: 60,
+    width: scale(90),
+    aspectRatio: 1.2,
+    borderRadius: RADIUS.lg * 3,
   },
   name: {
-    fontSize: 12,
+    fontSize: FONT_SIZE.xs,
     fontWeight: '500',
     textAlign: 'center',
   },

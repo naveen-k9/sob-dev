@@ -13,6 +13,10 @@ import {
 import { X, Copy, Gift, Wallet, Percent, Clock, Users, CheckCircle } from 'lucide-react-native';
 import { Offer } from '@/types';
 import * as Clipboard from 'expo-clipboard';
+import { useTheme } from '@/contexts/ThemeContext';
+import { getColors } from '@/constants/colors';
+import { FONT_SIZE } from '@/src/ui/typography';
+import { RADIUS, SCREEN_PADDING, SPACING } from '@/src/ui/layout';
 
 interface OfferDetailModalProps {
   visible: boolean;
@@ -23,26 +27,28 @@ interface OfferDetailModalProps {
 
 export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }: OfferDetailModalProps) {
   if (!offer) return null;
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
 
   const getOfferIcon = () => {
     switch (offer.offerType) {
       case 'cashback':
-        return <Wallet size={24} color="#10B981" />;
+        return <Wallet size={24} color={colors.success} />;
       case 'deal':
-        return <Gift size={24} color="#8B5CF6" />;
+        return <Gift size={24} color={colors.primary} />;
       default:
-        return <Percent size={24} color="#48479B" />;
+        return <Percent size={24} color={colors.primary} />;
     }
   };
 
   const getOfferTypeColor = () => {
     switch (offer.offerType) {
       case 'cashback':
-        return '#10B981';
+        return colors.success;
       case 'deal':
-        return '#8B5CF6';
+        return colors.primary;
       default:
-        return '#48479B';
+        return colors.primary;
     }
   };
 
@@ -84,15 +90,15 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <View style={styles.headerLeft}>
             {getOfferIcon()}
-            <Text style={styles.headerTitle}>{getOfferTypeName()}</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>{getOfferTypeName()}</Text>
           </View>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X size={24} color="#666" />
+            <X size={24} color={colors.mutedText} />
           </TouchableOpacity>
         </View>
 
@@ -106,28 +112,28 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
           </View>
 
           {/* Title and Description */}
-          <Text style={styles.title}>{offer.title}</Text>
-          <Text style={styles.description}>{offer.description}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{offer.title}</Text>
+          <Text style={[styles.description, { color: colors.mutedText }]}>{offer.description}</Text>
 
           {/* Long Description */}
           {offer.longDescription && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>About This Offer</Text>
-              <Text style={styles.longDescription}>{offer.longDescription}</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>About This Offer</Text>
+              <Text style={[styles.longDescription, { color: colors.mutedText }]}>{offer.longDescription}</Text>
             </View>
           )}
 
           {/* Promo Code */}
           {offer.code && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Promo Code</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Promo Code</Text>
               <View style={styles.promoCodeContainer}>
-                <View style={styles.promoCodeBox}>
-                  <Text style={styles.promoCode}>{offer.code}</Text>
+                <View style={[styles.promoCodeBox, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+                  <Text style={[styles.promoCode, { color: colors.text }]}>{offer.code}</Text>
                 </View>
-                <TouchableOpacity onPress={copyPromoCode} style={styles.copyButton}>
-                  <Copy size={16} color="#48479B" />
-                  <Text style={styles.copyText}>Copy</Text>
+                <TouchableOpacity onPress={copyPromoCode} style={[styles.copyButton, { borderColor: colors.primary, backgroundColor: colors.surface }]}>
+                  <Copy size={16} color={colors.primary} />
+                  <Text style={[styles.copyText, { color: colors.primary }]}>Copy</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -135,12 +141,12 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
 
           {/* Offer Stats */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Offer Details</Text>
-            <View style={styles.statsContainer}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Offer Details</Text>
+            <View style={[styles.statsContainer, { backgroundColor: colors.surface }]}>
               <View style={styles.statItem}>
-                <Clock size={16} color="#666" />
-                <Text style={styles.statLabel}>Valid Until</Text>
-                <Text style={styles.statValue}>{offer.validUntil}</Text>
+                <Clock size={16} color={colors.mutedText} />
+                <Text style={[styles.statLabel, { color: colors.mutedText }]}>Valid Until</Text>
+                <Text style={[styles.statValue, { color: colors.text }]}>{offer.validUntil}</Text>
               </View>
               {/* {offer.usageLimit && (
                 <View style={styles.statItem}>
@@ -151,9 +157,9 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
               )} */}
               {offer.minOrderAmount && (
                 <View style={styles.statItem}>
-                  <CheckCircle size={16} color="#666" />
-                  <Text style={styles.statLabel}>Min Order</Text>
-                  <Text style={styles.statValue}>₹{offer.minOrderAmount}</Text>
+                  <CheckCircle size={16} color={colors.mutedText} />
+                  <Text style={[styles.statLabel, { color: colors.mutedText }]}>Min Order</Text>
+                  <Text style={[styles.statValue, { color: colors.text }]}>₹{offer.minOrderAmount}</Text>
                 </View>
               )}
             </View>
@@ -185,11 +191,11 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
           {/* Terms and Conditions */}
           {offer.terms && offer.terms.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Terms & Conditions</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Terms & Conditions</Text>
               {offer.terms.map((term, index) => (
                 <View key={index} style={styles.termItem}>
-                  <Text style={styles.termBullet}>•</Text>
-                  <Text style={styles.termText}>{term}</Text>
+                  <Text style={[styles.termBullet, { color: colors.mutedText }]}>•</Text>
+                  <Text style={[styles.termText, { color: colors.mutedText }]}>{term}</Text>
                 </View>
               ))}
             </View>
@@ -197,9 +203,9 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
         </ScrollView>
 
         {/* Action Buttons */}
-        <View style={styles.actionContainer}>
-          <TouchableOpacity onPress={onClose} style={styles.cancelButton}>
-            <Text style={styles.cancelButtonText}>Close</Text>
+        <View style={[styles.actionContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <TouchableOpacity onPress={onClose} style={[styles.cancelButton, { backgroundColor: colors.surfaceSecondary }]}>
+            <Text style={[styles.cancelButtonText, { color: colors.mutedText }]}>Close</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             onPress={copyPromoCode} 
@@ -216,26 +222,22 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: 'white',
+    paddingHorizontal: SCREEN_PADDING,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: FONT_SIZE.xl,
     fontWeight: '600',
-    color: '#333',
     marginLeft: 8,
   },
   closeButton: {
@@ -243,51 +245,47 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: SCREEN_PADDING,
   },
   offerImage: {
     width: '100%',
-    height: 200,
-    borderRadius: 12,
-    marginTop: 20,
-    marginBottom: 16,
+    aspectRatio: 16 / 9,
+    borderRadius: RADIUS.md,
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   discountBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
-    marginBottom: 16,
+    borderRadius: RADIUS.sm,
+    marginBottom: SPACING.md,
   },
   discountText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: FONT_SIZE.lg,
     fontWeight: 'bold',
   },
   title: {
-    fontSize: 24,
+    fontSize: FONT_SIZE.display,
     fontWeight: '700',
-    color: '#333',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   description: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: FONT_SIZE.lg,
     lineHeight: 24,
-    marginBottom: 24,
+    marginBottom: SPACING.xl,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: SPACING.xl,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: FONT_SIZE.xl,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
   longDescription: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
     lineHeight: 20,
   },
   promoCodeContainer: {
@@ -297,39 +295,33 @@ const styles = StyleSheet.create({
   promoCodeBox: {
     flex: 1,
     backgroundColor: '#F3F4F6',
-    borderRadius: 8,
+    borderRadius: RADIUS.sm,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginRight: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
     borderStyle: 'dashed',
   },
   promoCode: {
-    fontSize: 16,
+    fontSize: FONT_SIZE.lg,
     fontWeight: '600',
-    color: '#333',
     textAlign: 'center',
     letterSpacing: 1,
   },
   copyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF7ED',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: '#48479B',
   },
   copyText: {
-    color: '#48479B',
     fontWeight: '600',
     marginLeft: 4,
   },
   statsContainer: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     padding: 16,
   },
   statItem: {
@@ -338,15 +330,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   statLabel: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
     marginLeft: 8,
     flex: 1,
   },
   statValue: {
-    fontSize: 14,
+    fontSize: FONT_SIZE.md,
     fontWeight: '600',
-    color: '#333',
   },
   progressContainer: {
     backgroundColor: 'white',
@@ -374,46 +364,40 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   termBullet: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
     marginRight: 8,
     marginTop: 2,
   },
   termText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: FONT_SIZE.md,
     lineHeight: 20,
     flex: 1,
   },
   actionContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: 'white',
+    paddingHorizontal: SCREEN_PADDING,
+    paddingVertical: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
     gap: 12,
   },
   cancelButton: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    borderRadius: RADIUS.sm,
     alignItems: 'center',
   },
   cancelButtonText: {
-    fontSize: 16,
+    fontSize: FONT_SIZE.lg,
     fontWeight: '600',
-    color: '#666',
   },
   useButton: {
     flex: 2,
     paddingVertical: 14,
-    borderRadius: 8,
+    borderRadius: RADIUS.sm,
     alignItems: 'center',
   },
   useButtonText: {
-    fontSize: 16,
+    fontSize: FONT_SIZE.lg,
     fontWeight: '600',
     color: 'white',
   },

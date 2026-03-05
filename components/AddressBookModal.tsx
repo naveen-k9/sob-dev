@@ -16,6 +16,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { router } from 'expo-router';
 import { useAsyncStorage } from '@/hooks/useStorage';
 import { findPolygonsContainingPoint } from '@/utils/polygonUtils';
+import { useTheme } from '@/contexts/ThemeContext';
+import { getColors } from '@/constants/colors';
+import { FONT_SIZE } from '@/src/ui/typography';
+import { RADIUS, SCREEN_PADDING, SPACING } from '@/src/ui/layout';
 
 interface AddressBookModalProps {
   visible: boolean;
@@ -30,6 +34,8 @@ export default function AddressBookModal({
   onSelectAddress,
   showSelectMode = false,
 }: AddressBookModalProps) {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
   const { user } = useAuth();
   const [addresses, setAddresses] = useState<Address[]>(user?.addresses || []);
   const [polygons] = useAsyncStorage<Polygon[]>('polygons', []);
@@ -102,34 +108,34 @@ export default function AddressBookModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Select Delivery Address</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color="#333" />
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <Text style={[styles.title, { color: colors.text }]}>Select Delivery Address</Text>
+          <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: colors.surfaceSecondary }]}>
+            <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
         
         <ScrollView style={styles.content}>
           <TouchableOpacity
-            style={styles.optionCard}
+            style={[styles.optionCard, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}
             onPress={handleAddNewAddress}
           >
-            <View style={styles.optionIcon}>
-              <Ionicons name="add-circle" size={24} color="#007AFF" />
+            <View style={[styles.optionIcon, { backgroundColor: colors.surfaceSecondary }]}>
+              <Ionicons name="add-circle" size={24} color={colors.primary} />
             </View>
             <View style={styles.optionContent}>
-              <Text style={styles.optionTitle}>Add New Address</Text>
-              <Text style={styles.optionSubtitle}>
+              <Text style={[styles.optionTitle, { color: colors.text }]}>Add New Address</Text>
+              <Text style={[styles.optionSubtitle, { color: colors.mutedText }]}>
                 Use map to set location precisely
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+            <Ionicons name="chevron-forward" size={20} color={colors.mutedText} />
           </TouchableOpacity>
 
           {addresses.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Saved Addresses</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Saved Addresses</Text>
               {addresses.map((address) => {
                 const isServiceable = findPolygonsContainingPoint(
                   address.coordinates,
@@ -143,6 +149,7 @@ export default function AddressBookModal({
                     key={address.id}
                     style={[
                       styles.addressCard,
+                      { backgroundColor: colors.surface, shadowColor: colors.shadow },
                       isSelected && styles.selectedAddressCard
                     ]}
                     onPress={() => handleSelectSavedAddress(address)}
@@ -151,12 +158,12 @@ export default function AddressBookModal({
                       <Ionicons 
                         name={address.type === 'home' ? "home" : address.type === 'work' ? "business" : "location"} 
                         size={20} 
-                        color={isServiceable ? "#007AFF" : "#8E8E93"} 
+                        color={isServiceable ? colors.primary : colors.mutedText} 
                       />
                     </View>
                     <View style={styles.addressContent}>
                       <View style={styles.addressTitleContainer}>
-                        <Text style={styles.addressTitle}>
+                        <Text style={[styles.addressTitle, { color: colors.text }]}>
                           {address.label || address.name}
                         </Text>
                         {address.isDefault && (
@@ -165,14 +172,14 @@ export default function AddressBookModal({
                           </View>
                         )}
                       </View>
-                      <Text style={styles.addressSubtitle}>
+                      <Text style={[styles.addressSubtitle, { color: colors.textSecondary }]}>
                         {address.addressLine}, {address.city}
                       </Text>
-                      <Text style={styles.addressDetails}>
+                      <Text style={[styles.addressDetails, { color: colors.mutedText }]}>
                         {address.state} - {address.pincode}
                       </Text>
                       {!isServiceable && (
-                        <Text style={styles.notServiceableText}>
+                        <Text style={[styles.notServiceableText, { color: colors.warning }]}>
                           Not in serviceable area
                         </Text>
                       )}
@@ -181,13 +188,13 @@ export default function AddressBookModal({
                       <Ionicons 
                         name="checkmark-circle" 
                         size={20} 
-                        color="#007AFF" 
+                        color={colors.primary} 
                       />
                     ) : (
                       <Ionicons 
                         name="chevron-forward" 
                         size={20} 
-                        color="#C7C7CC" 
+                        color={colors.mutedText} 
                       />
                     )}
                   </TouchableOpacity>
@@ -198,9 +205,9 @@ export default function AddressBookModal({
 
           {addresses.length === 0 && (
             <View style={styles.emptyState}>
-              <Ionicons name="location-outline" size={64} color="#C7C7CC" />
-              <Text style={styles.emptyTitle}>No Saved Addresses</Text>
-              <Text style={styles.emptyDescription}>
+              <Ionicons name="location-outline" size={64} color={colors.mutedText} />
+              <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>No Saved Addresses</Text>
+              <Text style={[styles.emptyDescription, { color: colors.mutedText }]}>
                 Add your first address to get started with deliveries
               </Text>
             </View>
@@ -209,9 +216,9 @@ export default function AddressBookModal({
         
         {/* Confirm Button */}
         {selectedAddressId && (
-          <View style={styles.bottomButtonContainer}>
+          <View style={[styles.bottomButtonContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
             <TouchableOpacity 
-              style={styles.confirmButton}
+              style={[styles.confirmButton, { backgroundColor: colors.primary, shadowColor: colors.primary }]}
               onPress={handleConfirmAddress}
             >
               <Text style={styles.confirmButtonText}>Use This Address</Text>
@@ -226,39 +233,33 @@ export default function AddressBookModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: 'white',
+    paddingHorizontal: SCREEN_PADDING,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
   },
   title: {
-    fontSize: 20,
+    fontSize: FONT_SIZE.xxl,
     fontWeight: '800',
-    color: '#111',
   },
   closeButton: {
     padding: 6,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
   },
   content: {
     flex: 1,
-    padding: 16,
+    padding: SPACING.md,
   },
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 10,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
     elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -269,7 +270,6 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#FEF2F2',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -278,22 +278,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   optionTitle: {
-    fontSize: 15,
+    fontSize: FONT_SIZE.md,
     fontWeight: '700',
-    color: '#111',
     marginBottom: 2,
   },
   optionSubtitle: {
-    fontSize: 13,
-    color: '#9CA3AF',
+    fontSize: FONT_SIZE.sm,
   },
   section: {
     marginTop: 20,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: FONT_SIZE.sm,
     fontWeight: '700',
-    color: '#374151',
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -301,8 +298,7 @@ const styles = StyleSheet.create({
   addressCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: RADIUS.md,
     padding: 14,
     marginBottom: 8,
     elevation: 1,
@@ -335,9 +331,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   addressTitle: {
-    fontSize: 15,
+    fontSize: FONT_SIZE.md,
     fontWeight: '700',
-    color: '#111',
     flex: 1,
   },
   defaultBadge: {
@@ -353,13 +348,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   addressSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
+    fontSize: FONT_SIZE.sm,
     marginBottom: 2,
   },
   addressDetails: {
-    fontSize: 13,
-    color: '#9CA3AF',
+    fontSize: FONT_SIZE.sm,
   },
   notServiceableText: {
     fontSize: 11,
@@ -374,39 +367,33 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyTitle: {
-    fontSize: 17,
+    fontSize: FONT_SIZE.xl,
     fontWeight: '700',
-    color: '#374151',
     marginTop: 8,
   },
   emptyDescription: {
-    fontSize: 13,
-    color: '#9CA3AF',
+    fontSize: FONT_SIZE.sm,
     textAlign: 'center',
     paddingHorizontal: 40,
     lineHeight: 18,
   },
   bottomButtonContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
   },
   confirmButton: {
-    backgroundColor: '#48479B',
-    borderRadius: 14,
+    borderRadius: RADIUS.md,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 3,
-    shadowColor: '#48479B',
     shadowOpacity: 0.3,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
   },
   confirmButtonText: {
-    fontSize: 16,
+    fontSize: FONT_SIZE.lg,
     fontWeight: '800',
     color: '#FFFFFF',
   },

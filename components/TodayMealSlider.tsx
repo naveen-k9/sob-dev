@@ -14,6 +14,9 @@ import db from "@/db";
 import { router } from "expo-router";
 import { Colors, getColors } from "@/constants/colors";
 import { useTheme } from "@/contexts/ThemeContext";
+import { FONT_SIZE } from "@/src/ui/typography";
+import { RADIUS, SPACING } from "@/src/ui/layout";
+import { scale } from "@/src/ui/responsive";
 
 interface TodayMealItem {
   id: string;
@@ -190,7 +193,7 @@ export default function TodayMealSlider({
       <View style={styles.container}>
         {/* <Text style={styles.sectionTitle}>Today's Meals</Text> */}
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading today's meals...</Text>
+          <Text style={[styles.loadingText, { color: colors.mutedText }]}>Loading today's meals...</Text>
         </View>
       </View>
     );
@@ -240,20 +243,20 @@ export default function TodayMealSlider({
                     </View>
                   )}
                   <View style={styles.statusBadge}>
-                    <Text style={styles.statusText}>
+                    <Text style={[styles.statusText, { color: colors.primary }]}>
                       {STATUS_LABELS[meal.status]}
                     </Text>
                   </View>
                 </View>
 
                 <View style={styles.mealDetails}>
-                  <Text style={styles.mealName} numberOfLines={1}>
+                  <Text style={[styles.mealName, { color: colors.text }]} numberOfLines={1}>
                     {meal.mealName}
                   </Text>
-                  <Text style={styles.deliveryTime}>{meal.deliveryTime}</Text>
+                  <Text style={[styles.deliveryTime, { color: colors.mutedText }]}>{meal.deliveryTime}</Text>
                   {meal.addOns.length > 0 && (
                     <View style={styles.addOnsContainer}>
-                      <Text style={styles.addOnsLabel}>Addons</Text>
+                      <Text style={[styles.addOnsLabel, { color: colors.text }]}>Addons</Text>
                       <View style={styles.addOnsImagesRow}>
                         {meal.addOns.map((addOnId, index) => {
                           const addOn = addOnsMap[addOnId];
@@ -265,7 +268,7 @@ export default function TodayMealSlider({
                                 style={styles.addOnImage}
                                 resizeMode="cover"
                               />
-                              <Text style={styles.addOnLabel} numberOfLines={1}>
+                              <Text style={[styles.addOnLabel, { color: colors.mutedText }]} numberOfLines={1}>
                                 {addOn.name}
                               </Text>
                             </View>
@@ -290,7 +293,7 @@ export default function TodayMealSlider({
                         end={{ x: 1, y: 0 }}
                         style={styles.addItemsButton}
                       >
-                        <Clock size={16} color="#FFF" strokeWidth={2.5} />
+                        <Clock size={16} color={colors.mealCardSubscribeText} strokeWidth={2.5} />
                         <Text style={styles.addItemsText}>
                         {meal.cutoffTime} + Add Items
                         </Text>
@@ -331,23 +334,22 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   loadingContainer: {
-    padding: 20,
+    padding: SPACING.lg,
     alignItems: "center",
   },
   loadingText: {
-    fontSize: 14,
-    color: "#6B7280",
+    fontSize: FONT_SIZE.md,
   },
   scrollView: {
     flexGrow: 0,
   },
   scrollContent: {
-    paddingHorizontal: 18,
-    paddingBottom: 8,
-    gap: 16,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.sm,
+    gap: SPACING.lg,
   },
   cardWrapper: {
-    borderRadius: 27,
+    borderRadius: RADIUS.lg,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: Colors.cardBorder,
@@ -358,22 +360,19 @@ const styles = StyleSheet.create({
     // elevation: 6,
   },
   mealCard: {
-    borderRadius: 16,
+    borderRadius: RADIUS.lg,
     overflow: "hidden",
   },
   cardInner: {
     flexDirection: "row",
-    minHeight: 144,
   },
   mealImageContainer: {
     width: "42%",
-    minHeight: 140,
     position: "relative",
   },
   mealImage: {
     width: "100%",
-    height: "100%",
-    minHeight: 140,
+    aspectRatio: 1,
   },
   mealImagePlaceholder: {
     backgroundColor: "#2A2A3E",
@@ -385,30 +384,28 @@ const styles = StyleSheet.create({
   },
   mealDetails: {
     flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    paddingRight: 16,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingRight: SPACING.lg,
     justifyContent: "space-between",
   },
   mealName: {
-    fontSize: 18,
+    fontSize: FONT_SIZE.lg,
     fontWeight: "700",
-    color: Colors.text,
-    marginBottom: 4,
+    marginBottom: SPACING.xs,
   },
   deliveryTime: {
-    fontSize: 13,
-    color: "#9CA3AF",
-    marginBottom: 8,
+    fontSize: FONT_SIZE.sm,
+    marginBottom: SPACING.sm,
   },
   statusBadge: {
     position: "absolute",
-    top: 10,
-    right: 10,
+    top: SPACING.sm,
+    right: SPACING.sm,
     backgroundColor: "rgba(255, 255, 255, 0.95)",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 10,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: RADIUS.sm,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.15,
@@ -416,19 +413,17 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: FONT_SIZE.xs,
     fontWeight: "700",
-    color: Colors.primary,
     letterSpacing: 0.2,
   },
   addOnsContainer: {
-    marginBottom: 10,
+    marginBottom: SPACING.sm,
   },
   addOnsLabel: {
-    fontSize: 13,
+    fontSize: FONT_SIZE.sm,
     fontWeight: "600",
-    color: Colors.text,
-    marginBottom: 6,
+    marginBottom: SPACING.xs,
   },
   addOnsImagesRow: {
     flexDirection: "row",
@@ -437,16 +432,15 @@ const styles = StyleSheet.create({
   },
   addOnItem: {
     alignItems: "center",
-    maxWidth: 44,
+    maxWidth: scale(44),
   },
   addOnImage: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: scale(36),
+    aspectRatio: 1,
+    borderRadius: RADIUS.sm,
   },
   addOnLabel: {
-    fontSize: 9,
-    color: "#9CA3AF",
+    fontSize: FONT_SIZE.xs,
     marginTop: 2,
     textAlign: "center",
   },
@@ -456,20 +450,20 @@ const styles = StyleSheet.create({
   },
   addItemsButtonWrapper: {
     alignSelf: "flex-end",
-    borderRadius: 10,
+    borderRadius: RADIUS.sm,
     overflow: "hidden",
   },
   addItemsButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
     gap: 6,
-    borderRadius: 10,
+    borderRadius: RADIUS.sm,
   },
   addItemsText: {
-    fontSize: 13,
+    fontSize: FONT_SIZE.sm,
     color: "#FFFFFF",
     fontWeight: "700",
   },

@@ -31,7 +31,10 @@ import { getColors } from "@/constants/colors";
 import { useTheme } from "@/contexts/ThemeContext";
 import MealCard from "@/components/MealCard";
 import MenuOffers from "@/components/MenuOffers";
-import { SafeAreaView } from "react-native-safe-area-context";
+import Screen from "@/src/ui/components/Screen";
+import { CARD_GAP } from "@/src/ui/grid";
+import { SCREEN_PADDING, SPACING } from "@/src/ui/layout";
+import { FONT_SIZE } from "@/src/ui/typography";
 
 
 export default function CategoryBrowserScreen() {
@@ -546,7 +549,7 @@ export default function CategoryBrowserScreen() {
   }, []);
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={[styles.container, { backgroundColor: colors.background }]}>
+    <Screen style={[styles.container, { paddingHorizontal: 0 }]}>
       <Stack.Screen
         options={{
           title: "Menu",
@@ -647,11 +650,11 @@ export default function CategoryBrowserScreen() {
 
       {isLoading ? (
         <View style={styles.loadingWrap} testID="categories-loading">
-          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={[styles.loadingText, { color: colors.mutedText }]}>Loading...</Text>
         </View>
       ) : isError ? (
         <View style={styles.loadingWrap} testID="categories-error">
-          <Text style={styles.errorText}>
+          <Text style={[styles.errorText, { color: colors.error }]}>
             {error instanceof Error
               ? error.message
               : "Failed to load. Please check your connection."}
@@ -661,20 +664,20 @@ export default function CategoryBrowserScreen() {
               categoriesQuery.refetch();
               mealsQuery.refetch();
             }}
-            style={styles.retryBtn}
+            style={[styles.retryBtn, { backgroundColor: colors.primary }]}
           >
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
       ) : !categories.length ? (
         <View style={styles.loadingWrap} testID="categories-empty">
-          <Text style={styles.errorText}>No categories found.</Text>
+          <Text style={[styles.errorText, { color: colors.error }]}>No categories found.</Text>
           <TouchableOpacity
             onPress={() => {
               categoriesQuery.refetch();
               mealsQuery.refetch();
             }}
-            style={styles.retryBtn}
+            style={[styles.retryBtn, { backgroundColor: colors.primary }]}
           >
             <Text style={styles.retryText}>Refresh</Text>
           </TouchableOpacity>
@@ -743,7 +746,7 @@ export default function CategoryBrowserScreen() {
               )}
               keyExtractor={(item) => item.id}
               numColumns={gridCols}
-              columnWrapperStyle={gridCols > 1 ? styles.gridRow : undefined}
+              columnWrapperStyle={gridCols > 1 ? styles.mealGridRow : undefined}
               scrollEnabled={false}
               initialNumToRender={6}
               maxToRenderPerBatch={6}
@@ -755,7 +758,7 @@ export default function CategoryBrowserScreen() {
                     <Text style={styles.empty}>
                       No meals found in this category
                     </Text>
-                    <Text style={styles.emptySubtext}>
+                    <Text style={[styles.emptySubtext, { color: colors.mutedText }]}>
                       Try selecting a different category or adjusting your
                       filters
                     </Text>
@@ -782,12 +785,12 @@ export default function CategoryBrowserScreen() {
         onClose={() => setOfferModalVisible(false)}
         onUseOffer={handleUseOffer}
       />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFFFFF" },
+  container: { flex: 1 },
   menuTextWrap: { alignItems: "center", marginTop: 12 },
   menuText: {
     backgroundColor: "#A3D397",
@@ -819,56 +822,58 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   clearText: { color: "#48479B", fontWeight: "600" },
-  mealGrid: { paddingHorizontal: 9, marginTop: 0 },
+  mealGrid: { paddingHorizontal: SCREEN_PADDING, marginTop: 0 },
+  mealGridRow: {
+    justifyContent: "flex-start",
+    columnGap: CARD_GAP,
+    marginBottom: CARD_GAP,
+  },
   gridRow: { justifyContent: "space-between" },
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 40,
-    paddingHorizontal: 20,
+    paddingVertical: SPACING.xl,
+    paddingHorizontal: SCREEN_PADDING,
   },
   empty: {
     color: "#666",
-    fontSize: 16,
+    fontSize: FONT_SIZE.lg,
     fontWeight: "600",
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   emptySubtext: {
-    color: "#999",
-    fontSize: 14,
+    fontSize: FONT_SIZE.md,
     textAlign: "center",
   },
   filtersBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 8,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingVertical: SPACING.sm,
   },
-  filtersLabel: { fontSize: 12, fontWeight: "700", marginTop: -18, marginRight: -6, paddingHorizontal: 7, borderRadius: 12 },
+  filtersLabel: { fontSize: FONT_SIZE.xs, fontWeight: "700", marginTop: -18, marginRight: -6, paddingHorizontal: 7, borderRadius: 12 },
   filterAction: { color: "#111", fontWeight: "600" },
   headerIconBtn: { padding: 8 },
   loadingWrap: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    padding: SCREEN_PADDING,
   },
-  loadingText: { color: "#666" },
-  errorText: { color: "#EF4444", textAlign: "center", marginBottom: 8 },
+  loadingText: {},
+  errorText: { textAlign: "center", marginBottom: SPACING.sm },
   retryBtn: {
-    backgroundColor: "#111",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
     borderRadius: 8,
   },
-  retryText: { color: "white", fontWeight: "600" },
+  retryText: { color: "white", fontWeight: "600", fontSize: FONT_SIZE.sm },
   offersRow: { paddingLeft: 20, paddingVertical: 8 },
   horizontalContent: {
-    paddingHorizontal: 11,
-    backgroundColor: "#fff",
-    paddingVertical: 3,
+    paddingHorizontal: SCREEN_PADDING - SPACING.xs,
+    paddingVertical: SPACING.xs,
   },
   activeCategoryNameWrap: {
     alignItems: "flex-start",
@@ -882,12 +887,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 18,
-    paddingTop: 9,
+    paddingTop: SPACING.sm,
     marginBottom: 20,
     gap: 12,
   },
   centeredSectionTitle: {
-    fontSize: 14,
+    fontSize: FONT_SIZE.sm,
     fontWeight: '600',
     letterSpacing: 1.5,
     paddingHorizontal: 3,

@@ -68,6 +68,11 @@ import SubscriptionNotificationCards from "@/components/SubscriptionNotification
 import CategoryCardMealTime from "@/components/CategoryCardMealTime";
 import CategoryCardCollection from "@/components/CategoryCardCollection";
 import MenuOffers from "@/components/MenuOffers";
+import Screen from "@/src/ui/components/Screen";
+import Container from "@/src/ui/components/Container";
+import { RADIUS, SCREEN_PADDING, SPACING } from "@/src/ui/layout";
+import { FONT_SIZE } from "@/src/ui/typography";
+import { scale } from "@/src/ui/responsive";
 
 const TOP_BG_HEIGHT = Math.round(Dimensions.get("window").height * 0.38);
 
@@ -453,46 +458,53 @@ function CustomerHomeScreen({
     () => testimonialsQuery.data ?? [],
     [testimonialsQuery.data]
   );
+  const showWeeklyMenu = !isGuest && user && mySubscriptions.length > 0;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Sticky Header - appears on top when scrolled */}
-      {/* {isScrolled && (
-        <View
-          style={[
-            styles.stickyHeader,
-            {
-              paddingTop: insets.top,
-              paddingBottom: 12,
-            },
-          ]}
-        >
-          <LocationService
-            polygons={polygons}
-            onLocationSet={handleLocationSet}
-            disableAutoDetection={isScrolling || hasLocationBeenDetected} // Disable if scrolling OR already detected
-          />
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.profileCircleSticky}
-              onPress={() => router.push("/wallet")}
-              testID="profile-button-sticky"
-            >
-              <View style={styles.walletPillSticky} testID="wallet-pill-sticky">
-                <View style={styles.walletIconSticky} />
-                <Text style={styles.walletTextSticky}>Rs 0</Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.profileCircleSticky}
-              onPress={() => router.push("/profile")}
-              testID="profile-button-sticky"
-            >
-              <User2 size={24} color="#48489B" />
-            </TouchableOpacity>
+    <Screen
+      edges={["left", "right"]}
+      style={[styles.container, { paddingHorizontal: 0 }]}
+    >
+     {/* Sticky Header - appears on top when scrolled */}
+       {isScrolled && (
+        <View style={[styles.stickyHeader]}>
+          <View
+            style={[
+              {
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                paddingTop: insets.top,
+                paddingBottom: 12,
+              },
+            ]}
+          >
+            <LocationService
+              polygons={polygons}
+              onLocationSet={handleLocationSet}
+              disableAutoDetection={isScrolling || hasLocationBeenDetected} // Disable if scrolling OR already detected
+            />
+            <View style={styles.headerActions}>
+              <ThemeToggle size={18} variant="pill" />
+              <TouchableOpacity
+                onPress={() => router.push("/wallet")}
+                testID="profile-button-sticky"
+              >
+                <View style={styles.walletPill} testID="wallet-pill">
+                  <Ionicons name="card-outline" size={27} color={colors.text} />
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.profileCircle}
+                onPress={() => router.push("/profile")}
+                testID="profile-button-sticky"
+              >
+                <User2 size={24} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      )} */}
+      )}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -563,7 +575,7 @@ function CustomerHomeScreen({
                 testID="profile-button-sticky"
               >
                 <View style={styles.walletPill} testID="wallet-pill">
-                  <Ionicons name="card-outline" size={27} color="#000000" />
+                  <Ionicons name="card-outline" size={27} color={colors.text} />
                   {/* <Text style={styles.walletText}>0</Text> */}
                 </View>
               </TouchableOpacity>
@@ -572,7 +584,7 @@ function CustomerHomeScreen({
                 onPress={() => router.push("/profile")}
                 testID="profile-button"
               >
-                <User2 size={24} color="#48479B" />
+                <User2 size={24} color={colors.primary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -625,7 +637,7 @@ function CustomerHomeScreen({
         </View>
 
         {/* Weekly Menu Section - Only show for logged-in users with active subscriptions */}
-        {!isGuest && user && mySubscriptions.length > 0 && (
+        {showWeeklyMenu && (
           <View style={styles.section}>
             <View style={styles.centeredSectionHeader}>
               <View
@@ -740,18 +752,18 @@ function CustomerHomeScreen({
         </View>
 
         {/* Benefits */}
-        <View style={styles.benefitsContainer}>
+        <View style={[styles.benefitsContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.benefitItem}>
-            <Clock size={20} color="#48479B" />
-            <Text style={styles.benefitText}>Daily Fresh Meals</Text>
+            <Clock size={20} color={colors.primary} />
+            <Text style={[styles.benefitText, { color: colors.textSecondary }]}>Daily Fresh Meals</Text>
           </View>
           <View style={styles.benefitItem}>
-            <Truck size={20} color="#48479B" />
-            <Text style={styles.benefitText}>Free Delivery</Text>
+            <Truck size={20} color={colors.primary} />
+            <Text style={[styles.benefitText, { color: colors.textSecondary }]}>Free Delivery</Text>
           </View>
           <View style={styles.benefitItem}>
-            <Shield size={20} color="#48479B" />
-            <Text style={styles.benefitText}>Cancel Anytime</Text>
+            <Shield size={20} color={colors.primary} />
+            <Text style={[styles.benefitText, { color: colors.textSecondary }]}>Cancel Anytime</Text>
           </View>
         </View>
 
@@ -1035,6 +1047,7 @@ function CustomerHomeScreen({
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
+       
 
       <FilterModal
         visible={showFilterModal}
@@ -1071,12 +1084,12 @@ function CustomerHomeScreen({
         onClose={handleCloseOfferModal}
         onUseOffer={handleUseOffer}
       />
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFFFFF" },
+  container: { flex: 1 },
   topBg: {
     width: "100%",
     paddingTop: 9,
@@ -1103,8 +1116,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 9,
     paddingRight: 18,
-    // paddingVertical: 9,
-    backgroundColor: "transparent",
+    backgroundColor: "transparent", // glass white
+   
   },
 
   stickyHeader: {
@@ -1113,19 +1126,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 1000,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 18,
-    backgroundColor: "rgba(255, 255, 255, 1)",
+    paddingHorizontal: SCREEN_PADDING,
+    backgroundColor: "rgba(255,255,255,0.5)", // glass white
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(72, 72, 144, 0.09)",
-    // Add subtle shadow for elevation
-    shadowColor: "#000",
+    borderBottomColor: "rgba(255,255,255,0.5)",
+    shadowColor: "transparent",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0,
     shadowRadius: 8,
-    elevation: 8,
+    elevation: 0,
   },
   location: { flexDirection: "row", alignItems: "center" },
   locationText: {
@@ -1155,28 +1164,6 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   walletText: { color: "#000000", fontWeight: "600", fontSize: 14 },
-  walletPillSticky: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#48489B",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
-    marginRight: 8,
-    shadowColor: "#48489B",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  walletIconSticky: {
-    width: 16,
-    height: 16,
-    backgroundColor: "#A3D397",
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  walletTextSticky: { color: "#FFFFFF", fontWeight: "700", fontSize: 13 },
   profileCircle: {
     width: 40,
     height: 40,
@@ -1188,19 +1175,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.3)",
   },
-  profileCircleSticky: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "rgba(163, 211, 151, 0.3)",
-  },
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 20 },
-  section: { marginBottom: 16, marginTop: 20 },
+  section: { marginBottom: SPACING.md, marginTop: SPACING.lg },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1228,25 +1205,25 @@ const styles = StyleSheet.create({
     opacity: 0.25,
   },
   seeAll: { fontSize: 14, color: "#A3D397", fontWeight: "700" },
-  horizontalScroll: { paddingLeft: 9 },
-  mealGrid: { paddingHorizontal: 16 },
+  horizontalScroll: { paddingLeft: SPACING.sm },
+  mealGrid: { paddingHorizontal: SCREEN_PADDING },
   gridRow: { justifyContent: "space-between" },
   row: { flexDirection: "row", alignItems: "center" },
   rowMB6: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
   textLeft: { textAlign: "left" as const },
   pad20v24: { paddingHorizontal: 18, paddingVertical: 24 },
-  pad20: { paddingHorizontal: 20 },
+  pad20: { paddingHorizontal: SCREEN_PADDING },
   textMuted: { color: "#E9EAF6" },
   whiteText: { color: "#FFFFFF" },
   errorText: { color: "#EF4444" },
   mt8: { marginTop: 8 },
-  bannersRow: { paddingRight: 20 },
+  bannersRow: { paddingRight: SCREEN_PADDING },
   bannersContainer: { position: "absolute", left: 0, right: 0, bottom: 6 },
   bannerCard: {
     width: 132,
     height: 108,
     marginRight: 18,
-    borderRadius: 18,
+    borderRadius: RADIUS.lg,
     overflow: "hidden",
     backgroundColor: "rgba(255,255,255,0.18)",
     borderWidth: 1,
@@ -1270,7 +1247,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 12,
   },
-  bottomSpacing: { height: 18 },
+  bottomSpacing: { height: SPACING.lg },
   subscriptionCard: {
     backgroundColor: "rgba(255,255,255,0.9)",
     borderRadius: 12,
@@ -1316,8 +1293,7 @@ const styles = StyleSheet.create({
     color: "#000000",
   },
   mealCardWrapper: {
-
-    width: 171,
+    width: scale(153),
   },
   mealCardGap: {
     marginRight: 9,
@@ -1328,7 +1304,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   seeAllCard: {
-    width: 171,
+    width: scale(171),
     minHeight: 252,
     borderRadius: 12,
     justifyContent: "center",
@@ -1352,20 +1328,19 @@ const styles = StyleSheet.create({
   benefitsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: 'white',
-    marginHorizontal: 20,
-    borderRadius: 12,
-    marginBottom: 24,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingVertical: SPACING.md,
+    marginHorizontal: SCREEN_PADDING,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.xl,
+    borderWidth: 1,
   },
   benefitItem: {
     alignItems: 'center',
   },
   benefitText: {
-    fontSize: 12,
-    color: '#333',
-    marginTop: 4,
+    fontSize: FONT_SIZE.xs,
+    marginTop: SPACING.xs,
     fontWeight: '600',
   },
 });

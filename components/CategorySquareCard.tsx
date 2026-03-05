@@ -9,6 +9,10 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Category } from "@/types";
+import { useTheme } from "@/contexts/ThemeContext";
+import { getColors } from "@/constants/colors";
+import { RADIUS, SPACING } from "@/src/ui/layout";
+import { FONT_SIZE } from "@/src/ui/typography";
 
 interface CategorySquareCardProps {
   category: Category;
@@ -26,6 +30,8 @@ function CategorySquareCard({
   size,
 }: CategorySquareCardProps) {
   const { width } = useWindowDimensions();
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
   const tileSize = useMemo(() => {
     if (typeof size === "number") return size;
 
@@ -38,7 +44,14 @@ function CategorySquareCard({
 
   return (
     <TouchableOpacity
-      style={[styles.container, { width: tileSize, height: 126 }]}
+      style={[
+        styles.container,
+        {
+          width: tileSize,
+          backgroundColor: colors.surfaceSecondary,
+          shadowColor: colors.shadow,
+        },
+      ]}
       onPress={onPress}
       testID={`cat-rect-${category.id}`}
       // activeOpacity={0.85}
@@ -70,35 +83,32 @@ export default memo(CategorySquareCard);
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 18,
+    borderRadius: RADIUS.lg,
     overflow: "hidden",
-    backgroundColor: "#f3f4f6",
-    marginBottom: 21,
+    marginBottom: SPACING.xl,
 
     // Shadow (iOS) + elevation (Android) like the screenshot tiles
-    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 3,
   },
   image: {
-    flex: 1,
+    width: "100%",
+    aspectRatio: 126 / 108,
     justifyContent: "flex-end",
     alignItems: "stretch",
-    height: 126,
-    width: '100%',
   },
   imageRadius: {
-    borderRadius: 18,
+    borderRadius: RADIUS.lg,
   },
   labelWrap: {
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
     alignItems: "flex-start",
   },
   name: {
-    fontSize: 13,
+    fontSize: FONT_SIZE.sm,
     fontWeight: "700",
     color: "#FFFFFF",
     textAlign: "center",

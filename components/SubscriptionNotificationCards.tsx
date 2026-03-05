@@ -28,6 +28,7 @@ const AUTO_RESUME_IDLE_MS = 6000;
 interface NotificationMealItem {
   id: string;
   subscriptionId: string;
+  orderDate: string;
   mealName: string;
   deliveryTime: string;
   status: "scheduled" | "cooking" | "ready" | "out_for_delivery" | "delivered";
@@ -48,11 +49,18 @@ const STATUS_CONFIG: Record<
   cooking: { label: "Cooking", accent: "#F59E0B", pillBg: "rgba(245, 158, 11, 0.12)", pillText: "#D97706" },
   ready: { label: "Ready", accent: "#8B5CF6", pillBg: "rgba(139, 92, 246, 0.12)", pillText: "#7C3AED" },
   out_for_delivery: { label: "On the way", accent: "#48479B", pillBg: "rgba(236, 72, 153, 0.12)", pillText: "#DB2777" },
-  delivered: { label: "Delivered", accent: "#10B981", pillBg: "rgba(16, 185, 129, 0.12)", pillText: "#059669" },
+  delivered: { label: "Delivered", accent: "#10B981", pillBg: "#10B981", pillText: "#fff" },
 };
 
 const CARD_HEIGHT = 57;
 const IMAGE_WIDTH =99;
+
+const toLocalDateKey = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
 
 export default function SubscriptionNotificationCards({
   userId,
@@ -81,7 +89,7 @@ export default function SubscriptionNotificationCards({
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const todayString = today.toISOString().split("T")[0];
+        const todayString = toLocalDateKey(today);
         const currentHour = new Date().getHours();
         const list: NotificationMealItem[] = [];
 
@@ -120,6 +128,7 @@ export default function SubscriptionNotificationCards({
           list.push({
             id: `notif-${subscription.id}-${todayString}`,
             subscriptionId: subscription.id,
+            orderDate: todayString,
             mealName: meal.name,
             deliveryTime:
               subscription.deliveryTimeSlot ||
@@ -146,7 +155,14 @@ export default function SubscriptionNotificationCards({
   const autoSlideTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const handlePress = (item: NotificationMealItem) => {
-    router.push("/(tabs)/orders");
+    router.push({
+      pathname: "/(tabs)/orders",
+      params: {
+        action: "viewSubscriptionDay",
+        subscriptionId: item.subscriptionId,
+        date: item.orderDate,
+      },
+    });
   };
 
   const slides = useMemo<SlideItem[]>(() => {
@@ -250,11 +266,11 @@ export default function SubscriptionNotificationCards({
                   />
                 </View>
                 <View style={styles.bannerTextWrap}>
-                  <Text style={styles.title} numberOfLines={1}>
+                  <Text style={styles.bannerTitle} numberOfLines={1}>
                     {banner.title}
                   </Text>
                   {banner.subtitle ? (
-                    <Text style={styles.subtitle} numberOfLines={1}>
+                    <Text style={styles.bannerSubtitle} numberOfLines={1}>
                       {banner.subtitle}
                     </Text>
                   ) : null}
@@ -287,7 +303,7 @@ export default function SubscriptionNotificationCards({
                   {item.mealName}
                 </Text>
                 <View style={[styles.pill, { backgroundColor: config.pillBg }]}>
-                  <View style={[styles.pillDot, { backgroundColor: config.accent }]} />
+                  {/* <View style={[styles.pillDot, { backgroundColor: config.accent }]} /> */}
                   <Text style={[styles.pillText, { color: config.pillText }]} numberOfLines={1}>
                     {config.label}
                   </Text>
@@ -416,8 +432,8 @@ const styles = StyleSheet.create({
   },
   bannerImageWrap: {
     width: IMAGE_WIDTH,
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
     overflow: "hidden",
     backgroundColor: "#F1F5F9",
   },
@@ -429,9 +445,25 @@ const styles = StyleSheet.create({
   bannerTextWrap: {
     flex: 1,
     justifyContent: "center",
+    paddingVertical: 10,
     paddingLeft: 14,
     paddingRight: 16,
     minWidth: 0,
+  },
+  bannerTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#0F172A",
+    letterSpacing: 0.2,
+    lineHeight: 20,
+    marginBottom: 3,
+  },
+  bannerSubtitle: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#64748B",
+    letterSpacing: 0.15,
+    lineHeight: 16,
   },
   cardMain: {
     flexDirection: "row",
@@ -473,13 +505,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#64748B",
     letterSpacing: 0.15,
-  },
-  subtitle: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#64748B",
-    letterSpacing: 0.15,
-    lineHeight: 16,
   },
   dots: {
     flexDirection: "row",
