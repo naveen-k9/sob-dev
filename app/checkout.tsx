@@ -293,6 +293,16 @@ export default function CheckoutScreen() {
         Alert.alert("Expired", "This promo code is not currently valid.");
         return;
       }
+      const selectedPlanId = subscriptionDetails?.plan?.id;
+      if (match.planIds && match.planIds.length > 0) {
+        if (!selectedPlanId || !match.planIds.includes(selectedPlanId)) {
+          Alert.alert(
+            "Offer not applicable",
+            "This offer is valid only for specific subscription plans. Please select an eligible plan."
+          );
+          return;
+        }
+      }
       setAppliedOffer(match);
       setPromoApplied(true);
       showToast("Promo applied successfully.");
@@ -540,59 +550,13 @@ export default function CheckoutScreen() {
       setPaymentStatus("processing");
       setTimeout(async () => {
         setPaymentStatus("success");
-        console.log("Deducting wallet --- IGNORE ---");
-        if (user?.id && orderSummary.walletAppliedAmount > 0) {
-          try {
-            await db.addWalletTransaction({
-              userId: user.id,
-              type: "debit",
-              amount: orderSummary.walletAppliedAmount,
-              description: "Subscription payment (wallet applied)",
-              referenceId: `sub-${Date.now()}`,
-            });
-            await updateUser({
-              walletBalance: Math.max(
-                0,
-                walletBalance - orderSummary.walletAppliedAmount
-              ),
-            });
-          } catch (e) {
-            console.log("Wallet debit failed", e);
-          }
-        }
-
-        console.log("PaymentStatus after wallet --- IGNORE ---");
-        // Save subscription to database
+        // Save subscription to database (wallet debit happens once after we have subscription id)
         const startDateVal = new Date(updatedDetails.startDate);
         const endDate = computeEndDate(
           startDateVal,
           updatedDetails.plan.duration,
           updatedDetails.weekType
         );
-
-        // Deduct wallet amount if applied (for zero-payment flow)
-        if (user?.id && orderSummary.walletAppliedAmount > 0) {
-          try {
-            await db.addWalletTransaction({
-              userId: user.id,
-              type: "debit",
-              amount: orderSummary.walletAppliedAmount,
-              description: `Subscription payment - ${
-                updatedDetails.meal?.name || "Meal"
-              } (${updatedDetails.plan?.name || ""})`,
-              referenceId: `sub-wallet-${Date.now()}`,
-            });
-            // Refresh user data to reflect new balance
-            const refreshedUser = await db.getUserById(user.id);
-            if (refreshedUser) {
-              await updateUser({ walletBalance: refreshedUser.walletBalance });
-            }
-          } catch (e) {
-            console.error("Wallet debit failed:", e);
-            setPaymentStatus("failed");
-            return;
-          }
-        }
 
         const renewSubscriptionId = updatedDetails.renewSubscriptionId as string | undefined;
         const subscription = {
@@ -679,14 +643,13 @@ export default function CheckoutScreen() {
 
           // Subscription WhatsApp/push sent by Firestore trigger when subscription doc is written
 
-          // Update wallet transaction with subscription ID if available
+          // Single wallet debit with subscription reference (zero-payment flow)
           if (
             createdSubscriptionId &&
             user?.id &&
             orderSummary.walletAppliedAmount > 0
           ) {
             try {
-              // Add a more detailed wallet transaction with subscription reference
               await db.addWalletTransaction({
                 userId: user.id,
                 type: "debit",
@@ -697,9 +660,13 @@ export default function CheckoutScreen() {
                 referenceId: createdSubscriptionId,
                 orderId: createdSubscriptionId,
               });
+              const refreshedUser = await db.getUserById(user.id);
+              if (refreshedUser) {
+                await updateUser({ walletBalance: refreshedUser.walletBalance });
+              }
             } catch (e) {
               console.log(
-                "Failed to update wallet transaction with subscription ID",
+                "Failed to debit wallet for subscription",
                 e
               );
             }

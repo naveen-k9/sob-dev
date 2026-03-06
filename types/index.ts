@@ -292,6 +292,8 @@ export interface Offer {
   code?: string;
   validUntil?: string;
   benefitType?: "meal" | "amount";
+  /** Plan IDs this offer applies to; empty/undefined = all plans */
+  planIds?: string[];
 }
 
 export interface WalletTransaction {

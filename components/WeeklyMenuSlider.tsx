@@ -8,7 +8,7 @@ import {
   Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Clock } from "lucide-react-native";
+import { Clock, Lock } from "lucide-react-native";
 import { Subscription, Meal, AddOn, AppSettings } from "@/types";
 import db from "@/db";
 import { router } from "expo-router";
@@ -377,27 +377,44 @@ export default function WeeklyMenuSlider({
                       </View>
                     )}
 
-                    {meal.canAddItems && meal.cutoffTime ? (
-                      <TouchableOpacity
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          handleAddItems(meal.subscriptionId);
-                        }}
-                        style={styles.addItemsButtonWrapper}
-                        activeOpacity={0.85}
-                      >
-                        <LinearGradient
-                          colors={[Colors.accent, Colors.primary]}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 0 }}
-                          style={styles.addItemsButton}
+                    {meal.cutoffTime ? (
+                      <View style={styles.addItemsContainer}>
+                        <TouchableOpacity
+                          disabled={!meal.canAddItems}
+                          activeOpacity={meal.canAddItems ? 0.85 : 1}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            if (meal.canAddItems) {
+                              handleAddItems(meal.subscriptionId);
+                            }
+                          }}
                         >
-                          <Clock size={16} color="#FFF" strokeWidth={2.5} />
-                          <Text style={styles.addItemsText}>
-                            {meal.cutoffTime} + Add Items
-                          </Text>
-                        </LinearGradient>
-                      </TouchableOpacity>
+                          <LinearGradient
+                            colors={
+                              meal.canAddItems
+                                ? [Colors.accent, Colors.primary]
+                                : ["#D1D5DB", "#9CA3AF"]
+                            }
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.addItemsButton}
+                          >
+                            {meal.canAddItems ? (
+                              <Clock size={16} color="#FFF" strokeWidth={2.5} />
+                            ) : (
+                              <Lock size={16} color="#FFF" strokeWidth={2.5} />
+                            )}
+
+                            <Text style={styles.addItemsText}>
+                              {meal.canAddItems ? "Add Items" : "Cutoff Passed"}
+                            </Text>
+                          </LinearGradient>
+                        </TouchableOpacity>
+
+                        <Text style={styles.cutoffText}>
+                          Add items until {meal.cutoffTime}
+                        </Text>
+                      </View>
                     ) : null}
                   </View>
                 </View>
@@ -413,6 +430,33 @@ export default function WeeklyMenuSlider({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 0,
+  },
+  addItemsContainer: {
+    flexDirection: "column",
+    alignItems: "center",   // ensures text is centered under button
+  },
+
+  addItemsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+
+  addItemsText: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  cutoffText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#6B7280",
+    textAlign: "center",
   },
   loadingContainer: {
     padding: 20,
@@ -563,18 +607,18 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: "hidden",
   },
-  addItemsButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    gap: 6,
-    borderRadius: 10,
-  },
-  addItemsText: {
-    fontSize: 13,
-    color: "#FFFFFF",
-    fontWeight: "700",
-  },
+  // addItemsButton: {
+  //   flexDirection: "row",
+  //   alignItems: "center",
+  //   justifyContent: "center",
+  //   paddingVertical: 10,
+  //   paddingHorizontal: 14,
+  //   gap: 6,
+  //   borderRadius: 10,
+  // },
+  // addItemsText: {
+  //   fontSize: 13,
+  //   color: "#FFFFFF",
+  //   fontWeight: "700",
+  // },
 });

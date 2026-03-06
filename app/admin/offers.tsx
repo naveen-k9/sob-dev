@@ -16,11 +16,14 @@ import { router, useFocusEffect } from "expo-router";
 import { ArrowLeft, Plus, Edit, ToggleLeft, ToggleRight, X } from "lucide-react-native";
 import db from "@/db";
 import { Offer } from "@/types";
+import { subscriptionPlans } from "@/constants/data";
 
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=200&h=120&fit=crop";
 
-function formatDate(d: Date | string): string {
+function formatDate(d: Date | string | null | undefined): string {
+  if (d == null) return "–";
   const date = typeof d === "string" ? new Date(d) : d;
+  if (Number.isNaN(date.getTime())) return "–";
   return date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
@@ -47,6 +50,7 @@ export default function AdminOffersScreen() {
     offerType: "discount" as "discount" | "cashback" | "deal",
     benefitType: "amount" as "meal" | "amount" | undefined,
     discount: "",
+    applicablePlanIds: [] as string[],
   });
 
   const loadOffers = useCallback(async () => {
@@ -87,6 +91,7 @@ export default function AdminOffersScreen() {
       offerType: "discount",
       benefitType: "amount",
       discount: "",
+      applicablePlanIds: [],
     });
     setEditingOffer(null);
   };
@@ -115,6 +120,7 @@ export default function AdminOffersScreen() {
       offerType: offer.offerType ?? "discount",
       benefitType: offer.benefitType ?? "amount",
       discount: offer.discount ?? "",
+      applicablePlanIds: offer.planIds ?? [],
     });
     setModalVisible(true);
   };
@@ -152,6 +158,7 @@ export default function AdminOffersScreen() {
           offerType: form.offerType,
           benefitType: form.benefitType,
           discount: form.discount.trim() || undefined,
+          planIds: form.applicablePlanIds.length ? form.applicablePlanIds : undefined,
         });
         Alert.alert("Success", "Offer updated");
       } else {
@@ -174,6 +181,7 @@ export default function AdminOffersScreen() {
           offerType: form.offerType,
           benefitType: form.benefitType,
           discount: form.discount.trim() || undefined,
+          planIds: form.applicablePlanIds.length ? form.applicablePlanIds : undefined,
         });
         Alert.alert("Success", "Offer created");
       }
@@ -222,6 +230,9 @@ export default function AdminOffersScreen() {
         </View>
         <Text style={styles.cardCode}>Code: {code}</Text>
         <Text style={styles.cardDiscount}>{discountLabel}</Text>
+        <Text style={styles.cardPlans}>
+          Plans: {!(item.planIds?.length) ? "All" : item.planIds.map((id) => { const p = subscriptionPlans.find((x) => x.id === id); return p ? `${p.duration} Day` : id; }).join(", ")}
+        </Text>
         <Text style={styles.cardMeta}>
           Valid: {formatDate(item.validFrom)} – {formatDate(item.validTo)} · Used: {item.usedCount ?? 0}
           {(item.usageLimit ?? 0) > 0 ? ` / ${item.usageLimit}` : ""}
@@ -352,6 +363,36 @@ export default function AdminOffersScreen() {
                 placeholderTextColor="#9ca3af"
                 keyboardType="numeric"
               />
+              <Text style={styles.label}>Applicable plans</Text>
+              <View style={styles.planChipsRow}>
+                <TouchableOpacity
+                  onPress={() => setForm((f) => ({ ...f, applicablePlanIds: [] }))}
+                  style={[styles.chip, form.applicablePlanIds.length === 0 && styles.chipActive]}
+                >
+                  <Text style={[styles.chipText, form.applicablePlanIds.length === 0 && styles.chipTextActive]}>All plans</Text>
+                </TouchableOpacity>
+                {subscriptionPlans.map((plan) => {
+                  const selected = form.applicablePlanIds.includes(plan.id);
+                  return (
+                    <TouchableOpacity
+                      key={plan.id}
+                      onPress={() => {
+                        setForm((f) => {
+                          if (f.applicablePlanIds.length === 0) return { ...f, applicablePlanIds: [plan.id] };
+                          if (selected) {
+                            const next = f.applicablePlanIds.filter((id) => id !== plan.id);
+                            return { ...f, applicablePlanIds: next };
+                          }
+                          return { ...f, applicablePlanIds: [...f.applicablePlanIds, plan.id] };
+                        });
+                      }}
+                      style={[styles.chip, selected && styles.chipActive]}
+                    >
+                      <Text style={[styles.chipText, selected && styles.chipTextActive]}>{plan.duration} Day</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
               <View style={styles.row}>
                 <Text style={styles.label}>Active</Text>
                 <TouchableOpacity
@@ -415,7 +456,9 @@ const styles = StyleSheet.create({
   editBtn: { padding: 4 },
   cardCode: { fontSize: 13, color: "#6366f1", marginTop: 4, fontWeight: "500" },
   cardDiscount: { fontSize: 14, color: "#374151", marginTop: 2 },
+  cardPlans: { fontSize: 12, color: "#6b7280", marginTop: 4 },
   cardMeta: { fontSize: 12, color: "#9ca3af", marginTop: 6 },
+  planChipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
   primaryBtn: { backgroundColor: "#6366f1", paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10, alignItems: "center" },
   primaryBtnText: { color: "#fff", fontWeight: "600", fontSize: 16 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },

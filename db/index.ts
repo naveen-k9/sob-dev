@@ -1319,9 +1319,22 @@ class Database {
       } while (this.isExcludedDay(subscription, newEndDate));
     }
 
+    // Log skip in deliveryDayLogs for orders/audit
+    const existingLogs = subscription.deliveryDayLogs?.[dateString] ?? [];
+    const skipLogEntry: DeliveryDayLogEntry = {
+      type: "delivery",
+      status: "skipped",
+      at: new Date().toISOString(),
+    };
+    const deliveryDayLogs = {
+      ...(subscription.deliveryDayLogs || {}),
+      [dateString]: [...existingLogs, skipLogEntry],
+    };
+
     const updatePayload: Partial<Subscription> = {
       skippedDates,
       additionalAddOns,
+      deliveryDayLogs,
     };
     if (newEndDate.getTime() !== new Date(subscription.endDate).getTime()) {
       updatePayload.endDate = newEndDate;
