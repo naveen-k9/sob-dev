@@ -725,7 +725,7 @@ export default function CategoryBrowserScreen() {
 
             <View style={styles.centeredSectionHeader}>
               <View style={[styles.headerLine, { backgroundColor: colors.mutedText }]} />
-              <Text style={[styles.centeredSectionTitle, { color: colors.mutedText }]}>{activeCategoryName} PRODUCTS</Text>
+              <Text style={[styles.centeredSectionTitle, { color: colors.mutedText }]}>{activeCategoryName}</Text>
               <View style={[styles.headerLine, { backgroundColor: colors.mutedText }]} />
 
             </View>
@@ -892,8 +892,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   centeredSectionTitle: {
-    fontSize: FONT_SIZE.sm,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '500',
     letterSpacing: 1.5,
     paddingHorizontal: 3,
     textTransform: 'uppercase'

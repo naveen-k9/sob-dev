@@ -39,7 +39,7 @@ export default function CategoryCard({ category, onPress, isActive = false }: Ca
     <TouchableOpacity 
       style={[
         styles.container,
-        isActive && { borderBottomWidth: 5, borderBottomColor: colors.accent, paddingBottom: 6, borderRadius: 4 },
+        isActive && { borderBottomWidth: 4, borderBottomColor: colors.primary, paddingBottom: 6, borderRadius: 4 },
       ]} 
       onPress={onPress} 
       testID={`cat-${category.id}`}
@@ -59,8 +59,8 @@ export default function CategoryCard({ category, onPress, isActive = false }: Ca
       <Text 
         style={[
           styles.name, 
-          { color: colors.text },
-          isActive && { color: colors.primary, fontWeight: '700' }
+          { color: colors.mutedText },
+          isActive && { color: colors.text, fontWeight: '500' }
         ]} 
         numberOfLines={1}
       >

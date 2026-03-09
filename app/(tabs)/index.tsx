@@ -1194,8 +1194,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   centeredSectionTitle: {
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: 13,
+    fontWeight: "500",
     letterSpacing: 1.8,
     paddingHorizontal: 3,
   },
