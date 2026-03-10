@@ -59,6 +59,14 @@ const TEMPLATES = {
   ADDON_PURCHASED: "addon_purchased",
 };
 
+// Language code per template (must match language in Meta Business Manager)
+// "English" = en, "English (US)" = en_US
+const TEMPLATE_LANGUAGE: Record<string, string> = {
+  [TEMPLATES.SUBSCRIPTION_ACTIVATED]: "en",
+  [TEMPLATES.ADDON_PURCHASED]: "en",
+};
+const DEFAULT_TEMPLATE_LANGUAGE = "en_US";
+
 /**
  * Helper: Get WhatsApp client
  */
@@ -136,7 +144,9 @@ async function sendWhatsAppMessage(
         type: "template",
         template: {
           name: templateName,
-          language: { code: "en_US" },
+          language: {
+            code: TEMPLATE_LANGUAGE[templateName] ?? DEFAULT_TEMPLATE_LANGUAGE,
+          },
           components,
         },
       }
@@ -175,6 +185,18 @@ async function sendWhatsAppMessage(
       error: errMsg,
     };
   }
+}
+
+function toWhatsAppText(value: unknown, fallback = ""): string {
+  if (value == null) return fallback;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (value instanceof Date) return value.toISOString().split("T")[0];
+  const maybeTimestamp = value as { toDate?: () => Date };
+  if (typeof maybeTimestamp?.toDate === "function") {
+    return maybeTimestamp.toDate().toISOString().split("T")[0];
+  }
+  return String(value);
 }
 
 /**
@@ -424,13 +446,17 @@ export const verifyWhatsAppOTP = onCall({ invoker: "public" }, async (request) =
 
 /**
  * Cloud Function: Send add-on purchase notification via WhatsApp
+ * Template: Hi {{1}}, Your add-on {{2}} has been added to your {{3}} meal for {{4}}. Delivery Time: {{5}} Order ID: {{6}} Amount Paid: {{7}}
  */
 export const sendAddonPurchaseNotification = onCall(async (request) => {
   const {
     phone,
     customerName,
     addonNames,
+    meal,
     date,
+    deliveryTime,
+    orderId,
     totalAmount,
   } = request.data;
 
@@ -443,13 +469,16 @@ export const sendAddonPurchaseNotification = onCall(async (request) => {
 
   const addonList = addonNames.join(", ");
   const amountText = totalAmount?.toString().startsWith("₹")
-    ? totalAmount
-    : `₹${totalAmount || "0"}`;
+    ? String(totalAmount)
+    : `₹${totalAmount ?? "0"}`;
 
   const parameters = [
-    { type: "text", text: customerName },
+    { type: "text", text: toWhatsAppText(customerName) },
     { type: "text", text: addonList },
-    { type: "text", text: date || "" },
+    { type: "text", text: toWhatsAppText(meal, "meal") },
+    { type: "text", text: toWhatsAppText(date, "") },
+    { type: "text", text: toWhatsAppText(deliveryTime, "—") },
+    { type: "text", text: toWhatsAppText(orderId, "—") },
     { type: "text", text: amountText },
   ];
 
@@ -647,6 +676,64 @@ export const onOrderStatusChange = onDocumentUpdated(
 );
 
 /**
+ * Firestore Trigger: New subscription created (e.g. after payment success).
+ * Sends subscription_activated WhatsApp + push when status is "active".
+ */
+export const onSubscriptionCreated = onDocumentCreated(
+  "subscriptions/{subscriptionId}",
+  async (event) => {
+    const data = event.data?.data();
+    if (!data) return;
+
+    const status = data.status;
+    if (status !== "active") return;
+
+    const subscriptionId = event.params.subscriptionId;
+    const userId = data.userId;
+    const planName = data.planName || "Your subscription";
+
+    try {
+      const userDoc = await db.collection("users").doc(userId).get();
+      if (!userDoc.exists) return;
+
+      const user = userDoc.data();
+      const userName = user!.name || "Customer";
+      const phone = user!.phone;
+      const pushToken = user!.pushToken;
+
+      const title = "🎊 Subscription Activated!";
+      const body = `Your ${planName} subscription is now active.`;
+      const templateName = TEMPLATES.SUBSCRIPTION_ACTIVATED;
+      const parameters = [
+        { type: "text", text: userName },
+        { type: "text", text: planName },
+        { type: "text", text: toWhatsAppText(data.startDate, "Today") },
+        { type: "text", text: toWhatsAppText(data.deliveryTime || data.deliveryTimeSlot, "—") },
+      ];
+
+      if (pushToken) {
+        await sendPushNotification(pushToken, title, body, {
+          type: "subscription_update",
+          subscriptionId,
+          status,
+          screen: "subscription",
+        });
+      }
+
+      if (phone) {
+        await sendWhatsAppMessage(phone, templateName, parameters);
+      }
+
+      console.log(
+        `Sent subscription_activated for new subscription ${subscriptionId}`
+      );
+    } catch (error) {
+      console.error("Subscription created notification error:", error);
+    }
+  }
+);
+
+/**
  * Firestore Trigger: Subscription status change
  */
 export const onSubscriptionStatusChange = onDocumentUpdated(
@@ -689,7 +776,7 @@ export const onSubscriptionStatusChange = onDocumentUpdated(
             { type: "text", text: userName },
             { type: "text", text: planName },
             { type: "text", text: after.startDate || "Today" },
-            { type: "text", text: after.endDate || "N/A" },
+            { type: "text", text: after.deliveryTime || after.deliveryTimeSlot || "—" },
           ];
           break;
         case "renewed":
