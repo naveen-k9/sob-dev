@@ -46,9 +46,9 @@ export default function ThemeToggle({ size = 20, variant = 'pill', style }: Them
     >
       <View style={styles.iconContainer}>
         {isDark ? (
-          <Sun size={size} color="#FBBF24" />
+          <Sun size={size} color="white" />
         ) : (
-          <Moon size={size} color="#48479B" />
+          <Moon size={size} color="white" />
         )}
       </View>
     </TouchableOpacity>
@@ -66,11 +66,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   pillButtonLight: {
-    backgroundColor: 'transparent',
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderColor: '',
   },
   pillButtonDark: {
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   circleButton: {

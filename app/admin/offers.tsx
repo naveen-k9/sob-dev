@@ -10,6 +10,8 @@ import {
   TextInput,
   ActivityIndicator,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
@@ -51,6 +53,8 @@ export default function AdminOffersScreen() {
     benefitType: "amount" as "meal" | "amount" | undefined,
     discount: "",
     applicablePlanIds: [] as string[],
+    isNewUsersOnly: false,
+    isOnePerUser: false,
   });
 
   const loadOffers = useCallback(async () => {
@@ -92,6 +96,8 @@ export default function AdminOffersScreen() {
       benefitType: "amount",
       discount: "",
       applicablePlanIds: [],
+      isNewUsersOnly: false,
+      isOnePerUser: false,
     });
     setEditingOffer(null);
   };
@@ -121,6 +127,8 @@ export default function AdminOffersScreen() {
       benefitType: offer.benefitType ?? "amount",
       discount: offer.discount ?? "",
       applicablePlanIds: offer.planIds ?? [],
+      isNewUsersOnly: offer.isNewUsersOnly ?? false,
+      isOnePerUser: offer.isOnePerUser ?? false,
     });
     setModalVisible(true);
   };
@@ -159,6 +167,8 @@ export default function AdminOffersScreen() {
           benefitType: form.benefitType,
           discount: form.discount.trim() || undefined,
           planIds: form.applicablePlanIds.length ? form.applicablePlanIds : undefined,
+          isNewUsersOnly: form.isNewUsersOnly,
+          isOnePerUser: form.isOnePerUser,
         });
         Alert.alert("Success", "Offer updated");
       } else {
@@ -182,6 +192,8 @@ export default function AdminOffersScreen() {
           benefitType: form.benefitType,
           discount: form.discount.trim() || undefined,
           planIds: form.applicablePlanIds.length ? form.applicablePlanIds : undefined,
+          isNewUsersOnly: form.isNewUsersOnly,
+          isOnePerUser: form.isOnePerUser,
         });
         Alert.alert("Success", "Offer created");
       }
@@ -210,7 +222,7 @@ export default function AdminOffersScreen() {
 
   const renderItem = ({ item }: { item: Offer }) => {
     const code = item.promoCode ?? item.code ?? item.id;
-    const discountLabel = item.discount ?? (item.discountType === "fixed" ? `₹${item.discountValue}` : item.discountType === "percentage" ? `${item.discountValue}%` : "");
+    const discountLabel = item.discount ?? (item.discountType === "fixed" ? `₹${item.discountValue}` : item.discountType === "percentage" ? `${item.discountValue}%` : item.discountType === "cashback" ? `₹${item.discountValue} cashback` : "");
     return (
       <View style={styles.card}>
         <View style={styles.cardRow}>
@@ -233,6 +245,10 @@ export default function AdminOffersScreen() {
         <Text style={styles.cardPlans}>
           Plans: {!(item.planIds?.length) ? "All" : item.planIds.map((id) => { const p = subscriptionPlans.find((x) => x.id === id); return p ? `${p.duration} Day` : id; }).join(", ")}
         </Text>
+        <View style={styles.cardTagRow}>
+          {item.isNewUsersOnly && <Text style={styles.cardTag}>New users only</Text>}
+          {item.isOnePerUser && <Text style={styles.cardTag}>1× per user</Text>}
+        </View>
         <Text style={styles.cardMeta}>
           Valid: {formatDate(item.validFrom)} – {formatDate(item.validTo)} · Used: {item.usedCount ?? 0}
           {(item.usageLimit ?? 0) > 0 ? ` / ${item.usageLimit}` : ""}
@@ -273,8 +289,11 @@ export default function AdminOffersScreen() {
         />
       )}
 
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+      <Modal visible={modalVisible} animationType="slide" transparent statusBarTranslucent>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingOffer ? "Edit offer" : "New offer"}</Text>
@@ -282,7 +301,7 @@ export default function AdminOffersScreen() {
                 <X size={24} color="#6b7280" />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.formScroll} showsVerticalScrollIndicator={false}>
+            <ScrollView style={styles.formScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={styles.label}>Title *</Text>
               <TextInput
                 style={styles.input}
@@ -312,7 +331,11 @@ export default function AdminOffersScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-              <Text style={styles.label}>Discount value</Text>
+              <Text style={styles.label}>
+                {form.discountType === "cashback"
+                  ? "Cashback amount (credited to wallet after order)"
+                  : "Discount value"}
+              </Text>
               <TextInput
                 style={styles.input}
                 value={form.discountValue}
@@ -393,6 +416,31 @@ export default function AdminOffersScreen() {
                   );
                 })}
               </View>
+              <Text style={styles.label}>Eligibility</Text>
+              <View style={styles.toggleRow}>
+                <View style={styles.toggleItem}>
+                  <Text style={styles.toggleLabel}>New users only</Text>
+                  <Text style={styles.toggleSub}>Only redeemable by users with no prior subscriptions</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setForm((f) => ({ ...f, isNewUsersOnly: !f.isNewUsersOnly }))}
+                  style={[styles.badge, form.isNewUsersOnly ? styles.badgeActive : styles.badgeInactive]}
+                >
+                  <Text style={styles.badgeText}>{form.isNewUsersOnly ? "Yes" : "No"}</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={[styles.toggleRow, { marginBottom: 16 }]}>
+                <View style={styles.toggleItem}>
+                  <Text style={styles.toggleLabel}>One per user</Text>
+                  <Text style={styles.toggleSub}>Each user can redeem this offer only once</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setForm((f) => ({ ...f, isOnePerUser: !f.isOnePerUser }))}
+                  style={[styles.badge, form.isOnePerUser ? styles.badgeActive : styles.badgeInactive]}
+                >
+                  <Text style={styles.badgeText}>{form.isOnePerUser ? "Yes" : "No"}</Text>
+                </TouchableOpacity>
+              </View>
               <View style={styles.row}>
                 <Text style={styles.label}>Active</Text>
                 <TouchableOpacity
@@ -411,7 +459,7 @@ export default function AdminOffersScreen() {
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Save</Text>}
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -462,10 +510,10 @@ const styles = StyleSheet.create({
   primaryBtn: { backgroundColor: "#6366f1", paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10, alignItems: "center" },
   primaryBtnText: { color: "#fff", fontWeight: "600", fontSize: 16 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "90%", paddingBottom: 24 },
+  modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "92%", paddingBottom: 24 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 20, borderBottomWidth: 1, borderBottomColor: "#e5e7eb" },
   modalTitle: { fontSize: 18, fontWeight: "700", color: "#1f2937" },
-  formScroll: { padding: 20, maxHeight: 400 },
+  formScroll: { padding: 20, flexGrow: 1 },
   label: { fontSize: 14, fontWeight: "500", color: "#374151", marginBottom: 6 },
   input: { backgroundColor: "#f9fafb", borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, marginBottom: 16, color: "#1f2937" },
   row: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 },
@@ -474,4 +522,10 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 14, color: "#6b7280" },
   chipTextActive: { color: "#fff", fontWeight: "600" },
   saveBtn: { marginHorizontal: 20, marginTop: 8 },
+  cardTagRow: { flexDirection: "row", gap: 6, marginTop: 4, flexWrap: "wrap" },
+  cardTag: { fontSize: 11, color: "#6366f1", backgroundColor: "#eef2ff", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, fontWeight: "600" },
+  toggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  toggleItem: { flex: 1, marginRight: 12 },
+  toggleLabel: { fontSize: 14, fontWeight: "500", color: "#374151" },
+  toggleSub: { fontSize: 12, color: "#9ca3af", marginTop: 2 },
 });

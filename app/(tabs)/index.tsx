@@ -153,6 +153,13 @@ export default function HomeScreen() {
     loadSubscriptions();
   }, [loadSubscriptions]);
 
+  // Refetch subscriptions when tab gains focus (e.g. after adding addon in Orders tab)
+  useFocusEffect(
+    useCallback(() => {
+      loadSubscriptions();
+    }, [loadSubscriptions])
+  );
+
   useEffect(() => {
     if (isAdmin()) {
       router.replace("/admin/dashboard");
@@ -491,7 +498,7 @@ function CustomerHomeScreen({
                 testID="profile-button-sticky"
               >
                 <View style={styles.walletPill} testID="wallet-pill">
-                  <Ionicons name="card-outline" size={27} color={colors.text} />
+                  <Ionicons name="card-outline" size={27} color={"white"} />
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
@@ -499,7 +506,7 @@ function CustomerHomeScreen({
                 onPress={() => router.push("/profile")}
                 testID="profile-button-sticky"
               >
-                <User2 size={24} color={colors.primary} />
+                <User2 size={24} color={"white"} />
               </TouchableOpacity>
             </View>
           </View>
@@ -575,7 +582,7 @@ function CustomerHomeScreen({
                 testID="profile-button-sticky"
               >
                 <View style={styles.walletPill} testID="wallet-pill">
-                  <Ionicons name="card-outline" size={27} color={colors.text} />
+                  <Ionicons name="card-outline" size={27} color={"white"} />
                   {/* <Text style={styles.walletText}>0</Text> */}
                 </View>
               </TouchableOpacity>
@@ -584,7 +591,7 @@ function CustomerHomeScreen({
                 onPress={() => router.push("/profile")}
                 testID="profile-button"
               >
-                <User2 size={24} color={colors.primary} />
+                <User2 size={24} color={"white"} />
               </TouchableOpacity>
             </View>
           </View>
@@ -1148,7 +1155,7 @@ const styles = StyleSheet.create({
   walletPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     paddingHorizontal: 7,
     paddingVertical: 4,
     borderRadius: 20,
@@ -1171,7 +1178,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 0,
-    backgroundColor: "#ffffff",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.3)",
   },

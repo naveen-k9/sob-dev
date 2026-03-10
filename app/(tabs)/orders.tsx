@@ -126,7 +126,18 @@ export default function OrdersScreen() {
     sub.status === "renewed" ||
     sub.status === "expiring";
   const activeSubscriptions = useMemo(
-    () => userSubscriptions.filter(isPlanActiveStatus),
+    () =>
+      userSubscriptions.filter((sub) => {
+        if (!isPlanActiveStatus(sub)) return false;
+        const daysRemaining = Math.max(
+          0,
+          Math.ceil(
+            (new Date(sub.endDate).getTime() - Date.now()) /
+              (1000 * 60 * 60 * 24)
+          )
+        );
+        return daysRemaining > 0;
+      }),
     [userSubscriptions]
   );
   const displayedSubscriptions = useMemo(

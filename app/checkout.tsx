@@ -185,22 +185,27 @@ export default function CheckoutScreen() {
       discountedPrice + addOnTotal - trialDiscount + deliveryFee;
     let promoDiscount: number = 0;
     if (appliedOffer && promoApplied) {
-      const benefitType = appliedOffer.benefitType ?? "amount";
-      if (benefitType === "meal") {
-        const days = duration > 0 ? duration : 1;
-        const perMeal = days > 0 ? Math.round(discountedPrice / days) : 0;
-        promoDiscount = Math.max(0, perMeal);
+      // Cashback: no discount off the order; amount is credited to wallet after successful subscription
+      if (appliedOffer.discountType === "cashback") {
+        promoDiscount = 0;
       } else {
-        if (appliedOffer.discountType === "fixed") {
-          promoDiscount = Math.min(appliedOffer.discountValue, baseSubtotal);
-        } else if (appliedOffer.discountType === "percentage") {
-          const pct = Math.max(0, Math.min(100, appliedOffer.discountValue));
-          const raw = (baseSubtotal * pct) / 100;
-          const capped =
-            typeof appliedOffer.maxDiscount === "number"
-              ? Math.min(raw, appliedOffer.maxDiscount)
-              : raw;
-          promoDiscount = Math.min(capped, baseSubtotal);
+        const benefitType = appliedOffer.benefitType ?? "amount";
+        if (benefitType === "meal") {
+          const days = duration > 0 ? duration : 1;
+          const perMeal = days > 0 ? Math.round(discountedPrice / days) : 0;
+          promoDiscount = Math.max(0, perMeal);
+        } else {
+          if (appliedOffer.discountType === "fixed") {
+            promoDiscount = Math.min(appliedOffer.discountValue, baseSubtotal);
+          } else if (appliedOffer.discountType === "percentage") {
+            const pct = Math.max(0, Math.min(100, appliedOffer.discountValue));
+            const raw = (baseSubtotal * pct) / 100;
+            const capped =
+              typeof appliedOffer.maxDiscount === "number"
+                ? Math.min(raw, appliedOffer.maxDiscount)
+                : raw;
+            promoDiscount = Math.min(capped, baseSubtotal);
+          }
         }
       }
     }
@@ -295,10 +300,48 @@ export default function CheckoutScreen() {
       }
       const selectedPlanId = subscriptionDetails?.plan?.id;
       if (match.planIds && match.planIds.length > 0) {
+        console.log("selectedPlanId", selectedPlanId);
+        console.log("match.planIds", match.planIds);
         if (!selectedPlanId || !match.planIds.includes(selectedPlanId)) {
           Alert.alert(
             "Offer not applicable",
             "This offer is valid only for specific subscription plans. Please select an eligible plan."
+          );
+          return;
+        }
+      }
+      if (match.isNewUsersOnly) {
+        const userId = user?.id;
+        if (!userId) {
+          Alert.alert("New users only", "Please log in to redeem this offer.");
+          return;
+        }
+        const allSubs = await db.getSubscriptions();
+        const hasPrior = allSubs.some((s: any) => s.userId === userId);
+        if (hasPrior) {
+          Alert.alert(
+            "New users only",
+            "This offer is exclusively for first-time subscribers."
+          );
+          return;
+        }
+      }
+      if (match.isOnePerUser) {
+        const userId = user?.id;
+        if (!userId) {
+          Alert.alert("Sign in required", "Please log in to redeem this offer.");
+          return;
+        }
+        const userOrders = await db.getUserOrders(userId);
+        const alreadyUsed = userOrders.some(
+          (o: any) =>
+            (o.promoCode ?? "").toUpperCase() ===
+            (match.promoCode ?? match.code ?? "").toUpperCase()
+        );
+        if (alreadyUsed) {
+          Alert.alert(
+            "Already redeemed",
+            "You have already used this offer. It can only be redeemed once per account."
           );
           return;
         }
@@ -641,6 +684,31 @@ export default function CheckoutScreen() {
             );
           }
 
+          // Cashback: credit offer value to wallet after successful subscription
+          if (
+            appliedOffer?.discountType === "cashback" &&
+            user?.id &&
+            createdSubscriptionId &&
+            (appliedOffer.discountValue ?? 0) > 0
+          ) {
+            try {
+              await db.addWalletTransaction({
+                userId: user.id,
+                type: "credit",
+                amount: appliedOffer.discountValue,
+                description: `Cashback: ${appliedOffer.title ?? appliedOffer.promoCode ?? appliedOffer.code ?? "Promo"}`,
+                referenceId: createdSubscriptionId,
+                orderId: createdSubscriptionId,
+              });
+              const refreshedUser = await db.getUserById(user.id);
+              if (refreshedUser) {
+                await updateUser({ walletBalance: refreshedUser.walletBalance });
+              }
+            } catch (e) {
+              console.log("Cashback wallet credit failed", e);
+            }
+          }
+
           // Subscription WhatsApp/push sent by Firestore trigger when subscription doc is written
 
           // Single wallet debit with subscription reference (zero-payment flow)
@@ -831,6 +899,32 @@ export default function CheckoutScreen() {
               console.log("incrementOfferUsedCount failed", e)
             );
           }
+
+          // Cashback: credit offer value to wallet after successful subscription
+          if (
+            appliedOffer?.discountType === "cashback" &&
+            user?.id &&
+            createdSubscriptionId &&
+            (appliedOffer.discountValue ?? 0) > 0
+          ) {
+            try {
+              await db.addWalletTransaction({
+                userId: user.id,
+                type: "credit",
+                amount: appliedOffer.discountValue,
+                description: `Cashback: ${appliedOffer.title ?? appliedOffer.promoCode ?? appliedOffer.code ?? "Promo"}`,
+                referenceId: createdSubscriptionId,
+                orderId: createdSubscriptionId,
+              });
+              const refreshedUser = await db.getUserById(user.id);
+              if (refreshedUser) {
+                await updateUser({ walletBalance: refreshedUser.walletBalance });
+              }
+            } catch (e) {
+              console.log("Cashback wallet credit failed", e);
+            }
+          }
+
           // Subscription WhatsApp/push sent by Firestore trigger
         } catch (error) {
           console.error("Error creating subscription:", error);
@@ -955,6 +1049,7 @@ export default function CheckoutScreen() {
         walletPaidAmount: orderSummary.walletAppliedAmount ?? 0,
       };
 
+      let retryCreatedSubscriptionId: string | undefined;
       try {
         if (renewSubscriptionIdRetry) {
           const extendUpdates = {
@@ -981,15 +1076,42 @@ export default function CheckoutScreen() {
             walletPaidAmount: orderSummary.walletAppliedAmount ?? 0,
           };
           await db.updateSubscription(renewSubscriptionIdRetry, extendUpdates);
+          retryCreatedSubscriptionId = renewSubscriptionIdRetry;
           console.log("Subscription extended successfully on retry:", renewSubscriptionIdRetry);
         } else {
-          await db.createSubscription(subscription);
+          const created = await db.createSubscription(subscription);
+          retryCreatedSubscriptionId = created.id;
           console.log("Subscription created successfully on retry");
         }
         if (appliedOffer?.id) {
           db.incrementOfferUsedCount(appliedOffer.id).catch((e) =>
             console.log("incrementOfferUsedCount failed", e)
           );
+        }
+
+        // Cashback: credit offer value to wallet after successful subscription
+        if (
+          appliedOffer?.discountType === "cashback" &&
+          user?.id &&
+          retryCreatedSubscriptionId &&
+          (appliedOffer.discountValue ?? 0) > 0
+        ) {
+          try {
+            await db.addWalletTransaction({
+              userId: user.id,
+              type: "credit",
+              amount: appliedOffer.discountValue,
+              description: `Cashback: ${appliedOffer.title ?? appliedOffer.promoCode ?? appliedOffer.code ?? "Promo"}`,
+              referenceId: retryCreatedSubscriptionId,
+              orderId: retryCreatedSubscriptionId,
+            });
+            const refreshedUser = await db.getUserById(user.id);
+            if (refreshedUser) {
+              await updateUser({ walletBalance: refreshedUser.walletBalance });
+            }
+          } catch (e) {
+            console.log("Cashback wallet credit failed (retry)", e);
+          }
         }
         // Subscription WhatsApp/push sent by Firestore trigger
       } catch (error) {
@@ -1206,7 +1328,21 @@ export default function CheckoutScreen() {
                       </View>
                     </>
                   )}
-                  {promoApplied && (
+                  {promoApplied && appliedOffer?.discountType === "cashback" && (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>
+                        Cashback after order (
+                        {appliedOffer?.promoCode ??
+                          appliedOffer?.code ??
+                          promoCode}
+                        )
+                      </Text>
+                      <Text style={styles.cashbackValue}>
+                        +₹{appliedOffer?.discountValue ?? 0} to wallet
+                      </Text>
+                    </View>
+                  )}
+                  {promoApplied && appliedOffer?.discountType !== "cashback" && (
                     <View style={styles.summaryRow}>
                       <Text style={styles.summaryLabel}>
                         Promo Discount (
@@ -1729,7 +1865,17 @@ export default function CheckoutScreen() {
                       Wallet used: ₹{orderSummary.walletAppliedAmount}
                     </Text>
                   )}
-                  {promoApplied && (
+                  {promoApplied && appliedOffer?.discountType === "cashback" && (
+                    <Text
+                      style={[
+                        styles.modalSubtitle,
+                        { color: "#10B981", marginTop: 4 },
+                      ]}
+                    >
+                      Cashback: ₹{appliedOffer?.discountValue ?? 0} credited to wallet
+                    </Text>
+                  )}
+                  {promoApplied && appliedOffer?.discountType !== "cashback" && (
                     <Text
                       style={[
                         styles.modalSubtitle,
@@ -1929,6 +2075,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   discountValue: {
+    fontSize: 14,
+    color: "#10B981",
+    fontWeight: "600",
+  },
+  cashbackValue: {
     fontSize: 14,
     color: "#10B981",
     fontWeight: "600",

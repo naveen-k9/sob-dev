@@ -294,6 +294,10 @@ export interface Offer {
   benefitType?: "meal" | "amount";
   /** Plan IDs this offer applies to; empty/undefined = all plans */
   planIds?: string[];
+  /** If true, only users with no prior subscriptions can redeem this offer */
+  isNewUsersOnly?: boolean;
+  /** If true, each user can redeem this offer at most once */
+  isOnePerUser?: boolean;
 }
 
 export interface WalletTransaction {

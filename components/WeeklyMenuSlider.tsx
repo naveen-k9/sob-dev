@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  LayoutChangeEvent,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Clock, Lock } from "lucide-react-native";
@@ -47,6 +48,11 @@ const getResponsiveWeeklyImageHeight = () => {
 const WEEKLY_IMAGE_HEIGHT = getResponsiveWeeklyImageHeight();
 const WEEKLY_CARD_MIN_HEIGHT = WEEKLY_IMAGE_HEIGHT;
 
+/** Day chip minWidth 44 + gap 12 */
+const DAY_CHIP_STEP = 56;
+const DAY_CHIP_WIDTH = 44;
+const WEEK_HEADER_PADDING = 18;
+
 function getDayKey(date: Date): "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun" {
   return DAY_KEYS[date.getDay()] as "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 }
@@ -58,25 +64,23 @@ interface WeekDayItem {
   isToday: boolean;
 }
 
-function getWeekDays(anchor: Date): WeekDayItem[] {
-  const mon = new Date(anchor);
-  const d = anchor.getDay();
-  const diff = d === 0 ? -6 : 1 - d;
-  mon.setDate(mon.getDate() + diff);
-  mon.setHours(0, 0, 0, 0);
+/** Number of days to show starting from today */
+const DAYS_FROM_TODAY = 14;
 
+/** First day is always today; rest are calendar days (tomorrow, day after, ...). */
+function getDaysFromToday(): WeekDayItem[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const days: WeekDayItem[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(mon);
-    d.setDate(mon.getDate() + i);
+  for (let i = 0; i < DAYS_FROM_TODAY; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
     days.push({
       date: d,
       dateNum: d.getDate(),
-      label: d.getTime() === today.getTime() ? "Today" : DAY_LABELS[d.getDay()],
-      isToday: d.getTime() === today.getTime(),
+      label: i === 0 ? "Today" : DAY_LABELS[d.getDay()],
+      isToday: i === 0,
     });
   }
   return days;
@@ -125,8 +129,32 @@ export default function WeeklyMenuSlider({
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const { isDark } = useTheme();
   const colors = getColors(isDark);
+  const weekHeaderScrollRef = useRef<ScrollView>(null);
+  const [scrollViewWidth, setScrollViewWidth] = useState(0);
 
-  const weekDays = getWeekDays(selectedDate);
+  const weekDays = getDaysFromToday();
+
+  // Center "Today" in the week strip when layout is ready
+  useEffect(() => {
+    if (scrollViewWidth <= 0 || weekDays.length === 0) return;
+    const todayIndex = weekDays.findIndex((d) => d.isToday);
+    if (todayIndex < 0) return;
+    const contentWidth =
+      WEEK_HEADER_PADDING * 2 + weekDays.length * DAY_CHIP_STEP - 12;
+    const scrollX =
+      WEEK_HEADER_PADDING +
+      todayIndex * DAY_CHIP_STEP +
+      DAY_CHIP_WIDTH / 2 -
+      scrollViewWidth / 2;
+    const clamped = Math.max(
+      0,
+      Math.min(scrollX, contentWidth - scrollViewWidth)
+    );
+    weekHeaderScrollRef.current?.scrollTo({
+      x: clamped,
+      animated: false,
+    });
+  }, [scrollViewWidth, weekDays]);
 
   useEffect(() => {
     loadData();
@@ -238,10 +266,14 @@ export default function WeeklyMenuSlider({
   return (
     <View style={styles.container}>
       <ScrollView
+        ref={weekHeaderScrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.weekHeaderScroll}
         contentContainerStyle={styles.weekHeaderContent}
+        onLayout={(e: LayoutChangeEvent) =>
+          setScrollViewWidth(e.nativeEvent.layout.width)
+        }
       >
         {weekDays.map((day) => {
           const isSelected =
@@ -488,7 +520,10 @@ const styles = StyleSheet.create({
   dateCircle: {
     width: 36,
     height: 36,
+    minWidth: 36,
+    minHeight: 36,
     borderRadius: 18,
+    overflow: "hidden",
     backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",

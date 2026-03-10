@@ -168,7 +168,7 @@ export const categories: Category[] = [
 
 export const subscriptionPlans: SubscriptionPlan[] = [
   {
-    id: "1",
+    id: "dynamic-2",
     name: "Meal Lite",
     duration: 2,
     originalPrice: 598,
@@ -179,7 +179,7 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     features: ["2 Days Trial", "1 Meal/Day", "Free Delivery", "Cancel Anytime"],
   },
   {
-    id: "2",
+    id: "dynamic-6",
     name: "Basic Meal Plan",
     duration: 6,
     originalPrice: 1794,
@@ -191,7 +191,7 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     popular: true,
   },
   {
-    id: "3",
+    id: "dynamic-15",
     name: "Premium Meal Plan",
     duration: 15,
     originalPrice: 4485,
@@ -208,7 +208,7 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     ],
   },
   {
-    id: "4",
+    id: "dynamic-26",
     name: "Elite Meal Plan",
     duration: 26,
     originalPrice: 7774,

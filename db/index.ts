@@ -933,7 +933,7 @@ class Database {
       await this.setItem("subscriptions", subscriptions);
     }
 
-    if (subscriptionData.planId === "4") {
+    if (subscriptionData.planId === "dynamic-26" || subscriptionData.planId === "4") {
       await this.creditReferralReward(newSubscription.id);
     }
 
@@ -964,9 +964,9 @@ class Database {
     await this.setItem("orders", orders);
 
     // Update streak when order is delivered
-    if (newOrder.status === "delivered") {
-      await this.updateUserStreak(newOrder.userId);
-    }
+    // if (newOrder.status === "delivered") {
+    //   await this.updateUserStreak(newOrder.userId);
+    // }
 
     return newOrder;
   }
@@ -1041,9 +1041,9 @@ class Database {
     }
 
     // Update streak when order status changes to delivered
-    if (previousStatus !== "delivered" && updates.status === "delivered") {
-      await this.updateUserStreak(orders[index].userId);
-    }
+    // if (previousStatus !== "delivered" && updates.status === "delivered") {
+    //   await this.updateUserStreak(orders[index].userId);
+    // }
 
     return orders[index];
   }
@@ -1403,18 +1403,9 @@ class Database {
       addOnIds
     );
     if (!success) return false;
-    const allAddOns: AddOn[] = await this.getAddOns();
-    const amount = addOnIds.reduce((sum, id) => {
-      const found = allAddOns.find((a) => a.id === id);
-      return sum + (found?.price || 0);
-    }, 0);
-    await this.addWalletTransaction({
-      userId,
-      type: "debit",
-      amount,
-      description: `Add-ons for ${dateString}`,
-      referenceId: `addons-${subscriptionId}-${dateString}`,
-    });
+    // Payment (wallet or Razorpay) is handled by the caller in orders.tsx.
+    // Do not debit wallet here: wallet is debited in handleWalletPayment;
+    // Razorpay payments are external, so debiting wallet here caused "wallet error" after success.
     return true;
   }
 
@@ -2533,7 +2524,7 @@ class Database {
 
   async creditReferralReward(subscriptionId: string): Promise<void> {
     const subscription = await this.getSubscriptionById(subscriptionId);
-    if (!subscription || subscription.planId !== "4") return;
+    if (!subscription || (subscription.planId !== "dynamic-26" && subscription.planId !== "4")) return;
 
     const user = await this.getUserById(subscription.userId);
     if (!user || !user.referredBy) return;

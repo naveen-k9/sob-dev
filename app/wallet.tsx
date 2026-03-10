@@ -8,9 +8,9 @@ import {
   RefreshControl,
   TextInput,
   Modal,
-  Alert,
   ActivityIndicator,
   Platform,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, router } from "expo-router";
@@ -48,6 +48,8 @@ export default function WalletScreen() {
   const [filterType, setFilterType] = useState<TransactionFilter>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<WalletTransaction | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     loadTransactions();
@@ -56,13 +58,14 @@ export default function WalletScreen() {
   const loadTransactions = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       if (user?.id) {
         const txns = await db.getWalletTransactions(user.id);
         setTransactions(txns || []);
       }
     } catch (error) {
       console.error("Error loading transactions:", error);
-      Alert.alert("Error", "Failed to load wallet transactions");
+      setLoadError("Failed to load wallet transactions");
     } finally {
       setLoading(false);
     }
@@ -213,24 +216,8 @@ export default function WalletScreen() {
       <TouchableOpacity
         key={transaction.id}
         style={styles.transactionCard}
-        onPress={() => {
-          Alert.alert(
-            "Transaction Details",
-            `ID: ${transaction.id}\n` +
-              `Type: ${transaction.type.toUpperCase()}\n` +
-              `Amount: ₹${transaction.amount.toFixed(2)}\n` +
-              `Description: ${transaction.description}\n` +
-              `Date: ${formatDate(transaction.createdAt)}\n` +
-              `${
-                transaction.referenceId
-                  ? `Reference: ${transaction.referenceId}`
-                  : ""
-              }` +
-              `${
-                transaction.orderId ? `\nOrder ID: ${transaction.orderId}` : ""
-              }`
-          );
-        }}
+        onPress={() => setSelectedTransaction(transaction)}
+        activeOpacity={0.7}
       >
         <View style={styles.transactionIconContainer}>
           {getTransactionIcon(transaction.type, transaction.description)}
@@ -314,6 +301,19 @@ export default function WalletScreen() {
             </Text>
           </View>
         </LinearGradient>
+
+        {loadError ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>{loadError}</Text>
+            <TouchableOpacity
+              style={styles.errorBannerRetry}
+              onPress={() => loadTransactions()}
+            >
+              <RefreshCw size={18} color="#fff" />
+              <Text style={styles.errorBannerRetryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         {/* Statistics Cards */}
         <View style={styles.statsContainer}>
@@ -598,6 +598,113 @@ export default function WalletScreen() {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Transaction detail drawer (Zomato-style) */}
+      <Modal
+        visible={!!selectedTransaction}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedTransaction(null)}
+      >
+        <Pressable
+          style={styles.drawerBackdrop}
+          onPress={() => setSelectedTransaction(null)}
+        >
+          <Pressable style={styles.drawerSheet} onPress={(e) => e.stopPropagation()}>
+            {selectedTransaction && (
+              <>
+                <View style={styles.drawerHandle} />
+                <View style={styles.drawerHeader}>
+                  <View style={styles.drawerHeaderRow}>
+                    {getTransactionIcon(selectedTransaction.type, selectedTransaction.description)}
+                    <View style={styles.drawerHeaderText}>
+                      <Text style={styles.drawerTitle} numberOfLines={2}>
+                        {selectedTransaction.description}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.drawerAmount,
+                          {
+                            color:
+                              selectedTransaction.type === "credit"
+                                ? Colors.success
+                                : Colors.error,
+                          },
+                        ]}
+                      >
+                        {selectedTransaction.type === "credit" ? "+" : "-"}₹
+                        {selectedTransaction.amount.toFixed(2)}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.drawerTypeBadge}>
+                    <Text
+                      style={[
+                        styles.drawerTypeBadgeText,
+                        {
+                          color:
+                            selectedTransaction.type === "credit"
+                              ? Colors.success
+                              : Colors.error,
+                          backgroundColor:
+                            selectedTransaction.type === "credit"
+                              ? "rgba(22, 163, 74, 0.12)"
+                              : "rgba(220, 38, 38, 0.12)",
+                        },
+                      ]}
+                    >
+                      {selectedTransaction.type === "credit" ? "Credited" : "Debited"}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.drawerDivider} />
+
+                <View style={styles.drawerDetails}>
+                  <View style={styles.drawerDetailRow}>
+                    <Text style={styles.drawerDetailLabel}>Date & time</Text>
+                    <Text style={styles.drawerDetailValue}>
+                      {formatDate(selectedTransaction.createdAt)}
+                    </Text>
+                  </View>
+                  <View style={styles.drawerDetailRow}>
+                    <Text style={styles.drawerDetailLabel}>Transaction ID</Text>
+                    <Text style={styles.drawerDetailValue} selectable>
+                      {selectedTransaction.id}
+                    </Text>
+                  </View>
+                  {selectedTransaction.referenceId ? (
+                    <View style={styles.drawerDetailRow}>
+                      <Text style={styles.drawerDetailLabel}>Reference</Text>
+                      <Text style={styles.drawerDetailValue} selectable numberOfLines={1}>
+                        {selectedTransaction.referenceId}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {selectedTransaction.orderId ? (
+                    <View style={styles.drawerDetailRow}>
+                      <Text style={styles.drawerDetailLabel}>Order / Subscription</Text>
+                      <Text style={styles.drawerDetailValue} selectable numberOfLines={1}>
+                        {selectedTransaction.orderId}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                <View style={styles.drawerActions}>
+                  <TouchableOpacity
+                    style={styles.drawerDoneButton}
+                    onPress={() => setSelectedTransaction(null)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.drawerDoneButtonText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );
@@ -931,6 +1038,140 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   applyButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  // Error banner
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(220, 38, 38, 0.1)",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(220, 38, 38, 0.25)",
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.error,
+    marginRight: 12,
+  },
+  errorBannerRetry: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.error,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  errorBannerRetryText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  // Transaction detail drawer (Zomato-style)
+  drawerBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  drawerSheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: Platform.OS === "ios" ? 34 : 24,
+    paddingHorizontal: 20,
+    minHeight: 280,
+  },
+  drawerHandle: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#D1D5DB",
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  drawerHeader: {
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+  },
+  drawerHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  drawerHeaderText: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  drawerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111",
+    marginBottom: 6,
+    lineHeight: 24,
+  },
+  drawerAmount: {
+    fontSize: 28,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  drawerTypeBadge: {
+    marginTop: 12,
+    alignSelf: "flex-start",
+  },
+  drawerTypeBadgeText: {
+    fontSize: 13,
+    fontWeight: "700",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  drawerDivider: {
+    height: 1,
+    backgroundColor: "#E5E7EB",
+    marginVertical: 4,
+  },
+  drawerDetails: {
+    paddingVertical: 16,
+    gap: 14,
+  },
+  drawerDetailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+  drawerDetailLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#6B7280",
+    flexShrink: 0,
+  },
+  drawerDetailValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111",
+    flex: 1,
+    textAlign: "right",
+  },
+  drawerActions: {
+    paddingTop: 8,
+  },
+  drawerDoneButton: {
+    backgroundColor: "#111",
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  drawerDoneButtonText: {
     fontSize: 16,
     fontWeight: "700",
     color: "#fff",

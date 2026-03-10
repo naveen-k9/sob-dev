@@ -186,10 +186,10 @@ export default function ReferScreen() {
                 <Text style={styles.streakNumber}>{user.currentStreak}</Text>
                 <Text style={styles.streakLabel}>Current Streak</Text>
               </View>
-              <View style={styles.streakBest}>
+              {/* <View style={styles.streakBest}>
                 <Trophy size={20} color="#F59E0B" />
                 <Text style={styles.streakBestText}>Best: {user.longestStreak}</Text>
-              </View>
+              </View> */}
             </View>
             
             {nextMilestone && (

@@ -22,16 +22,17 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        sceneStyle: { backgroundColor: colors.background },
+        sceneStyle: { backgroundColor: "transparent" },
         tabBarStyle: {
           height: TAB_BAR_HEIGHT + insets.bottom,
           paddingTop: 10,
           paddingBottom: insets.bottom,
           paddingHorizontal: 8,
           backgroundColor: colors.surface,
-          borderTopWidth: 0,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
+          borderWidth: .5,
+          borderColor: "rgba(0, 0, 0, 0.1)",
+          borderTopLeftRadius: 27,
+          borderTopRightRadius: 27,
           elevation: 8,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },

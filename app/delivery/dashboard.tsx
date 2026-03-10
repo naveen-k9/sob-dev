@@ -116,8 +116,9 @@ export default function DeliveryDashboard() {
         .filter(
           (s: Subscription) =>
             (s.status === "active" ||
-              s.status === "renewed" ||
-              s.status === "expiring") &&
+              s.status === "completed" ||
+              s.status === "paused" ||
+              s.status === "cancelled") &&
             isActivePlanDate(today, s)
         )
         .map((s: Subscription) => {
@@ -226,6 +227,7 @@ export default function DeliveryDashboard() {
         onPress: async () => {
           const todayStr = new Date().toISOString().split("T")[0];
           try {
+            // console.log("[delivery] updateSubscriptionDeliveryStatus", { orderId, todayStr, nextStatus, userId: user?.id });
             await db.updateSubscriptionDeliveryStatus(
               orderId,
               todayStr,
