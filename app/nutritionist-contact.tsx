@@ -7,6 +7,8 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -125,7 +127,17 @@ export default function NutritionistContactScreen() {
         }}
       />
       
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollView}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollContent}
+      >
         {/* <View style={styles.header}>
           <View style={styles.headerIcon}>
             <Heart size={32} color="#48479B" />
@@ -378,6 +390,7 @@ export default function NutritionistContactScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -390,8 +403,15 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
   },
+  keyboardAvoid: {
+    flex: 1,
+  },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 24,
   },
   header: {
     backgroundColor: 'white',

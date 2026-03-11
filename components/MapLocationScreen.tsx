@@ -15,6 +15,8 @@ import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker, Region } from "react-native-maps";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
+import { useLocation } from "@/contexts/LocationContext";
+import ServiceAreaRequestModal from "@/components/ServiceAreaRequestModal";
 
 interface MapLocationScreenProps {
   onBack?: () => void;
@@ -30,6 +32,8 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
   onLocationConfirm,
 }) => {
   const params = useLocalSearchParams();
+  const { checkLocationServiceability } = useLocation();
+  const [showNonServiceableModal, setShowNonServiceableModal] = useState(false);
   const hasParamsCoords = !!(params.latitude && params.longitude);
 
   const initialLat = hasParamsCoords ? parseFloat(params.latitude as string) : null;
@@ -213,8 +217,13 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
     Keyboard.dismiss();
   };
 
-  const handleConfirmLocation = () => {
+  const handleConfirmLocation = async () => {
     if (!selectedLocation) return;
+    const isServiceable = await checkLocationServiceability(selectedLocation);
+    if (!isServiceable) {
+      setShowNonServiceableModal(true);
+      return;
+    }
     if (onLocationConfirm) {
       onLocationConfirm({ ...selectedLocation, address: currentAddress });
     }
@@ -284,6 +293,7 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
   };
 
   return (
+    <>
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -458,6 +468,19 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
       </>
       )}
     </SafeAreaView>
+
+    <ServiceAreaRequestModal
+      visible={showNonServiceableModal}
+      onClose={() => setShowNonServiceableModal(false)}
+      onNotifyMe={() => {
+        setShowNonServiceableModal(false);
+        router.push("/service-area-request");
+      }}
+      onChooseServiceableArea={() => setShowNonServiceableModal(false)}
+      showContinueBrowsing={false}
+      description="This area is not yet serviceable. Move the pin to a serviceable location or get notified when we expand here."
+    />
+    </>
   );
 };
 

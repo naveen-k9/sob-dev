@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Modal,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
@@ -11,14 +10,14 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { useAsyncStorage } from "@/hooks/useStorage";
-import { Address, Polygon } from "@/types";
+import { Address } from "@/types";
 import { useActiveAddress } from "@/contexts/ActiveAddressContext";
 import { useLocation } from "@/contexts/LocationContext";
 import { router } from "expo-router";
 import { Colors } from "@/constants/colors";
+import ServiceAreaRequestModal from "@/components/ServiceAreaRequestModal";
 
 interface LocationServiceProps {
-  polygons?: Polygon[]; // Now optional, we use LocationContext instead
   onLocationSet?: (location: {
     latitude: number;
     longitude: number;
@@ -33,11 +32,9 @@ interface CurrentLocationState {
   longitude: number;
   address: string;
   isServiceable: boolean;
-  serviceablePolygons: Array<{ id: string; name: string; color: string }>;
 }
 
 const LocationService: React.FC<LocationServiceProps> = ({
-  polygons,
   onLocationSet,
   disableAutoDetection = false,
 }) => {
@@ -129,7 +126,6 @@ const LocationService: React.FC<LocationServiceProps> = ({
         ...coords,
         address: addressText,
         isServiceable,
-        serviceablePolygons: [], // No longer using local polygon list
       };
 
       setCurrentLocation(currentLocationState);
@@ -225,6 +221,11 @@ const LocationService: React.FC<LocationServiceProps> = ({
     });
   };
 
+  const handleNotifyMe = () => {
+    setShowNonServiceableModal(false);
+    router.push("/service-area-request");
+  };
+
   const renderLocationDisplay = () => {
     const displayAddress = getDisplayAddress();
 
@@ -298,75 +299,13 @@ const LocationService: React.FC<LocationServiceProps> = ({
     <>
       {renderLocationDisplay()}
 
-      {/* Non-serviceable location modal */}
-      <Modal
+      <ServiceAreaRequestModal
         visible={showNonServiceableModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowNonServiceableModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Ionicons name="location-outline" size={48} color="#FF3B30" />
-              <Text style={styles.modalTitle}>Area Not Serviceable</Text>
-            </View>
-
-            <Text style={styles.modalDescription}>
-              Your current location is outside our delivery area. You can move
-              the pin to a nearby serviceable location to continue.
-            </Text>
-
-            {currentLocation?.serviceablePolygons.length === 0 &&
-              (polygons?.length ?? 0) > 0 && (
-                <View style={styles.serviceableAreasContainer}>
-                  <Text style={styles.serviceableAreasTitle}>
-                    Available Service Areas:
-                  </Text>
-                  {(polygons ?? []).slice(0, 3).map((polygon) => (
-                    <Text key={polygon.id} style={styles.serviceableAreaName}>
-                      • {polygon.name}
-                    </Text>
-                  ))}
-                  {(polygons ?? []).length > 3 && (
-                    <Text style={styles.serviceableAreaName}>
-                      • And {(polygons ?? []).length - 3} more areas
-                    </Text>
-                  )}
-                </View>
-              )}
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.notifyButton]}
-                onPress={() => {
-                  setShowNonServiceableModal(false);
-                  router.push("/service-area-request");
-                }}
-              >
-                <Ionicons name="notifications-outline" size={18} color="#48479B" />
-                <Text style={styles.notifyButtonText}>Notify Me</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.primaryButton]}
-                onPress={handleMoveToServiceableArea}
-              >
-                <Text style={styles.primaryButtonText}>
-                  Choose Serviceable Area
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={styles.continueLink}
-              onPress={() => setShowNonServiceableModal(false)}
-            >
-              <Text style={styles.continueLinkText}>Continue browsing anyway</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowNonServiceableModal(false)}
+        onNotifyMe={handleNotifyMe}
+        onChooseServiceableArea={handleMoveToServiceableArea}
+        showContinueBrowsing={true}
+      />
     </>
   );
 };
@@ -416,102 +355,6 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: "#FF3B30",
     marginLeft: 4,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    maxHeight: "80%",
-  },
-  modalHeader: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#1C1C1E",
-    marginTop: 12,
-  },
-  modalDescription: {
-    fontSize: 16,
-    color: "#8E8E93",
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  serviceableAreasContainer: {
-    backgroundColor: "#F2F2F7",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-  },
-  serviceableAreasTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1C1C1E",
-    marginBottom: 8,
-  },
-  serviceableAreaName: {
-    fontSize: 14,
-    color: "#8E8E93",
-    marginBottom: 4,
-  },
-  modalActions: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  primaryButton: {
-    backgroundColor: "#007AFF",
-  },
-  secondaryButton: {
-    backgroundColor: "#F2F2F7",
-  },
-  primaryButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  secondaryButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#007AFF",
-  },
-  notifyButton: {
-    backgroundColor: "#F8F9FF",
-    borderWidth: 1.5,
-    borderColor: "#48479B",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-  notifyButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#48479B",
-  },
-  continueLink: {
-    alignItems: "center",
-    paddingVertical: 12,
-    marginTop: 8,
-  },
-  continueLinkText: {
-    fontSize: 14,
-    color: "#8E8E93",
-    textDecorationLine: "underline",
   },
 });
 

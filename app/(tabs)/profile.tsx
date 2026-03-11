@@ -77,7 +77,7 @@ export default function ProfileScreen() {
       highlight: true 
     }] : []),
     { icon: User, title: 'Personal Information', onPress: () => router.push('/auth/basic-info') },
-    { icon: MapPin, title: 'Address Book', onPress: () => setShowAddressBook(true) },
+    // { icon: MapPin, title: 'Address Book', onPress: () => setShowAddressBook(true) },
     { icon: Heart, title: 'Nutritionist Consultation', onPress: () => router.push('/nutritionist-contact' as any) },
     { icon: Package, title: 'Corporate Catering', onPress: () => router.push('/corporate-catering' as any) },
     { icon: CreditCard, title: 'Payment Methods', onPress: () => {} },

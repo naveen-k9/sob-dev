@@ -47,7 +47,6 @@ import {
   Category,
   Meal,
   Testimonial,
-  Polygon,
 } from "@/types";
 import { router, useFocusEffect } from "expo-router";
 import db from "@/db";
@@ -80,7 +79,6 @@ export default function HomeScreen() {
   const { user, isGuest, isAdmin, isKitchen, isDelivery } = useAuth();
   const { isDark } = useTheme();
   const colors = getColors(isDark);
-  const [polygons] = useAsyncStorage<Polygon[]>("polygons", []);
 
   const [barStyle, setBarStyle] = useState<"light" | "dark">("dark"); // Start with light for banner
   const [isScrolled, setIsScrolled] = useState(false); // Track if user has scrolled past banner
@@ -292,7 +290,6 @@ export default function HomeScreen() {
             setIsScrolled(scrolled);
           }
         }}
-        polygons={polygons.filter((p) => p.completed)}
         isDark={isDark}
         colors={colors}
       />
@@ -338,7 +335,6 @@ function CustomerHomeScreen({
   selectedCategoryId,
   barStyle,
   onScrollStatusChange,
-  polygons,
   isDark,
   colors,
 }: {
@@ -365,7 +361,6 @@ function CustomerHomeScreen({
   selectedCategoryId: string | null;
   barStyle: "light" | "dark";
   onScrollStatusChange: (next: "light" | "dark", scrolled: boolean) => void;
-  polygons: Polygon[];
   isDark: boolean;
   colors: ReturnType<typeof getColors>;
 }) {
@@ -487,7 +482,6 @@ function CustomerHomeScreen({
             ]}
           >
             <LocationService
-              polygons={polygons}
               onLocationSet={handleLocationSet}
               disableAutoDetection={isScrolling || hasLocationBeenDetected} // Disable if scrolling OR already detected
             />
@@ -568,7 +562,6 @@ function CustomerHomeScreen({
             ]}
           >
             <LocationService
-              polygons={polygons}
               onLocationSet={handleLocationSet}
               disableAutoDetection={
                 isScrolled || isScrolling || hasLocationBeenDetected

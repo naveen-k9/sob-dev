@@ -17,10 +17,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker, Region } from "react-native-maps";
 import * as Location from "expo-location";
+import { router } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveAddress } from "@/contexts/ActiveAddressContext";
+import { useLocation } from "@/contexts/LocationContext";
 import { Address } from "@/types";
 import AddressSearchModal from "./AddressSearchModal";
+import ServiceAreaRequestModal from "./ServiceAreaRequestModal";
 
 type FlowStep = "select" | "map" | "form" | "search";
 
@@ -39,6 +42,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
 }) => {
   const { user, addAddress } = useAuth();
   const { activeAddress, setActiveAddress } = useActiveAddress();
+  const { checkLocationServiceability } = useLocation();
 
   // Flow state
   const [currentStep, setCurrentStep] = useState<FlowStep>(initialStep);
@@ -67,6 +71,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
 
   // Search modal state
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showNonServiceableModal, setShowNonServiceableModal] = useState(false);
 
   // Animation
   const slideAnimation = useRef(new Animated.Value(0)).current;
@@ -255,7 +260,13 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
     reverseGeocode(latitude, longitude);
   };
 
-  const handleConfirmLocation = () => {
+  const handleConfirmLocation = async () => {
+    if (!selectedLocation) return;
+    const isServiceable = await checkLocationServiceability(selectedLocation);
+    if (!isServiceable) {
+      setShowNonServiceableModal(true);
+      return;
+    }
     setCurrentStep("form");
   };
 
@@ -321,6 +332,12 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
     if (!validateForm()) return;
     if (!selectedLocation) {
       Alert.alert("Error", "Please select a location on the map first.");
+      return;
+    }
+
+    const isServiceable = await checkLocationServiceability(selectedLocation);
+    if (!isServiceable) {
+      setShowNonServiceableModal(true);
       return;
     }
 
@@ -848,6 +865,18 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
           onClose={() => setShowSearchModal(false)}
           onLocationSelect={handleSearchLocationSelect}
           initialQuery=""
+        />
+
+        <ServiceAreaRequestModal
+          visible={showNonServiceableModal}
+          onClose={() => setShowNonServiceableModal(false)}
+          onNotifyMe={() => {
+            setShowNonServiceableModal(false);
+            router.push("/service-area-request");
+          }}
+          onChooseServiceableArea={() => setShowNonServiceableModal(false)}
+          showContinueBrowsing={false}
+          description="This area is not yet serviceable. Move the pin to a serviceable location or get notified when we expand here."
         />
       </View>
     </Modal>
