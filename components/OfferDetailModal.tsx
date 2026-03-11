@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Modal,
@@ -10,13 +10,27 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { X, Copy, Gift, Wallet, Percent, Clock, Users, CheckCircle } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  X,
+  Copy,
+  Gift,
+  Wallet,
+  Percent,
+  Clock,
+  ShieldCheck,
+  Tag,
+  ChevronRight,
+  CheckCircle2,
+} from 'lucide-react-native';
 import { Offer } from '@/types';
 import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getColors } from '@/constants/colors';
 import { FONT_SIZE } from '@/src/ui/typography';
 import { RADIUS, SCREEN_PADDING, SPACING } from '@/src/ui/layout';
+import { scale } from '@/src/ui/responsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface OfferDetailModalProps {
   visible: boolean;
@@ -26,62 +40,71 @@ interface OfferDetailModalProps {
 }
 
 export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }: OfferDetailModalProps) {
-  if (!offer) return null;
   const { isDark } = useTheme();
   const colors = getColors(isDark);
+  const [copied, setCopied] = useState(false);
+  const insets = useSafeAreaInsets();
 
-  const getOfferIcon = () => {
+  if (!offer) return null;
+
+  /* ── helpers ── */
+  const getBadgeGradient = (): [string, string] => {
     switch (offer.offerType) {
-      case 'cashback':
-        return <Wallet size={24} color={colors.success} />;
-      case 'deal':
-        return <Gift size={24} color={colors.primary} />;
-      default:
-        return <Percent size={24} color={colors.primary} />;
+      case 'cashback': return ['#059669', '#047857'];
+      case 'deal':     return [colors.primary, '#3730a3'];
+      default:         return ['#E85D04', '#c2410c'];
     }
   };
 
-  const getOfferTypeColor = () => {
+  const getOfferIcon = (size = 18) => {
     switch (offer.offerType) {
-      case 'cashback':
-        return colors.success;
-      case 'deal':
-        return colors.primary;
-      default:
-        return colors.primary;
+      case 'cashback': return <Wallet size={size} color="#fff" />;
+      case 'deal':     return <Gift size={size} color="#fff" />;
+      default:         return <Percent size={size} color="#fff" />;
     }
   };
 
   const getOfferTypeName = () => {
     switch (offer.offerType) {
-      case 'cashback':
-        return 'Wallet Cashback';
-      case 'deal':
-        return 'Special Deal';
-      default:
-        return 'Discount Offer';
+      case 'cashback': return 'Wallet Cashback';
+      case 'deal':     return 'Special Deal';
+      default:         return 'Discount Offer';
     }
+  };
+
+  const getDiscountLabel = () => {
+    if (offer.discountType === 'percentage') return `${offer.discountValue}% OFF`;
+    if (offer.discountType === 'cashback')   return `₹${offer.discountValue} Cashback`;
+    return `₹${offer.discountValue} OFF`;
   };
 
   const copyPromoCode = async () => {
-    if (offer.code) {
+    if (!offer.code) return;
+    try {
       if (Platform.OS !== 'web') {
         await Clipboard.setStringAsync(offer.code);
       } else {
-        // Web fallback
         navigator.clipboard?.writeText(offer.code);
       }
-      Alert.alert('Copied!', `Promo code ${offer.code} copied to clipboard`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      Alert.alert('Copied!', `Code: ${offer.code}`);
     }
   };
 
-  const handleUseOffer = () => {
-    onUseOffer(offer);
-    onClose();
-  };
+  const badgeGradient = getBadgeGradient();
+  const imageOverlay: [string, string, string] = isDark
+    ? ['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.35)', 'rgba(15,15,26,0.92)']
+    : ['rgba(0,0,0,0.0)', 'rgba(0,0,0,0.22)', 'rgba(255,255,255,0.96)'];
 
-  const usagePercentage = offer.usageLimit ? (offer.usedCount / offer.usageLimit) * 100 : 0;
-  const remainingUses = offer.usageLimit ? offer.usageLimit - offer.usedCount : 0;
+  const detailItems = [
+    offer.validUntil && { icon: <Clock size={15} color={isDark ? '#a5b4fc' : colors.primary} />, label: 'Valid until', value: offer.validUntil },
+    offer.minOrderAmount && { icon: <Tag size={15} color={isDark ? '#a5b4fc' : colors.primary} />, label: 'Min order', value: `₹${offer.minOrderAmount}` },
+    offer.maxDiscount && { icon: <ShieldCheck size={15} color={isDark ? '#a5b4fc' : colors.primary} />, label: 'Max discount', value: `₹${offer.maxDiscount}` },
+    offer.isNewUsersOnly && { icon: <CheckCircle2 size={15} color={isDark ? '#a5b4fc' : colors.primary} />, label: 'Eligibility', value: 'New users only' },
+    offer.isOnePerUser && { icon: <CheckCircle2 size={15} color={isDark ? '#a5b4fc' : colors.primary} />, label: 'Usage', value: 'Once per user' },
+  ].filter(Boolean) as { icon: React.ReactNode; label: string; value: string }[];
 
   return (
     <Modal
@@ -90,111 +113,129 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        {/* Header */}
-        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          <View style={styles.headerLeft}>
-            {getOfferIcon()}
-            <Text style={[styles.headerTitle, { color: colors.text }]}>{getOfferTypeName()}</Text>
-          </View>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X size={24} color={colors.mutedText} />
+      <View style={[styles.root, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+
+        {/* ── Hero image ── */}
+        <View style={styles.heroWrap}>
+          <Image
+            source={offer.image ? { uri: offer.image } : require('../assets/images/k.jpeg')}
+            style={styles.heroImage}
+            resizeMode="cover"
+          />
+          <LinearGradient colors={imageOverlay} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+
+          {/* close btn */}
+          <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.30)' }]}>
+            <X size={18} color="#fff" />
           </TouchableOpacity>
+
+          {/* type badge */}
+          {/* <LinearGradient colors={badgeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.typeBadge}>
+            {getOfferIcon(13)}
+            <Text style={styles.typeBadgeText}>{getOfferTypeName().toUpperCase()}</Text>
+          </LinearGradient> */}
+
+          {/* discount label bottom-left */}
+          <View style={styles.heroBottom}>
+            <Text style={styles.discountHero}>{offer.discount ?? getDiscountLabel()}</Text>
+          </View>
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Offer Image */}
-          <Image source={{ uri: offer.image }} style={styles.offerImage} />
-
-          {/* Discount Badge */}
-          <View style={[styles.discountBadge, { backgroundColor: getOfferTypeColor() }]}>
-            <Text style={styles.discountText}>{offer.discount}</Text>
-          </View>
-
-          {/* Title and Description */}
+        {/* ── Scrollable body ── */}
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 + insets.bottom }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* title */}
           <Text style={[styles.title, { color: colors.text }]}>{offer.title}</Text>
-          <Text style={[styles.description, { color: colors.mutedText }]}>{offer.description}</Text>
 
-          {/* Long Description */}
-          {offer.longDescription && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>About This Offer</Text>
-              <Text style={[styles.longDescription, { color: colors.mutedText }]}>{offer.longDescription}</Text>
+          {/* description */}
+          {offer.description ? (
+            <Text style={[styles.description, { color: colors.mutedText }]}>{offer.description}</Text>
+          ) : null}
+
+          {/* long description */}
+          {offer.longDescription ? (
+            <View style={[styles.infoBox, { backgroundColor: isDark ? colors.surfaceSecondary : '#f8f7ff', borderColor: isDark ? 'rgba(123,122,212,0.2)' : 'rgba(72,71,155,0.10)' }]}>
+              <Text style={[styles.infoBoxText, { color: colors.mutedText }]}>{offer.longDescription}</Text>
             </View>
-          )}
+          ) : null}
 
-          {/* Promo Code */}
-          {offer.code && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Promo Code</Text>
-              <View style={styles.promoCodeContainer}>
-                <View style={[styles.promoCodeBox, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
-                  <Text style={[styles.promoCode, { color: colors.text }]}>{offer.code}</Text>
+          {/* ── Coupon code section ── */}
+          {offer.code ? (
+            <>
+              {/* perforated separator */}
+              <View style={styles.perforated}>
+                <View style={[styles.notch, styles.notchL, { backgroundColor: colors.background }]} />
+                <View style={styles.dashedLine}>
+                  {Array.from({ length: 22 }).map((_, i) => (
+                    <View key={i} style={[styles.dash, { backgroundColor: isDark ? 'rgba(123,122,212,0.25)' : 'rgba(72,71,155,0.15)' }]} />
+                  ))}
                 </View>
-                <TouchableOpacity onPress={copyPromoCode} style={[styles.copyButton, { borderColor: colors.primary, backgroundColor: colors.surface }]}>
-                  <Copy size={16} color={colors.primary} />
-                  <Text style={[styles.copyText, { color: colors.primary }]}>Copy</Text>
+                <View style={[styles.notch, styles.notchR, { backgroundColor: colors.background }]} />
+              </View>
+
+              <View style={styles.codeSection}>
+                <Text style={[styles.codeSectionLabel, { color: colors.mutedText }]}>PROMO CODE</Text>
+                <TouchableOpacity
+                  onPress={copyPromoCode}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.codePill,
+                    {
+                      borderColor: isDark ? 'rgba(123,122,212,0.5)' : 'rgba(72,71,155,0.35)',
+                      backgroundColor: isDark ? 'rgba(123,122,212,0.10)' : 'rgba(72,71,155,0.06)',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.codeText, { color: isDark ? '#a5b4fc' : colors.primary }]}>
+                    {offer.code}
+                  </Text>
+                  <LinearGradient
+                    colors={badgeGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.copyBtn}
+                  >
+                    {copied
+                      ? <CheckCircle2 size={14} color="#fff" />
+                      : <Copy size={14} color="#fff" />
+                    }
+                    <Text style={styles.copyBtnText}>{copied ? 'Copied!' : 'Copy'}</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
+            </>
+          ) : (
+            <View style={[styles.noCodeBox, { backgroundColor: isDark ? colors.surfaceSecondary : '#f0fdf4', borderColor: colors.success }]}>
+              <CheckCircle2 size={16} color={colors.success} />
+              <Text style={[styles.noCodeText, { color: colors.success }]}>No code needed — discount applied automatically</Text>
             </View>
           )}
 
-          {/* Offer Stats */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Offer Details</Text>
-            <View style={[styles.statsContainer, { backgroundColor: colors.surface }]}>
-              <View style={styles.statItem}>
-                <Clock size={16} color={colors.mutedText} />
-                <Text style={[styles.statLabel, { color: colors.mutedText }]}>Valid Until</Text>
-                <Text style={[styles.statValue, { color: colors.text }]}>{offer.validUntil}</Text>
-              </View>
-              {/* {offer.usageLimit && (
-                <View style={styles.statItem}>
-                  <Users size={16} color="#666" />
-                  <Text style={styles.statLabel}>Remaining Uses</Text>
-                  <Text style={styles.statValue}>{remainingUses} left</Text>
+          {/* ── Offer details ── */}
+          {detailItems.length > 0 && (
+            <View style={[styles.detailsCard, { backgroundColor: isDark ? colors.surfaceSecondary : colors.surface, borderColor: isDark ? 'rgba(123,122,212,0.15)' : colors.border }]}>
+              {detailItems.map((item, i) => (
+                <View key={i} style={[styles.detailRow, i < detailItems.length - 1 && { borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(123,122,212,0.10)' : colors.border }]}>
+                  <View style={styles.detailLeft}>
+                    {item.icon}
+                    <Text style={[styles.detailLabel, { color: colors.mutedText }]}>{item.label}</Text>
+                  </View>
+                  <Text style={[styles.detailValue, { color: colors.text }]}>{item.value}</Text>
                 </View>
-              )} */}
-              {offer.minOrderAmount && (
-                <View style={styles.statItem}>
-                  <CheckCircle size={16} color={colors.mutedText} />
-                  <Text style={[styles.statLabel, { color: colors.mutedText }]}>Min Order</Text>
-                  <Text style={[styles.statValue, { color: colors.text }]}>₹{offer.minOrderAmount}</Text>
-                </View>
-              )}
+              ))}
             </View>
-          </View>
+          )}
 
-          {/* Usage Progress */}
-          {/* {offer.usageLimit && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Offer Usage</Text>
-              <View style={styles.progressContainer}>
-                <View style={styles.progressBar}>
-                  <View 
-                    style={[
-                      styles.progressFill, 
-                      { 
-                        width: `${Math.min(usagePercentage, 100)}%`,
-                        backgroundColor: getOfferTypeColor()
-                      }
-                    ]} 
-                  />
-                </View>
-                <Text style={styles.progressText}>
-                  {offer.usedCount} of {offer.usageLimit} used
-                </Text>
-              </View>
-            </View>
-          )} */}
-
-          {/* Terms and Conditions */}
+          {/* ── Terms ── */}
           {offer.terms && offer.terms.length > 0 && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Terms & Conditions</Text>
-              {offer.terms.map((term, index) => (
-                <View key={index} style={styles.termItem}>
-                  <Text style={[styles.termBullet, { color: colors.mutedText }]}>•</Text>
+            <View style={styles.termsSection}>
+              <Text style={[styles.termsSectionTitle, { color: colors.text }]}>Terms & Conditions</Text>
+              {offer.terms.map((term, i) => (
+                <View key={i} style={styles.termRow}>
+                  <View style={[styles.termDot, { backgroundColor: isDark ? '#a5b4fc' : colors.primary }]} />
                   <Text style={[styles.termText, { color: colors.mutedText }]}>{term}</Text>
                 </View>
               ))}
@@ -202,16 +243,24 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
           )}
         </ScrollView>
 
-        {/* Action Buttons */}
-        <View style={[styles.actionContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-          <TouchableOpacity onPress={onClose} style={[styles.cancelButton, { backgroundColor: colors.surfaceSecondary }]}>
-            <Text style={[styles.cancelButtonText, { color: colors.mutedText }]}>Close</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={copyPromoCode} 
-            style={[styles.useButton, { backgroundColor: getOfferTypeColor() }]}
+        {/* ── Fixed CTA ── */}
+        <View style={[styles.ctaBar, { backgroundColor: colors.background, borderTopColor: isDark ? 'rgba(123,122,212,0.15)' : colors.border, paddingBottom: insets.bottom || SPACING.xl }]}>
+          <TouchableOpacity
+            onPress={offer.code ? copyPromoCode : () => { onUseOffer(offer); onClose(); }}
+            activeOpacity={0.88}
+            style={styles.ctaBtn}
           >
-            <Text style={styles.useButtonText}>{offer.code ? 'Copy Code' : 'Use Offer'}</Text>
+            <LinearGradient
+              colors={badgeGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.ctaBtnInner}
+            >
+              {offer.code
+                ? <><Copy size={17} color="#fff" /><Text style={styles.ctaBtnText}>{copied ? 'Code Copied!' : 'Copy Code'}</Text></>
+                : <><ChevronRight size={17} color="#fff" /><Text style={styles.ctaBtnText}>Use This Offer</Text></>
+              }
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </View>
@@ -220,185 +269,259 @@ export default function OfferDetailModal({ visible, offer, onClose, onUseOffer }
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: FONT_SIZE.xl,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: SCREEN_PADDING,
-  },
-  offerImage: {
+
+  /* hero */
+  heroWrap: {
     width: '100%',
     aspectRatio: 16 / 9,
-    borderRadius: RADIUS.md,
-    marginTop: SPACING.lg,
-    marginBottom: SPACING.md,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  discountBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: RADIUS.sm,
-    marginBottom: SPACING.md,
+  heroImage: {
+    width: '100%',
+    height: '100%',
   },
-  discountText: {
-    color: 'white',
-    fontSize: FONT_SIZE.lg,
-    fontWeight: 'bold',
+  closeBtn: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: scale(34),
+    height: scale(34),
+    borderRadius: scale(17),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  typeBadge: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    gap: 5,
+  },
+  typeBadgeText: {
+    color: '#fff',
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  heroBottom: {
+    position: 'absolute',
+    bottom: 16,
+    left: SCREEN_PADDING,
+  },
+  discountHero: {
+    color: '#fff',
+    fontSize: FONT_SIZE.xxl,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+
+  /* body */
+  scroll: { flex: 1 },
+  scrollContent: {
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: SPACING.lg,
   },
   title: {
-    fontSize: FONT_SIZE.display,
+    fontSize: FONT_SIZE.xxl,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    marginBottom: 6,
+  },
+  description: {
+    fontSize: FONT_SIZE.md,
+    lineHeight: 22,
+    marginBottom: SPACING.md,
+  },
+  infoBox: {
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
+  },
+  infoBoxText: {
+    fontSize: FONT_SIZE.sm,
+    lineHeight: 20,
+  },
+
+  /* perforated */
+  perforated: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: -SCREEN_PADDING,
+    marginBottom: SPACING.md,
+  },
+  notch: {
+    width: scale(14),
+    height: scale(14),
+    borderRadius: scale(7),
+  },
+  notchL: { marginLeft: -scale(7) },
+  notchR: { marginRight: -scale(7) },
+  dashedLine: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.sm,
+  },
+  dash: {
+    width: scale(7),
+    height: 1.5,
+    borderRadius: 1,
+  },
+
+  /* coupon code */
+  codeSection: {
+    marginBottom: SPACING.lg,
+    alignItems: 'center',
+  },
+  codeSectionLabel: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    marginBottom: SPACING.sm,
+  },
+  codePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderRadius: RADIUS.md,
+    paddingLeft: SPACING.lg,
+    paddingRight: 4,
+    paddingVertical: 4,
+    gap: SPACING.md,
+    width: '100%',
+    justifyContent: 'space-between',
+  },
+  codeText: {
+    fontWeight: '800',
+    fontSize: FONT_SIZE.xl,
+    letterSpacing: 2,
+    flex: 1,
+    textAlign: 'center',
+  },
+  copyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.sm,
+  },
+  copyBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: FONT_SIZE.sm,
+  },
+  noCodeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
+  },
+  noCodeText: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '600',
+    flex: 1,
+    lineHeight: 18,
+  },
+
+  /* details card */
+  detailsCard: {
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    marginBottom: SPACING.lg,
+    overflow: 'hidden',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 12,
+  },
+  detailLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailLabel: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '500',
+  },
+  detailValue: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '700',
+  },
+
+  /* terms */
+  termsSection: {
+    marginBottom: SPACING.xl,
+  },
+  termsSectionTitle: {
+    fontSize: FONT_SIZE.md,
     fontWeight: '700',
     marginBottom: SPACING.sm,
   },
-  description: {
-    fontSize: FONT_SIZE.lg,
-    lineHeight: 24,
-    marginBottom: SPACING.xl,
-  },
-  section: {
-    marginBottom: SPACING.xl,
-  },
-  sectionTitle: {
-    fontSize: FONT_SIZE.xl,
-    fontWeight: '600',
-    marginBottom: SPACING.md,
-  },
-  longDescription: {
-    fontSize: FONT_SIZE.md,
-    lineHeight: 20,
-  },
-  promoCodeContainer: {
+  termRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    marginBottom: 7,
+    gap: 8,
   },
-  promoCodeBox: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-    borderRadius: RADIUS.sm,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginRight: 12,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-  },
-  promoCode: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '600',
-    textAlign: 'center',
-    letterSpacing: 1,
-  },
-  copyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-  },
-  copyText: {
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  statsContainer: {
-    borderRadius: RADIUS.md,
-    padding: 16,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  statLabel: {
-    fontSize: FONT_SIZE.md,
-    marginLeft: 8,
-    flex: 1,
-  },
-  statValue: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '600',
-  },
-  progressContainer: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 4,
-    marginBottom: 8,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
-  },
-  termItem: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  termBullet: {
-    fontSize: FONT_SIZE.md,
-    marginRight: 8,
-    marginTop: 2,
+  termDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    marginTop: 6,
   },
   termText: {
-    fontSize: FONT_SIZE.md,
-    lineHeight: 20,
+    fontSize: FONT_SIZE.sm,
+    lineHeight: 19,
     flex: 1,
   },
-  actionContainer: {
-    flexDirection: 'row',
+
+  /* CTA */
+  ctaBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xl,
     borderTopWidth: 1,
-    gap: 12,
   },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: RADIUS.sm,
+  ctaBtn: {
+    borderRadius: RADIUS.md,
+    overflow: 'hidden',
+  },
+  ctaBtnInner: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 15,
   },
-  cancelButtonText: {
+  ctaBtnText: {
+    color: '#fff',
     fontSize: FONT_SIZE.lg,
-    fontWeight: '600',
-  },
-  useButton: {
-    flex: 2,
-    paddingVertical: 14,
-    borderRadius: RADIUS.sm,
-    alignItems: 'center',
-  },
-  useButtonText: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '600',
-    color: 'white',
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
 });

@@ -981,15 +981,15 @@ function CustomerHomeScreen({
         <View style={styles.section}>
           <View style={styles.centeredSectionHeader}>
             <View
-              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+              style={[styles.headerLine, { backgroundColor: colors.mutedText }]}
             />
             <Text
-              style={[styles.centeredSectionTitle, { color: colors.primary }]}
+              style={[styles.centeredSectionTitle, { color: colors.mutedText }]}
             >
               SPECIAL OFFERS
             </Text>
             <View
-              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+              style={[styles.headerLine, { backgroundColor: colors.mutedText }]}
             />
           </View>
           <ScrollView
@@ -1016,15 +1016,15 @@ function CustomerHomeScreen({
         <View style={styles.section}>
           <View style={styles.centeredSectionHeader}>
             <View
-              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+              style={[styles.headerLine, { backgroundColor: colors.mutedText }]}
             />
             <Text
-              style={[styles.centeredSectionTitle, { color: colors.primary }]}
+              style={[styles.centeredSectionTitle, { color: colors.mutedText }]}
             >
               WHAT OUR CUSTOMERS SAY
             </Text>
             <View
-              style={[styles.headerLine, { backgroundColor: colors.primary }]}
+              style={[styles.headerLine, { backgroundColor: colors.mutedText }]}
             />
           </View>
           {testimonialsQuery.isLoading ? (

@@ -38,6 +38,7 @@ import {
   LogOut,
   RefreshCw,
   AlertCircle,
+  XCircle,
 } from "lucide-react-native";
 
 interface DeliveryOrder {
@@ -53,7 +54,8 @@ interface DeliveryOrder {
     | "packaging_done"
     | "delivery_started"
     | "reached"
-    | "delivery_done";
+    | "delivery_done"
+    | "delivery_missed";
   specialInstructions?: string;
   orderValue: number;
   paymentStatus: "paid" | "pending";
@@ -73,7 +75,7 @@ export default function DeliveryDashboard() {
   });
 
   const recalcStats = useCallback((orders: DeliveryOrder[]) => {
-    const pending = orders.filter((o) => o.status !== "delivery_done").length;
+    const pending = orders.filter((o) => o.status !== "delivery_done" && o.status !== "delivery_missed").length;
     const completed = orders.filter((o) => o.status === "delivery_done").length;
     const total = orders.length;
     const earnings = orders.reduce(
@@ -130,7 +132,7 @@ export default function DeliveryDashboard() {
           const storedDeliveryStatus = s.deliveryStatusByDate?.[todayStr];
           const status =
             storedDeliveryStatus &&
-            ["packaging", "packaging_done", "delivery_started", "reached", "delivery_done"].includes(
+            ["packaging", "packaging_done", "delivery_started", "reached", "delivery_done", "delivery_missed"].includes(
               storedDeliveryStatus
             )
               ? (storedDeliveryStatus as DeliveryOrder["status"])
@@ -227,7 +229,6 @@ export default function DeliveryDashboard() {
         onPress: async () => {
           const todayStr = new Date().toISOString().split("T")[0];
           try {
-            // console.log("[delivery] updateSubscriptionDeliveryStatus", { orderId, todayStr, nextStatus, userId: user?.id });
             await db.updateSubscriptionDeliveryStatus(
               orderId,
               todayStr,
@@ -245,6 +246,37 @@ export default function DeliveryDashboard() {
         },
       },
     ]);
+  };
+
+  const handleMarkMissed = (orderId: string) => {
+    Alert.alert(
+      "Mark as delivery missed",
+      "Confirm that delivery was attempted but could not be completed? The customer will see this as Delivery missed and the meal will not be carried forward.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm",
+          onPress: async () => {
+            const todayStr = new Date().toISOString().split("T")[0];
+            try {
+              await db.updateSubscriptionDeliveryStatus(
+                orderId,
+                todayStr,
+                "delivery_missed",
+                user?.id
+              );
+              updateOrderStatus(orderId, "delivery_missed");
+            } catch (e) {
+              console.warn("[delivery] Failed to persist status", e);
+              Alert.alert(
+                "Sync failed",
+                "Status could not be saved. Check connection and try again."
+              );
+            }
+          },
+        },
+      ]
+    );
   };
 
   const makePhoneCall = (phoneNumber: string) => {
@@ -282,6 +314,8 @@ export default function DeliveryDashboard() {
         return "#06B6D4";
       case "delivery_done":
         return "#10B981";
+      case "delivery_missed":
+        return "#EF4444";
       default:
         return "#6B7280";
     }
@@ -299,6 +333,8 @@ export default function DeliveryDashboard() {
         return Navigation;
       case "delivery_done":
         return CheckCircle;
+      case "delivery_missed":
+        return XCircle;
       default:
         return Clock;
     }
@@ -314,6 +350,8 @@ export default function DeliveryDashboard() {
         return "Reached";
       case "reached":
         return "Delivery Done";
+      case "delivery_missed":
+        return "Delivery missed";
       default:
         return "Update Status";
     }
@@ -586,7 +624,17 @@ export default function DeliveryDashboard() {
                     </View>
                   )}
 
-                  {order.status !== "delivery_done" ? (
+                  {order.status === "delivery_done" ? (
+                    <View style={styles.deliveredIndicator}>
+                      <CheckCircle size={16} color="#10B981" />
+                      <Text style={styles.deliveredText}>Delivered</Text>
+                    </View>
+                  ) : order.status === "delivery_missed" ? (
+                    <View style={[styles.deliveredIndicator, { borderColor: "#EF4444" }]}>
+                      <XCircle size={16} color="#EF4444" />
+                      <Text style={[styles.deliveredText, { color: "#EF4444" }]}>Delivery missed</Text>
+                    </View>
+                  ) : (
                     <SwipeAdvance
                       key={`swipe-${order.id}-${order.status}`}
                       color={getStatusColor(order.status)}
@@ -597,11 +645,6 @@ export default function DeliveryDashboard() {
                       }
                       testID={`swipe-advance-${order.id}`}
                     />
-                  ) : (
-                    <View style={styles.deliveredIndicator}>
-                      <CheckCircle size={16} color="#10B981" />
-                      <Text style={styles.deliveredText}>Delivered</Text>
-                    </View>
                   )}
 
                   <View style={styles.orderActions}>
@@ -621,27 +664,50 @@ export default function DeliveryDashboard() {
                       <Text style={styles.mapsButtonText}>Navigate</Text>
                     </TouchableOpacity>
 
-                    {order.status !== "delivery_done" && (
-                      <TouchableOpacity
-                        style={[
-                          styles.actionButton,
-                          { backgroundColor: getStatusColor(order.status) },
-                        ]}
-                        onPress={() =>
-                          handleStatusUpdate(order.id, order.status)
-                        }
-                      >
-                        <StatusIcon size={16} color="white" />
-                        <Text style={styles.actionButtonText}>
-                          {getActionButtonText(order.status)}
-                        </Text>
-                      </TouchableOpacity>
+                    {order.status !== "delivery_done" && order.status !== "delivery_missed" && (
+                      <>
+                        <TouchableOpacity
+                          style={[
+                            styles.actionButton,
+                            { backgroundColor: getStatusColor(order.status) },
+                          ]}
+                          onPress={() =>
+                            handleStatusUpdate(order.id, order.status)
+                          }
+                        >
+                          <StatusIcon size={16} color="white" />
+                          <Text style={styles.actionButtonText}>
+                            {getActionButtonText(order.status)}
+                          </Text>
+                        </TouchableOpacity>
+                        {(order.status === "delivery_started" || order.status === "reached") && (
+                          <TouchableOpacity
+                            style={[styles.actionButton, styles.actionButtonMissed]}
+                            onPress={() => handleMarkMissed(order.id)}
+                          >
+                            <XCircle size={16} color="white" />
+                            <Text style={styles.actionButtonText}>Mark as missed</Text>
+                          </TouchableOpacity>
+                        )}
+                      </>
                     )}
 
-                    {order.status === "delivery_done" && (
-                      <View style={styles.deliveredIndicator}>
-                        <CheckCircle size={16} color="#10B981" />
-                        <Text style={styles.deliveredText}>Delivered</Text>
+                    {(order.status === "delivery_done" || order.status === "delivery_missed") && (
+                      <View style={[
+                        styles.deliveredIndicator,
+                        order.status === "delivery_missed" && { borderColor: "#EF4444" },
+                      ]}>
+                        {order.status === "delivery_done" ? (
+                          <>
+                            <CheckCircle size={16} color="#10B981" />
+                            <Text style={styles.deliveredText}>Delivered</Text>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle size={16} color="#EF4444" />
+                            <Text style={[styles.deliveredText, { color: "#EF4444" }]}>Delivery missed</Text>
+                          </>
+                        )}
                       </View>
                     )}
                   </View>
@@ -1080,6 +1146,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
+  },
+  actionButtonMissed: {
+    backgroundColor: "#EF4444",
   },
   actionButtonText: {
     color: "white",

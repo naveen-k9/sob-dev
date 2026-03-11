@@ -310,6 +310,16 @@ export default function AdminOffersScreen() {
                 placeholder="e.g. Flat ₹100 OFF"
                 placeholderTextColor="#9ca3af"
               />
+              <Text style={styles.label}>Description</Text>
+              <TextInput
+                style={[styles.input, styles.inputMultiline]}
+                value={form.description}
+                onChangeText={(t) => setForm((f) => ({ ...f, description: t }))}
+                placeholder="Brief description shown on the offer card"
+                placeholderTextColor="#9ca3af"
+                multiline
+                numberOfLines={3}
+              />
               <Text style={styles.label}>Promo code *</Text>
               <TextInput
                 style={styles.input}
@@ -516,6 +526,7 @@ const styles = StyleSheet.create({
   formScroll: { padding: 20, flexGrow: 1 },
   label: { fontSize: 14, fontWeight: "500", color: "#374151", marginBottom: 6 },
   input: { backgroundColor: "#f9fafb", borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, marginBottom: 16, color: "#1f2937" },
+  inputMultiline: { minHeight: 80, textAlignVertical: "top" },
   row: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 },
   chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: "#f3f4f6" },
   chipActive: { backgroundColor: "#6366f1" },

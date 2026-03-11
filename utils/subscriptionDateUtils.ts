@@ -76,3 +76,37 @@ export function isActivePlanDate(
 
   return false;
 }
+
+/** User-facing status for a calendar/delivery day. */
+export type DeliveryDayStatus =
+  | "delivered"
+  | "upcoming"
+  | "skipped"
+  | "vacation"
+  | "missed";
+
+/**
+ * Derive user-facing day status from subscription data.
+ * When delivery person marks delivery_missed, this returns "missed".
+ */
+export function getDeliveryDayStatus(
+  date: Date,
+  subscription: Subscription
+): DeliveryDayStatus {
+  const dateString = date.toISOString().split("T")[0];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const checkDate = new Date(date);
+  checkDate.setHours(0, 0, 0, 0);
+
+  if (isWeekendExcludedForDate(checkDate, subscription)) return "vacation";
+  if (subscription.skippedDates?.includes(dateString)) return "skipped";
+  if (!isActivePlanDate(checkDate, subscription)) return "upcoming";
+
+  const deliveryStatus = subscription.deliveryStatusByDate?.[dateString];
+  const isPast = checkDate.getTime() < today.getTime();
+
+  if (deliveryStatus === "delivery_done") return "delivered";
+  if (deliveryStatus === "delivery_missed" || isPast) return "missed";
+  return "upcoming";
+}

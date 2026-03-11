@@ -32,7 +32,7 @@ function mapOfferToDisplay(o: Offer): { id: string; code: string; discount: stri
   return { id: o.id, code, discount, minOrder };
 }
 
-const CARD_HEIGHT = scale(54);
+const CARD_HEIGHT = scale(63);
 const NOTCH_SIZE = scale(12);
 
 export default function MenuOffers() {
@@ -102,7 +102,7 @@ export default function MenuOffers() {
           {/* Content */}
           <View style={styles.contentContainer}>
             {/* Discount text */}
-            <Text style={[styles.discountText, { color: discountTextColor }]}>{item.discount} off</Text>
+            <Text style={[styles.discountText, { color: discountTextColor }]}>{item.code}</Text>
             
             {/* Horizontal dashed line */}
             <View style={styles.dashedLineContainer}>
@@ -113,7 +113,7 @@ export default function MenuOffers() {
             
             {/* Minimum order text */}
             <Text style={[styles.minOrderText, { color: colors.mutedText }]}>
-              on {item.minOrder} & above
+              {item.discount} * T&C apply
             </Text>
           </View>
         </View>
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     borderRadius: 1,
   },
   minOrderText: {
-    fontSize: FONT_SIZE.xs,
+    fontSize: 7,
     fontWeight: "500",
     marginTop: 2,
     textAlign: "center",
