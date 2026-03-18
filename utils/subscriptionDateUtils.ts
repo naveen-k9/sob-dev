@@ -1,30 +1,17 @@
 import { Subscription } from "@/types";
 
 /**
- * Resolve weekend exclusion setting from subscription.
- * Handles both legacy (excludeWeekends boolean) and new (weekendExclusion string) formats.
- */
-export function resolveWeekendExclusion(sub: Subscription): string {
-  if (sub.weekType === "everyday") return "none";
-  const fromNew = sub.weekendExclusion ?? null;
-  if (fromNew) return fromNew;
-  if (sub.excludeWeekends === true) return "both";
-  return "none";
-}
-
-/**
  * Check if a date should be excluded based on subscription's weekend settings.
  */
 export function isWeekendExcludedForDate(
   date: Date,
   sub: Subscription
 ): boolean {
+  const day = date.getDay(); // 0 = Sunday, 6 = Saturday
   if (sub.weekType === "everyday") return false;
-  const day = date.getDay();
-  const setting = resolveWeekendExclusion(sub);
-  if (setting === "both") return day === 0 || day === 6;
-  if (setting === "saturday") return day === 6;
-  if (setting === "sunday") return day === 0;
+  if (sub.weekType === "mon-fri") return day === 0 || day === 6;
+  if (sub.weekType === "mon-sat") return day === 0;
+  if (sub.weekType === "none") return true;
   return false;
 }
 

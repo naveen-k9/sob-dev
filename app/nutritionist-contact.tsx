@@ -94,7 +94,7 @@ export default function NutritionistContactScreen() {
     try {
       // Here you would typically send the data to your backend
       console.log('Nutritionist contact form submitted:', formData);
-      
+
       Alert.alert(
         'Request Submitted!',
         'Your nutritionist consultation request has been submitted successfully. Our team will contact you within 24 hours.',
@@ -126,19 +126,17 @@ export default function NutritionistContactScreen() {
           ),
         }}
       />
-      
+
       <KeyboardAvoidingView
-        style={styles.keyboardAvoid}
+        style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        style={styles.scrollView}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* <View style={styles.header}>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* <View style={styles.header}>
           <View style={styles.headerIcon}>
             <Heart size={32} color="#48479B" />
           </View>
@@ -148,248 +146,254 @@ export default function NutritionistContactScreen() {
           </Text>
         </View> */}
 
-        {/* Personal Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name *</Text>
-            <View style={styles.inputContainer}>
-              <User size={20} color="#666" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                value={formData.name}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-                placeholder="Enter your full name"
-                placeholderTextColor="#999"
-              />
-            </View>
-          </View>
+          {/* Personal Information */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Personal Information</Text>
 
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>Age *</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Full Name *</Text>
               <View style={styles.inputContainer}>
-                <Calendar size={20} color="#666" style={styles.inputIcon} />
+                <User size={20} color="#666" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  value={formData.age}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, age: text }))}
-                  placeholder="Age"
+                  value={formData.name}
+                  onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
+                  placeholder="Enter your full name"
                   placeholderTextColor="#999"
-                  keyboardType="numeric"
                 />
               </View>
             </View>
 
-            <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>Weight (kg) *</Text>
-              <View style={styles.inputContainer}>
-                <Weight size={20} color="#666" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={formData.weight}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, weight: text }))}
-                  placeholder="Weight"
-                  placeholderTextColor="#999"
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Height (cm)</Text>
-            <View style={styles.inputContainer}>
-              <Target size={20} color="#666" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                value={formData.height}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, height: text }))}
-                placeholder="Enter your height"
-                placeholderTextColor="#999"
-                keyboardType="numeric"
-              />
-            </View>
-          </View>
-        </View>
-
-        {/* Contact Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contact Information</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <View style={styles.inputContainer}>
-              <Mail size={20} color="#666" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                value={formData.email}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
-                placeholder="Enter your email"
-                placeholderTextColor="#999"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone Number</Text>
-            <View style={styles.inputContainer}>
-              <Phone size={20} color="#666" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                value={formData.phone}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, phone: text }))}
-                placeholder="Enter your phone number"
-                placeholderTextColor="#999"
-                keyboardType="phone-pad"
-              />
-            </View>
-          </View>
-        </View>
-
-        {/* Meal Preferences */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Meal Preference</Text>
-          <View style={styles.optionsGrid}>
-            {mealPreferences.map((preference) => (
-              <TouchableOpacity
-                key={preference.id}
-                style={[
-                  styles.optionCard,
-                  formData.mealPreference === preference.id && styles.selectedOption,
-                ]}
-                onPress={() => setFormData(prev => ({ ...prev, mealPreference: preference.id as MealPreference }))}
-              >
-                <Text style={styles.optionIcon}>{preference.icon}</Text>
-                <Text style={[
-                  styles.optionText,
-                  formData.mealPreference === preference.id && styles.selectedOptionText,
-                ]}>
-                  {preference.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Health Goals */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Health Goals *</Text>
-          <Text style={styles.sectionSubtitle}>Select all that apply</Text>
-          <View style={styles.optionsGrid}>
-            {healthGoals.map((goal) => (
-              <TouchableOpacity
-                key={goal.id}
-                style={[
-                  styles.optionCard,
-                  formData.healthGoals.includes(goal.id as HealthGoal) && styles.selectedOption,
-                ]}
-                onPress={() => handleHealthGoalToggle(goal.id as HealthGoal)}
-              >
-                <Text style={styles.optionIcon}>{goal.icon}</Text>
-                <Text style={[
-                  styles.optionText,
-                  formData.healthGoals.includes(goal.id as HealthGoal) && styles.selectedOptionText,
-                ]}>
-                  {goal.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Preferred Contact Method */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Preferred Contact Method *</Text>
-          <View style={styles.contactMethods}>
-            {contactMethods.map((method) => {
-              const IconComponent = method.icon;
-              return (
-                <TouchableOpacity
-                  key={method.id}
-                  style={[
-                    styles.contactMethod,
-                    formData.contactMethod === method.id && styles.selectedContactMethod,
-                  ]}
-                  onPress={() => setFormData(prev => ({ ...prev, contactMethod: method.id as ContactMethod }))}
-                >
-                  <IconComponent 
-                    size={24} 
-                    color={formData.contactMethod === method.id ? '#48479B' : '#666'} 
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, styles.halfWidth]}>
+                <Text style={styles.label}>Age *</Text>
+                <View style={styles.inputContainer}>
+                  <Calendar size={20} color="#666" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    value={formData.age}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, age: text }))}
+                    placeholder="Age"
+                    placeholderTextColor="#999"
+                    keyboardType="numeric"
                   />
+                </View>
+              </View>
+
+              <View style={[styles.inputGroup, styles.halfWidth]}>
+                <Text style={styles.label}>Weight (kg) *</Text>
+                <View style={styles.inputContainer}>
+                  <Weight size={20} color="#666" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    value={formData.weight}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, weight: text }))}
+                    placeholder="Weight"
+                    placeholderTextColor="#999"
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Height (cm)</Text>
+              <View style={styles.inputContainer}>
+                <Target size={20} color="#666" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={formData.height}
+                  onChangeText={(text) => setFormData(prev => ({ ...prev, height: text }))}
+                  placeholder="Enter your height"
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* Contact Information */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Contact Information</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email</Text>
+              <View style={styles.inputContainer}>
+                <Mail size={20} color="#666" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={formData.email}
+                  onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
+                  placeholder="Enter your email"
+                  placeholderTextColor="#999"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Phone Number</Text>
+              <View style={styles.inputContainer}>
+                <Phone size={20} color="#666" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={formData.phone}
+                  onChangeText={(text) => setFormData(prev => ({ ...prev, phone: text }))}
+                  placeholder="Enter your phone number"
+                  placeholderTextColor="#999"
+                  keyboardType="phone-pad"
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* Meal Preferences */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Meal Preference</Text>
+            <View style={styles.optionsGrid}>
+              {mealPreferences.map((preference) => (
+                <TouchableOpacity
+                  key={preference.id}
+                  style={[
+                    styles.optionCard,
+                    formData.mealPreference === preference.id && styles.selectedOption,
+                  ]}
+                  onPress={() => setFormData(prev => ({ ...prev, mealPreference: preference.id as MealPreference }))}
+                >
+                  <Text style={styles.optionIcon}>{preference.icon}</Text>
                   <Text style={[
-                    styles.contactMethodText,
-                    formData.contactMethod === method.id && styles.selectedContactMethodText,
+                    styles.optionText,
+                    formData.mealPreference === preference.id && styles.selectedOptionText,
                   ]}>
-                    {method.label}
+                    {preference.label}
                   </Text>
                 </TouchableOpacity>
-              );
-            })}
+              ))}
+            </View>
           </View>
+
+          {/* Health Goals */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Health Goals *</Text>
+            <Text style={styles.sectionSubtitle}>Select all that apply</Text>
+            <View style={styles.optionsGrid}>
+              {healthGoals.map((goal) => (
+                <TouchableOpacity
+                  key={goal.id}
+                  style={[
+                    styles.optionCard,
+                    formData.healthGoals.includes(goal.id as HealthGoal) && styles.selectedOption,
+                  ]}
+                  onPress={() => handleHealthGoalToggle(goal.id as HealthGoal)}
+                >
+                  <Text style={styles.optionIcon}>{goal.icon}</Text>
+                  <Text style={[
+                    styles.optionText,
+                    formData.healthGoals.includes(goal.id as HealthGoal) && styles.selectedOptionText,
+                  ]}>
+                    {goal.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Preferred Contact Method */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Preferred Contact Method *</Text>
+            <View style={styles.contactMethods}>
+              {contactMethods.map((method) => {
+                const IconComponent = method.icon;
+                return (
+                  <TouchableOpacity
+                    key={method.id}
+                    style={[
+                      styles.contactMethod,
+                      formData.contactMethod === method.id && styles.selectedContactMethod,
+                    ]}
+                    onPress={() => setFormData(prev => ({ ...prev, contactMethod: method.id as ContactMethod }))}
+                  >
+                    <IconComponent
+                      size={24}
+                      color={formData.contactMethod === method.id ? '#48479B' : '#666'}
+                    />
+                    <Text style={[
+                      styles.contactMethodText,
+                      formData.contactMethod === method.id && styles.selectedContactMethodText,
+                    ]}>
+                      {method.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Additional Information */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Additional Information</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Medical Conditions</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={formData.medicalConditions}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, medicalConditions: text }))}
+                placeholder="Any medical conditions, allergies, or dietary restrictions"
+                placeholderTextColor="#999"
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Current Diet</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={formData.currentDiet}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, currentDiet: text }))}
+                placeholder="Describe your current eating habits and diet"
+                placeholderTextColor="#999"
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Additional Notes</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={formData.additionalNotes}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, additionalNotes: text }))}
+                placeholder="Any specific questions or requirements for the nutritionist"
+                placeholderTextColor="#999"
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            </View>
+          </View>
+        </ScrollView>
+        <View style={styles.submitContainer}>
+          <TouchableOpacity
+            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <Text style={styles.submitButtonText}>Submitting...</Text>
+            ) : (
+              <>
+                <Send size={20} color="white" />
+                <Text style={styles.submitButtonText}>Submit Request</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
 
-        {/* Additional Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Additional Information</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Medical Conditions</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={formData.medicalConditions}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, medicalConditions: text }))}
-              placeholder="Any medical conditions, allergies, or dietary restrictions"
-              placeholderTextColor="#999"
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Current Diet</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={formData.currentDiet}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, currentDiet: text }))}
-              placeholder="Describe your current eating habits and diet"
-              placeholderTextColor="#999"
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Additional Notes</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={formData.additionalNotes}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, additionalNotes: text }))}
-              placeholder="Any specific questions or requirements for the nutritionist"
-              placeholderTextColor="#999"
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          <Send size={20} color="white" style={styles.submitIcon} />
-          <Text style={styles.submitButtonText}>
-            {loading ? 'Submitting...' : 'Submit Request'}
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -399,6 +403,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
+  },
+  submitContainer: {
+    padding: 20,
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
   },
   backButton: {
     padding: 8,
@@ -485,6 +495,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: '#333',
+  },
+  keyboardContainer: {
+    flex: 1,
   },
   textArea: {
     paddingHorizontal: 12,

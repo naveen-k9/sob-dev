@@ -22,7 +22,7 @@ import {
   Truck,
   CheckCircle,
   XCircle,
-  Calendar,
+  Calendar as CalendarIcon,
   MapPin,
   X,
   Package,
@@ -32,6 +32,7 @@ import {
   Wallet,
   CreditCard,
 } from "lucide-react-native";
+import { Calendar as RNCalendar, DateData } from "react-native-calendars";
 import { useAuth } from "@/contexts/AuthContext";
 import { router, useLocalSearchParams } from "expo-router";
 import { addOns } from "@/constants/data";
@@ -47,14 +48,16 @@ import { sendAddonPurchaseNotificationCallable } from "@/services/firebaseFuncti
 const PLAN_CAROUSEL_CARD_WIDTH = Dimensions.get("window").width * 0.85;
 const PLAN_CAROUSEL_ITEM_GAP = 12;
 const PLAN_ACCENT_COLOR = "#48479B";
+const CALENDAR_CELL_GAP = 6;
 
 interface CalendarDay {
-  date: Date;
+  date: Date | null;
   isCurrentMonth: boolean;
   hasDelivery: boolean;
   deliveryStatus: "delivered" | "upcoming" | "vacation" | "on_hold" | "skipped";
   subscription?: Subscription;
   canModify: boolean;
+  isPlaceholder?: boolean;
 }
 
 interface DeliveryDetails {
@@ -120,6 +123,146 @@ export default function OrdersScreen() {
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [editingPlanNames, setEditingPlanNames] = useState<Record<string, string>>({});
   const [showAllPlans, setShowAllPlans] = useState(false);
+
+  const toDateKey = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  const isDateSkipped = (date: Date, sub: Subscription): boolean => {
+    const localKey = toDateKey(date);
+    const utcKey = date.toISOString().split("T")[0];
+    const skipped = sub.skippedDates ?? [];
+    return skipped.includes(localKey) || skipped.includes(utcKey);
+  };
+
+  /**
+   * Check if a specific date should be excluded based on subscription's weekType.
+   * - mon-fri: exclude Saturday/Sunday
+   * - mon-sat: exclude Sunday
+   * - everyday: exclude none
+   * - none: exclude all
+   */
+  const isWeekendExcludedForDate = (date: Date, sub: Subscription): boolean => {
+    const day = date.getDay(); // 0 = Sunday, 6 = Saturday
+    if (sub.weekType === "everyday") return false;
+    if (sub.weekType === "mon-fri") return day === 0 || day === 6;
+    if (sub.weekType === "mon-sat") return day === 0;
+    if (sub.weekType === "none") return true;
+    return false;
+  };
+
+  const selectedSubscription = useMemo(
+    () => userSubscriptions.find((s) => s.id === selectedPlanId),
+    [userSubscriptions, selectedPlanId]
+  );
+
+  const calendarMetaByDate = useMemo(() => {
+    if (!selectedSubscription) return {} as Record<
+      string,
+      { status: CalendarDay["deliveryStatus"]; hasDelivery: boolean; isSkipped: boolean }
+    >;
+
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Build delivery date set (same logic as generateCalendarDays)
+    const subStart = new Date(selectedSubscription.startDate);
+    const subEnd = new Date(selectedSubscription.endDate);
+    subStart.setHours(0, 0, 0, 0);
+    subEnd.setHours(0, 0, 0, 0);
+
+    const deliveryDates = new Set<string>();
+    let currentDeliveryDate = new Date(subStart);
+    let deliveredCount = 0;
+    const totalDeliveries =
+      selectedSubscription.duration || selectedSubscription.totalDeliveries || 0;
+
+    while (currentDeliveryDate <= subEnd && deliveredCount < totalDeliveries) {
+      const dateString = toDateKey(currentDeliveryDate);
+      const isSkipped = isDateSkipped(currentDeliveryDate, selectedSubscription);
+
+      if (isWeekendExcludedForDate(currentDeliveryDate, selectedSubscription)) {
+        currentDeliveryDate.setDate(currentDeliveryDate.getDate() + 1);
+        continue;
+      }
+
+      if (!isSkipped) {
+        deliveryDates.add(dateString);
+        deliveredCount++;
+      } else {
+        const extendedEndDate = new Date(subEnd);
+        extendedEndDate.setDate(extendedEndDate.getDate() + 1);
+
+        while (isWeekendExcludedForDate(extendedEndDate, selectedSubscription)) {
+          extendedEndDate.setDate(extendedEndDate.getDate() + 1);
+        }
+
+        subEnd.setTime(extendedEndDate.getTime());
+      }
+
+      currentDeliveryDate.setDate(currentDeliveryDate.getDate() + 1);
+    }
+
+    const meta: Record<
+      string,
+      { status: CalendarDay["deliveryStatus"]; hasDelivery: boolean; isSkipped: boolean }
+    > = {};
+
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+      const date = new Date(year, month, d);
+      date.setHours(0, 0, 0, 0);
+      const dateString = toDateKey(date);
+
+      const hasDelivery = deliveryDates.has(dateString);
+      const isSkipped = isDateSkipped(date, selectedSubscription);
+
+      let status: CalendarDay["deliveryStatus"] = "upcoming";
+      if (isSkipped) status = "skipped";
+      else if (date < today && hasDelivery) status = "delivered";
+      else if (isWeekendExcludedForDate(date, selectedSubscription)) status = "vacation";
+      else if (hasDelivery) status = "upcoming";
+
+      meta[dateString] = { status, hasDelivery, isSkipped };
+    }
+
+    // Keep TS happy: firstDay/lastDay used to define range; meta is returned
+    void firstDay;
+    void lastDay;
+    return meta;
+  }, [selectedSubscription, currentDate]);
+
+  const calendarCurrent = useMemo(
+    () => toDateKey(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)),
+    [currentDate]
+  );
+
+  const calendarSelected = useMemo(
+    () => toDateKey(selectedDate),
+    [selectedDate]
+  );
+
+  const todayKey = useMemo(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return toDateKey(t);
+  }, []);
+
+  const calendarCellSize = useMemo(() => {
+    const screenW = Dimensions.get("window").width;
+    const sectionHorizontalPadding = 16; // calendarSection marginHorizontal
+    const innerPadding = 9; // calendarSection paddingHorizontal
+    const available =
+      screenW - sectionHorizontalPadding * 2 - innerPadding * 2 - CALENDAR_CELL_GAP * 6;
+    return Math.floor(available / 7);
+  }, []);
 
   const isPlanActiveStatus = (sub: Subscription) =>
     sub.status === "active" ||
@@ -265,39 +408,12 @@ export default function OrdersScreen() {
   };
 
   /**
-   * Resolve weekend exclusion setting from subscription
-   * Handles both legacy (excludeWeekends boolean) and new (weekendExclusion string) formats
-   */
-  const resolveWeekendExclusion = (sub: Subscription): string => {
-    if (sub.weekType === "everyday") return "none";
-    const fromNew = sub.weekendExclusion ?? null;
-    if (fromNew) return fromNew;
-    // Legacy format: excludeWeekends boolean
-    if (sub.excludeWeekends === true) return "both";
-    return "none";
-  };
-
-  /**
-   * Check if a specific date should be excluded based on subscription's weekend settings
-   */
-  const isWeekendExcludedForDate = (date: Date, sub: Subscription): boolean => {
-    if (sub.weekType === "everyday") return false;
-    const day = date.getDay(); // 0 = Sunday, 6 = Saturday
-    const setting = resolveWeekendExclusion(sub);
-    if (setting === "both") return day === 0 || day === 6;
-    if (setting === "saturday") return day === 6;
-    if (setting === "sunday") return day === 0;
-    return false;
-  };
-
-  /**
    * Get a user-friendly label for weekend exclusion setting
    */
   const weekendExclusionLabel = (sub: Subscription): string | null => {
-    const setting = resolveWeekendExclusion(sub);
-    if (setting === "both") return "• Weekends excluded";
-    if (setting === "saturday") return "• Saturdays excluded";
-    if (setting === "sunday") return "• Sundays excluded";
+    if (sub.weekType === "mon-fri") return "• Sat & Sun excluded";
+    if (sub.weekType === "mon-sat") return "• Sundays excluded";
+    if (sub.weekType === "none") return "• No delivery days";
     return null;
   };
 
@@ -343,8 +459,8 @@ export default function OrdersScreen() {
     if (sub.planName && !/^\d+ Day Plan$/.test(sub.planName.trim())) {
       return sub.planName;
     }
-    const baseName = sub.customerName || user?.name || "User";
-    return `${baseName}'s Plan ${index + 1}`;
+    const mealName = mealsMap[sub.mealId]?.name || "Meal";
+    return `${mealName} Plan ${index + 1}`;
   };
 
   const handleSavePlanName = async (subId: string) => {
@@ -419,7 +535,7 @@ export default function OrdersScreen() {
 
     const isToday = selectedDateCopy.getTime() === today.getTime();
     const isPast = selectedDateCopy < today;
-    const dateString = selectedDate.toISOString().split("T")[0];
+    const dateString = toDateKey(selectedDateCopy);
 
     // Check if this date should have a delivery for the selected subscription
     const subStart = new Date(selectedSubscription.startDate);
@@ -433,8 +549,7 @@ export default function OrdersScreen() {
       selectedDateCopy,
       selectedSubscription
     );
-    const isSkipped =
-      selectedSubscription.skippedDates?.includes(dateString) || false;
+    const isSkipped = isDateSkipped(selectedDateCopy, selectedSubscription);
 
     if (!isInSubscriptionPeriod || isWeekendExcluded) {
       setSelectedDateDelivery(null);
@@ -535,8 +650,6 @@ export default function OrdersScreen() {
 
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - firstDay.getDay());
 
     const days: CalendarDay[] = [];
     const today = new Date();
@@ -558,9 +671,8 @@ export default function OrdersScreen() {
 
     // Generate all delivery dates for this subscription
     while (currentDeliveryDate <= subEnd && deliveredCount < totalDeliveries) {
-      const dateString = currentDeliveryDate.toISOString().split("T")[0];
-      const isSkipped =
-        selectedSubscription.skippedDates?.includes(dateString) || false;
+      const dateString = toDateKey(currentDeliveryDate);
+      const isSkipped = isDateSkipped(currentDeliveryDate, selectedSubscription);
 
       if (isWeekendExcludedForDate(currentDeliveryDate, selectedSubscription)) {
         currentDeliveryDate.setDate(currentDeliveryDate.getDate() + 1);
@@ -586,20 +698,30 @@ export default function OrdersScreen() {
       currentDeliveryDate.setDate(currentDeliveryDate.getDate() + 1);
     }
 
-    for (let i = 0; i < 42; i++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
+    // Only render the current month's dates.
+    // Add leading placeholders so day 1 aligns under the correct weekday header.
+    const leadingPlaceholders = firstDay.getDay(); // 0 = Sun ... 6 = Sat
+    for (let i = 0; i < leadingPlaceholders; i++) {
+      days.push({
+        date: null,
+        isCurrentMonth: false,
+        hasDelivery: false,
+        deliveryStatus: "upcoming",
+        canModify: false,
+        isPlaceholder: true,
+      });
+    }
+
+    const lastDate = lastDay.getDate();
+    for (let d = 1; d <= lastDate; d++) {
+      const date = new Date(year, month, d);
       date.setHours(0, 0, 0, 0);
 
-      const isCurrentMonth = date.getMonth() === month;
-      const dateString = date.toISOString().split("T")[0];
-
+      const dateString = toDateKey(date);
       const hasDelivery = deliveryDates.has(dateString);
-      const isSkipped =
-        selectedSubscription.skippedDates?.includes(dateString) || false;
+      const isSkipped = isDateSkipped(date, selectedSubscription);
 
       let deliveryStatus: CalendarDay["deliveryStatus"] = "upcoming";
-
       if (isSkipped) {
         deliveryStatus = "skipped";
       } else if (date < today && hasDelivery) {
@@ -614,12 +736,28 @@ export default function OrdersScreen() {
 
       days.push({
         date,
-        isCurrentMonth,
+        isCurrentMonth: true,
         hasDelivery,
         deliveryStatus,
         subscription: hasDelivery ? selectedSubscription : undefined,
         canModify,
       });
+    }
+
+    // Add trailing placeholders to complete the last week row (no extra weeks added).
+    const remainder = days.length % 7;
+    if (remainder !== 0) {
+      const trailing = 7 - remainder;
+      for (let i = 0; i < trailing; i++) {
+        days.push({
+          date: null,
+          isCurrentMonth: false,
+          hasDelivery: false,
+          deliveryStatus: "upcoming",
+          canModify: false,
+          isPlaceholder: true,
+        });
+      }
     }
 
     setCalendarDays(days);
@@ -708,7 +846,7 @@ export default function OrdersScreen() {
         style: "destructive",
         onPress: async () => {
           try {
-            const dateString = selectedDate.toISOString().split("T")[0];
+            const dateString = toDateKey(selectedDate);
             await db.skipMealForDate(
               selectedDateDelivery.subscription!.id,
               dateString
@@ -803,7 +941,7 @@ export default function OrdersScreen() {
 
     setShowPaymentModal(true);
     setPaymentStatus("processing");
-    const dateString = selectedDate.toISOString().split("T")[0];
+    const dateString = toDateKey(selectedDate);
     try {
       await db.addWalletTransaction({
         userId: user.id,
@@ -836,7 +974,7 @@ export default function OrdersScreen() {
     }
 
     const total = getSelectedAddOnsTotal();
-    const dateString = selectedDate.toISOString().split("T")[0];
+    const dateString = toDateKey(selectedDate);
 
     setShowPaymentModal(true);
     setPaymentStatus("processing");
@@ -896,50 +1034,6 @@ export default function OrdersScreen() {
       console.error("handleConfirmAddOns error:", e);
       setPaymentStatus("failed");
     }
-  };
-
-  const renderCalendarDay = (day: CalendarDay, index: number) => {
-    const isSelected = selectedDate.toDateString() === day.date.toDateString();
-    const isToday = new Date().toDateString() === day.date.toDateString();
-
-    return (
-      <TouchableOpacity
-        key={index}
-        style={[
-          styles.calendarDay,
-          !day.isCurrentMonth && styles.calendarDayInactive,
-          isSelected && styles.calendarDaySelected,
-          isToday && styles.calendarDayToday,
-          day.hasDelivery && styles.calendarDayWithDelivery,
-        ]}
-        onPress={() => selectDate(day.date)}
-        activeOpacity={0.7}
-      >
-        <Text
-          style={[
-            styles.calendarDayText,
-            !day.isCurrentMonth && styles.calendarDayTextInactive,
-            isSelected && styles.calendarDayTextSelected,
-            isToday && styles.calendarDayTextToday,
-          ]}
-        >
-          {day.date.getDate()}
-        </Text>
-        {(day.hasDelivery ||
-          day.deliveryStatus === "skipped" ||
-          day.deliveryStatus === "vacation" ||
-          day.deliveryStatus === "on_hold") && (
-          <View
-            style={[
-              styles.deliveryIndicator,
-              { backgroundColor: getCalendarStatusColor(day.deliveryStatus) },
-            ]}
-            testID={`indicator-${day.date.toISOString().split("T")[0]}`}
-          />
-        )}
-        {isToday && !isSelected && <View style={styles.todayIndicator} />}
-      </TouchableOpacity>
-    );
   };
 
   // Helper function to check if a date is an active plan date
@@ -1140,7 +1234,7 @@ export default function OrdersScreen() {
           )}
 
           {/* Cutoff hint */}
-          {appSettings && (selectedDateDelivery.canSkip || selectedDateDelivery.canAddItems) && (() => {
+          {/* {appSettings && (selectedDateDelivery.canSkip || selectedDateDelivery.canAddItems) && (() => {
             const { canSkipMeal, canModifyAddOns, getCutoffMessage } = require("@/utils/cutoffTimeUtils");
             const skipResult = canSkipMeal(selectedDate, appSettings);
             const addOnResult = canModifyAddOns(selectedDate, appSettings);
@@ -1154,7 +1248,7 @@ export default function OrdersScreen() {
                 </Text>
               </View>
             );
-          })()}
+          })()} */}
 
           {/* Action buttons */}
           <View style={styles.richActionRow}>
@@ -1198,7 +1292,7 @@ export default function OrdersScreen() {
 
   if (isGuest || !user) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView edges={["top", "left", "right"]} style={styles.container}>
         <View style={styles.emptyState}>
           <ShoppingBag size={64} color="#DDD" />
           <Text style={styles.emptyTitle}>No Orders Yet</Text>
@@ -1220,25 +1314,23 @@ export default function OrdersScreen() {
     );
   }
 
-  const insets = useSafeAreaInsets();
-
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.container}>
       {/* ── Header ──────────────────────────────────────────────────── */}
       <View style={styles.screenHeader}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => router.back()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          // hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <ArrowLeft size={22} color="#111827" />
         </TouchableOpacity>
         <View style={styles.screenHeaderText}>
-          <Text style={styles.screenHeaderTitle}>My Orders</Text>
-          <Text style={styles.screenHeaderSub}>
+          <Text style={styles.screenHeaderTitle}>My Subscriptions</Text>
+          {/* <Text style={styles.screenHeaderSub}>
             {activeSubscriptions.length} active plan
             {activeSubscriptions.length !== 1 ? "s" : ""}
-          </Text>
+          </Text> */}
         </View>
       </View>
 
@@ -1409,7 +1501,7 @@ export default function OrdersScreen() {
 
                     <View style={styles.planMetaRow}>
                       <View style={styles.planMetaPill}>
-                        <Calendar size={12} color="#6B7280" />
+                        <CalendarIcon size={12} color="#6B7280" />
                         <Text style={styles.planMetaText} numberOfLines={1}>
                           {new Date(sub.startDate).toLocaleDateString("en-IN", {
                             day: "numeric",
@@ -1474,12 +1566,12 @@ export default function OrdersScreen() {
           <>
             {/* Legend + Navigation */}
             <View style={styles.calendarSection}>
-              <View style={styles.calendarNav}>
+              {/* <View style={styles.calendarNav}>
                 <TouchableOpacity
                   style={styles.navButton}
                   onPress={() => navigateMonth("prev")}
                 >
-                  <ChevronLeft size={20} color="#6B7280" />
+                  <ChevronLeft size={18} color="#6B7280" />
                 </TouchableOpacity>
                 <Text style={styles.monthYear}>
                   {currentDate.toLocaleDateString("en-US", {
@@ -1491,9 +1583,9 @@ export default function OrdersScreen() {
                   style={styles.navButton}
                   onPress={() => navigateMonth("next")}
                 >
-                  <ChevronRight size={20} color="#6B7280" />
+                  <ChevronRight size={18} color="#6B7280" />
                 </TouchableOpacity>
-              </View>
+              </View> */}
 
               {/* Legend */}
               <View style={styles.legendRow}>
@@ -1512,18 +1604,82 @@ export default function OrdersScreen() {
 
               {/* Calendar grid */}
               <View style={styles.calendar}>
-                <View style={styles.dayHeaders}>
-                  {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map(
-                    (day) => (
-                      <Text key={day} style={styles.dayHeader}>
-                        {day}
-                      </Text>
+                <RNCalendar
+                  current={calendarCurrent}
+                  hideExtraDays
+                  firstDay={0}
+                  enableSwipeMonths
+                  onDayPress={(d: DateData) => {
+                    const pressed = new Date(d.year, d.month - 1, d.day);
+                    pressed.setHours(0, 0, 0, 0);
+                    setSelectedDate(pressed);
+                  }}
+                  onMonthChange={(m) => {
+                    const newMonth = new Date(m.year, m.month - 1, 1);
+                    newMonth.setHours(0, 0, 0, 0);
+                    setCurrentDate(newMonth);
+                  }}
+                  renderArrow={(direction) =>
+                    direction === "left" ? (
+                      <ChevronLeft size={18} color="#6B7280" />
+                    ) : (
+                      <ChevronRight size={18} color="#6B7280" />
                     )
-                  )}
-                </View>
-                <View style={styles.calendarGrid}>
-                  {calendarDays.map(renderCalendarDay)}
-                </View>
+                  }
+                  theme={{
+                    calendarBackground: "transparent",
+                    textMonthFontWeight: "800",
+                    textMonthFontSize: 18,
+                    monthTextColor: "#111827",
+                    arrowColor: "#6B7280",
+                    textSectionTitleColor: "#9CA3AF",
+                    textSectionTitleDisabledColor: "#D1D5DB",
+                    textDayHeaderFontWeight: "700",
+                    textDayHeaderFontSize: 13,
+                  }}
+                  dayComponent={({ date }) => {
+                    if (!date) return <View style={{ width: calendarCellSize, height: calendarCellSize }} />;
+                    const dateStr = date.dateString;
+                    const meta = calendarMetaByDate[dateStr];
+                    const isSelected = dateStr === calendarSelected;
+                    const isToday = dateStr === todayKey;
+                    const showDot = !!meta && (meta.hasDelivery || meta.status === "skipped" || meta.status === "vacation" || meta.status === "on_hold");
+                    const dotColor = showDot && meta ? getCalendarStatusColor(meta.status) : undefined;
+
+                    return (
+                      <TouchableOpacity
+                        activeOpacity={0.75}
+                        onPress={() => {
+                          const pressed = new Date(date.year, date.month - 1, date.day);
+                          pressed.setHours(0, 0, 0, 0);
+                          setSelectedDate(pressed);
+                        }}
+                        style={[
+                          styles.rnDayCell,
+                          {
+                            width: calendarCellSize,
+                            height: calendarCellSize,
+                            marginRight: CALENDAR_CELL_GAP,
+                            marginBottom: CALENDAR_CELL_GAP,
+                          },
+                          isSelected && styles.rnDayCellSelected,
+                          isToday && !isSelected && styles.rnDayCellToday,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.rnDayText,
+                            isSelected && styles.rnDayTextSelected,
+                            isToday && !isSelected && styles.rnDayTextToday,
+                          ]}
+                        >
+                          {date.day}
+                        </Text>
+                        {dotColor ? <View style={[styles.rnDot, { backgroundColor: dotColor }]} /> : null}
+                      </TouchableOpacity>
+                    );
+                  }}
+                />
               </View>
             </View>
 
@@ -1542,7 +1698,7 @@ export default function OrdersScreen() {
                     {selectedDate.toLocaleDateString("en-US", { year: "numeric" })}
                   </Text>
                 </View>
-                {selectedDateDelivery && selectedDateDelivery.status !== "scheduled" && (
+                {/* {selectedDateDelivery && selectedDateDelivery.status !== "scheduled" && (
                   <View
                     style={[
                       styles.selectedDateBadge,
@@ -1561,7 +1717,7 @@ export default function OrdersScreen() {
                       {getDeliveryStatusLabel(selectedDateDelivery.status)}
                     </Text>
                   </View>
-                )}
+                )} */}
               </View>
 
               {renderSelectedDateDelivery()}
@@ -1569,7 +1725,7 @@ export default function OrdersScreen() {
           </>
         )}
 
-        <View style={{ height: 32 }} />
+        {/* <View style={{ height: 32 }} /> */}
       </ScrollView>
 
       {/* Add-On Selection Modal – bottom-sheet style */}
@@ -1794,9 +1950,9 @@ export default function OrdersScreen() {
       </Modal>
 
       {/* WhatsApp Button */}
-      <TouchableOpacity style={styles.whatsappButton}>
+      {/* <TouchableOpacity style={styles.whatsappButton}>
         <Text style={styles.whatsappButtonText}>💬</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </SafeAreaView>
   );
 }
@@ -1814,7 +1970,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 9,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#F0F0F0",
@@ -1845,12 +2001,12 @@ const styles = StyleSheet.create({
   // ── Active Plans section ───────────────────────────────────────────
   plansSection: {
     paddingHorizontal: 0,
-    paddingTop: 20,
-    paddingBottom: 4,
+    paddingTop: 14,
+    paddingBottom: 1,
   },
   plansSectionHeader: {
     paddingHorizontal: 16,
-    marginBottom: 12,
+    marginBottom: 9,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1914,7 +2070,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
-    marginBottom: 12,
+    marginBottom: 3,
     borderWidth: 1.5,
     borderColor: "#E6E9F2",
     overflow: "hidden",
@@ -1940,7 +2096,7 @@ const styles = StyleSheet.create({
   planCardBody: {
     flex: 1,
     paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingVertical: 3,
   },
   planCardTopRow: {
     flexDirection: "row",
@@ -2095,10 +2251,12 @@ const styles = StyleSheet.create({
   // ── Calendar section ───────────────────────────────────────────────
   calendarSection: {
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 9,
     backgroundColor: "#fff",
     borderRadius: 20,
-    padding: 16,
+    paddingTop: 9,
+    paddingHorizontal: 9,
+    paddingBottom: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
@@ -2109,16 +2267,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 5,
   },
   legendRow: {
     flexDirection: "row",
     justifyContent: "space-around",
-    paddingVertical: 10,
+    paddingVertical: 9,
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: "#F3F4F6",
-    marginBottom: 12,
+    marginBottom: 5,
   },
   // ── Selected date section ──────────────────────────────────────────
   selectedDateSection: {
@@ -2144,7 +2302,7 @@ const styles = StyleSheet.create({
   },
   richCardBody: {
     flex: 1,
-    padding: 16,
+    padding: 9,
   },
   richCardTopRow: {
     flexDirection: "row",
@@ -2392,8 +2550,8 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   navButton: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: 20,
     backgroundColor: "#F3F4F6",
     justifyContent: "center",
@@ -2403,7 +2561,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   monthYear: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
     color: "#111827",
     marginBottom: 2,
@@ -2415,18 +2573,18 @@ const styles = StyleSheet.create({
   },
   calendar: {
     backgroundColor: "white",
-    marginHorizontal: 16,
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 8,
+    // marginHorizontal: 16,
+    // borderRadius: 20,
+    padding: 9,
+    // shadowColor: "#000",
+    // shadowOffset: { width: 0, height: 8 },
+    // shadowOpacity: 0.12,
+    // shadowRadius: 16,
+    // elevation: 8,
   },
   dayHeaders: {
     flexDirection: "row",
-    marginBottom: 8,
+    marginBottom: 0,
   },
   dayHeader: {
     flex: 1,
@@ -2438,24 +2596,31 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   calendarGrid: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    rowGap: 1,
+    paddingBottom: 0
+  },
+  calendarWeekRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    columnGap: 6,
   },
   calendarDay: {
-    width: "14.28%",
+    flex: 1,
     aspectRatio: 1,
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
     borderRadius: 12,
-    marginVertical: 2,
+  },
+  calendarDayPlaceholder: {
+    backgroundColor: "transparent",
   },
   calendarDayInactive: {
     opacity: 0.3,
   },
   calendarDaySelected: {
     backgroundColor: "#48479B",
-    transform: [{ scale: 1.1 }],
     shadowColor: "#48479B",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -2489,6 +2654,45 @@ const styles = StyleSheet.create({
   calendarDayTextToday: {
     color: "white",
     fontWeight: "bold",
+  },
+  // ── Robust calendar day (react-native-calendars) ────────────────────────
+  rnDayCell: {
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+  },
+  rnDayCellSelected: {
+    backgroundColor: "#48479B",
+    shadowColor: "#48479B",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  rnDayCellToday: {
+    borderWidth: 2,
+    borderColor: "#10B981",
+  },
+  rnDayText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#374151",
+  },
+  rnDayTextSelected: {
+    color: "#fff",
+  },
+  rnDayTextToday: {
+    color: "#10B981",
+  },
+  rnDot: {
+    position: "absolute",
+    bottom: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#fff",
   },
   deliveryIndicator: {
     position: "absolute",

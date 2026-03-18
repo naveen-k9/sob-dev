@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   LayoutChangeEvent,
+  Animated,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Clock, Lock } from "lucide-react-native";
@@ -65,7 +66,124 @@ interface WeekDayItem {
 }
 
 /** Number of days to show starting from today */
-const DAYS_FROM_TODAY = 14;
+const DAYS_FROM_TODAY = 7;
+
+function useShimmer(durationMs: number = 1100) {
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(progress, {
+          toValue: 1,
+          duration: durationMs,
+          useNativeDriver: true,
+        }),
+        Animated.timing(progress, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [durationMs, progress]);
+
+  return progress;
+}
+
+function Shimmer({
+  borderRadius = 12,
+  style,
+  colors,
+  isDark,
+}: {
+  borderRadius?: number;
+  style?: any;
+  colors: ReturnType<typeof getColors>;
+  isDark: boolean;
+}) {
+  const shimmer = useShimmer();
+  const translateX = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-120, 240],
+  });
+
+  const base = isDark ? "#202234" : "#ECEFF4";
+  const highlight = isDark ? "#2B2E45" : "#F6F7FA";
+
+  return (
+    <View style={[styles.skelBase, { backgroundColor: base, borderRadius }, style]}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.skelShimmer,
+          {
+            transform: [{ translateX }],
+            borderRadius,
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={[base, highlight, base]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[StyleSheet.absoluteFill, { borderRadius }]}
+        />
+      </Animated.View>
+    </View>
+  );
+}
+
+function WeeklyMenuSkeleton({
+  colors,
+  isDark,
+}: {
+  colors: ReturnType<typeof getColors>;
+  isDark: boolean;
+}) {
+  return (
+    <View style={styles.container}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.weekHeaderScroll}
+        contentContainerStyle={styles.weekHeaderContent}
+        scrollEnabled={false}
+      >
+        {Array.from({ length: DAYS_FROM_TODAY }).map((_, i) => (
+          <View key={`skel-day-${i}`} style={styles.dayChip}>
+            <Shimmer isDark={isDark} colors={colors} borderRadius={8} style={{ height: 12, width: 34, marginBottom: 8 }} />
+            <Shimmer isDark={isDark} colors={colors} borderRadius={18} style={{ height: 36, width: 36 }} />
+          </View>
+        ))}
+      </ScrollView>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        scrollEnabled={false}
+      >
+        {Array.from({ length: 3 }).map((_, idx) => (
+          <View key={`skel-card-${idx}`} style={styles.cardWrapper}>
+            <View style={styles.skelCard}>
+              <Shimmer isDark={isDark} colors={colors} borderRadius={0} style={styles.skelImage} />
+              <View style={styles.skelDetails}>
+                <Shimmer isDark={isDark} colors={colors} borderRadius={10} style={{ height: 16, width: "70%" }} />
+                <Shimmer isDark={isDark} colors={colors} borderRadius={10} style={{ height: 12, width: "92%", marginTop: 10 }} />
+                <Shimmer isDark={isDark} colors={colors} borderRadius={10} style={{ height: 12, width: "85%", marginTop: 8 }} />
+                <View style={{ flex: 1 }} />
+                <Shimmer isDark={isDark} colors={colors} borderRadius={18} style={{ height: 34, width: 118, alignSelf: "flex-end" }} />
+              </View>
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
 
 /** First day is always today; rest are calendar days (tomorrow, day after, ...). */
 function getDaysFromToday(): WeekDayItem[] {
@@ -254,13 +372,7 @@ export default function WeeklyMenuSlider({
   };
 
   if (loading) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading weekly menu...</Text>
-        </View>
-      </View>
-    );
+    return <WeeklyMenuSkeleton colors={colors} isDark={isDark} />;
   }
 
   return (
@@ -463,6 +575,29 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: 0,
   },
+  skelBase: {
+    overflow: "hidden",
+  },
+  skelShimmer: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    width: 140,
+  },
+  skelCard: {
+    flexDirection: "row",
+    minHeight: WEEKLY_CARD_MIN_HEIGHT,
+  },
+  skelImage: {
+    width: "42%",
+    height: WEEKLY_IMAGE_HEIGHT,
+  },
+  skelDetails: {
+    flex: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 9,
+    paddingRight: 16,
+  },
   addItemsContainer: {
     flexDirection: "column",
     alignItems: "center",   // ensures text is centered under button
@@ -510,7 +645,8 @@ const styles = StyleSheet.create({
   },
   dayChip: {
     alignItems: "center",
-    minWidth: 44,
+    minWidth: 47,
+    paddingRight: 3,
   },
   dayLabel: {
     fontSize: 13,
