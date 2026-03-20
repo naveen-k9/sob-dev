@@ -414,7 +414,7 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
         {/* Center Pin Overlay */}
         <View style={styles.centerMarkerContainer}>
           <View style={styles.centerMarker}>
-            <Ionicons name="location" size={30} color="#FF3B30" />
+            <Ionicons name="location" size={30} color="#48479B" />
           </View>
         </View>
 

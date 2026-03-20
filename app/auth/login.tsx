@@ -162,7 +162,7 @@ export default function LoginScreen() {
         // Sign in with the custom token
         if (result.token) {
           const loginResult = await login(
-            phone,
+            formattedPhone,
             otp,
             (result.user?.role as UserRole) || "customer",
             result.token,

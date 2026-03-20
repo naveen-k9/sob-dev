@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   removeButtonText: {
-    color: '#FF4444',
+    color: '#48479B',
     fontSize: 12,
     fontWeight: '500',
   },

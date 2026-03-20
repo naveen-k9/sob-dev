@@ -45,7 +45,7 @@ const ServiceAreaRequestModal: React.FC<ServiceAreaRequestModalProps> = ({
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Ionicons name="location-outline" size={48} color="#FF3B30" />
+            <Ionicons name="location-outline" size={48} color="#48479B" />
             <Text style={styles.modalTitle}>Area Not Serviceable</Text>
           </View>
 

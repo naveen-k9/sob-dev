@@ -23,7 +23,7 @@ import {
 } from '@/services/firebase';
 
 const COLORS = [
-  '#FF3B30', '#FF9500', '#FFCC00', '#34C759',
+  '#48479B', '#FF9500', '#FFCC00', '#34C759',
   '#007AFF', '#5856D6', '#AF52DE', '#FF2D92'
 ];
 
@@ -274,7 +274,7 @@ export default function PolygonLocations() {
       {currentPolygon && (
         <View style={styles.bottomActions}>
           <TouchableOpacity style={styles.undoButton} onPress={undoLastPoint}>
-            <Ionicons name="arrow-undo" size={20} color="#FF3B30" />
+            <Ionicons name="arrow-undo" size={20} color="#48479B" />
             <Text style={styles.undoText}>Undo</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.cancelButton} onPress={cancelCurrentPolygon}>
@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontSize: 15,
     fontWeight: '600',
-    color: '#FF3B30',
+    color: '#48479B',
   },
   cancelButton: {
     flex: 1,

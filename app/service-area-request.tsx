@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   required: {
-    color: "#FF3B30",
+    color: "#48479B",
   },
   input: {
     borderWidth: 1,

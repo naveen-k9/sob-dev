@@ -162,9 +162,9 @@ const SelectLocationScreen: React.FC<SelectLocationScreenProps> = ({
           >
             <View style={styles.actionIconContainer}>
               {isLoadingLocation ? (
-                <ActivityIndicator size="small" color="#FF3B30" />
+                <ActivityIndicator size="small" color="#48479B" />
               ) : (
-                <Ionicons name="locate" size={20} color="#FF3B30" />
+                <Ionicons name="locate" size={20} color="#48479B" />
               )}
             </View>
             <Text style={styles.actionText}>
@@ -179,7 +179,7 @@ const SelectLocationScreen: React.FC<SelectLocationScreenProps> = ({
             onPress={handleAddNewAddress}
           >
             <View style={styles.actionIconContainer}>
-              <Ionicons name="add" size={20} color="#FF3B30" />
+              <Ionicons name="add" size={20} color="#48479B" />
             </View>
             <Text style={styles.actionText}>Add New Address</Text>
             <Ionicons name="chevron-forward" size={16} color="#8E8E93" />

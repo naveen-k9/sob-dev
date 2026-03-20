@@ -130,7 +130,9 @@ export async function sendAddonPurchaseNotificationCallable(params: {
   addonNames: string[];
   date: string;
   totalAmount: string;
-  subscriptionId: string;
+  orderId: string;
+  meal?: string;
+  deliveryTime?: string;
 }): Promise<SendAddonPurchaseNotificationResult> {
   return callFirebaseCallable<
     typeof params,

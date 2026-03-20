@@ -76,7 +76,7 @@ const AddressList: React.FC<AddressListProps> = ({
                 <Ionicons 
                   name="location" 
                   size={20} 
-                  color={isActive ? "#FFFFFF" : "#FF3B30"} 
+                  color={isActive ? "#FFFFFF" : "#48479B"} 
                 />
                 <View style={styles.addressDetails}>
                   <View style={styles.nameContainer}>
@@ -132,7 +132,7 @@ const AddressList: React.FC<AddressListProps> = ({
                   <Ionicons 
                     name="trash" 
                     size={16} 
-                    color={isActive ? "#FFFFFF" : "#FF3B30"} 
+                    color={isActive ? "#FFFFFF" : "#48479B"} 
                   />
                 </TouchableOpacity>
               </View>

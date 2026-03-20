@@ -170,7 +170,7 @@ const LocationDetector: React.FC<LocationDetectorProps> = ({ polygons }) => {
             >
               <View style={[
                 styles.locationMarker,
-                { backgroundColor: serviceablePolygons.length > 0 ? '#34C759' : '#FF3B30' }
+                { backgroundColor: serviceablePolygons.length > 0 ? '#34C759' : '#48479B' }
               ]}>
                 <Ionicons 
                   name="person" 
@@ -215,11 +215,11 @@ const LocationDetector: React.FC<LocationDetectorProps> = ({ polygons }) => {
                 <Ionicons 
                   name={serviceablePolygons.length > 0 ? "checkmark-circle" : "close-circle"} 
                   size={24} 
-                  color={serviceablePolygons.length > 0 ? '#34C759' : '#FF3B30'} 
+                  color={serviceablePolygons.length > 0 ? '#34C759' : '#48479B'} 
                 />
                 <Text style={[
                   styles.statusTitle,
-                  { color: serviceablePolygons.length > 0 ? '#34C759' : '#FF3B30' }
+                  { color: serviceablePolygons.length > 0 ? '#34C759' : '#48479B' }
                 ]}>
                   {serviceablePolygons.length > 0 ? 'Area Serviceable' : 'Area Not Serviceable'}
                 </Text>

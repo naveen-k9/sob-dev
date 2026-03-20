@@ -388,7 +388,7 @@ const AddAddressFormScreen: React.FC<AddAddressFormScreenProps> = ({
                         name={getAddressTypeIcon(type)}
                         size={20}
                         color={
-                          selectedAddressType === type ? "#FF3B30" : "#8E8E93"
+                          selectedAddressType === type ? "#48479B" : "#8E8E93"
                         }
                       />
                       <Text
@@ -405,7 +405,7 @@ const AddAddressFormScreen: React.FC<AddAddressFormScreenProps> = ({
                       <Ionicons
                         name="checkmark-circle"
                         size={20}
-                        color="#FF3B30"
+                        color="#48479B"
                       />
                     )}
                   </TouchableOpacity>
@@ -572,7 +572,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   labelOptionSelected: {
-    borderColor: "#FF3B30",
+    borderColor: "#48479B",
     backgroundColor: "#FFF5F4",
   },
   labelOptionContent: {
@@ -586,14 +586,14 @@ const styles = StyleSheet.create({
     color: "#8E8E93",
   },
   labelOptionTextSelected: {
-    color: "#FF3B30",
+    color: "#48479B",
   },
   customLabelContainer: {
     marginTop: 16,
   },
   customLabelInput: {
     borderWidth: 1,
-    borderColor: "#FF3B30",
+    borderColor: "#48479B",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
     borderTopColor: "#F2F2F7",
   },
   saveButton: {
-    backgroundColor: "#FF3B30",
+    backgroundColor: "#48479B",
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",

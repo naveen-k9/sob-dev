@@ -131,11 +131,32 @@ export default function OrdersScreen() {
     return `${y}-${m}-${day}`;
   };
 
+  const normalizeStoredDateKey = (value: string): string | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    // Stored date-only keys are treated as canonical local calendar days.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) return null;
+    parsed.setHours(0, 0, 0, 0);
+    return toDateKey(parsed);
+  };
+
+  const getSkippedDateSet = (sub: Subscription): Set<string> => {
+    const skippedDates = sub.skippedDates ?? [];
+    return new Set(
+      skippedDates
+        .map((value) => normalizeStoredDateKey(value))
+        .filter((value): value is string => Boolean(value))
+    );
+  };
+
   const isDateSkipped = (date: Date, sub: Subscription): boolean => {
     const localKey = toDateKey(date);
-    const utcKey = date.toISOString().split("T")[0];
-    const skipped = sub.skippedDates ?? [];
-    return skipped.includes(localKey) || skipped.includes(utcKey);
+    const skippedDateSet = getSkippedDateSet(sub);
+    return skippedDateSet.has(localKey);
   };
 
   /**
@@ -154,9 +175,64 @@ export default function OrdersScreen() {
     return false;
   };
 
+  const buildSubscriptionSchedule = (sub: Subscription) => {
+    const subStart = new Date(sub.startDate);
+    const effectiveEnd = new Date(sub.endDate);
+    subStart.setHours(0, 0, 0, 0);
+    effectiveEnd.setHours(0, 0, 0, 0);
+
+    const skippedDateSet = getSkippedDateSet(sub);
+    const deliveryDates = new Set<string>();
+    const totalDeliveries = sub.duration || sub.totalDeliveries || 0;
+
+    let currentDeliveryDate = new Date(subStart);
+    let deliveredCount = 0;
+    let guard = 0;
+
+    while (
+      currentDeliveryDate <= effectiveEnd &&
+      deliveredCount < totalDeliveries &&
+      guard < 5000
+    ) {
+      const dateKey = toDateKey(currentDeliveryDate);
+
+      if (isWeekendExcludedForDate(currentDeliveryDate, sub)) {
+        currentDeliveryDate.setDate(currentDeliveryDate.getDate() + 1);
+        guard++;
+        continue;
+      }
+
+      const isSkipped = skippedDateSet.has(dateKey);
+      if (!isSkipped) {
+        deliveryDates.add(dateKey);
+        deliveredCount++;
+      } else {
+        const extendedEndDate = new Date(effectiveEnd);
+        extendedEndDate.setDate(extendedEndDate.getDate() + 1);
+        while (isWeekendExcludedForDate(extendedEndDate, sub)) {
+          extendedEndDate.setDate(extendedEndDate.getDate() + 1);
+        }
+        effectiveEnd.setTime(extendedEndDate.getTime());
+      }
+
+      currentDeliveryDate.setDate(currentDeliveryDate.getDate() + 1);
+      guard++;
+    }
+
+    return { subStart, effectiveEnd, deliveryDates, skippedDateSet };
+  };
+
   const selectedSubscription = useMemo(
     () => userSubscriptions.find((s) => s.id === selectedPlanId),
     [userSubscriptions, selectedPlanId]
+  );
+
+  const selectedSubscriptionSchedule = useMemo(
+    () =>
+      selectedSubscription
+        ? buildSubscriptionSchedule(selectedSubscription)
+        : null,
+    [selectedSubscription]
   );
 
   const calendarMetaByDate = useMemo(() => {
@@ -173,43 +249,8 @@ export default function OrdersScreen() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Build delivery date set (same logic as generateCalendarDays)
-    const subStart = new Date(selectedSubscription.startDate);
-    const subEnd = new Date(selectedSubscription.endDate);
-    subStart.setHours(0, 0, 0, 0);
-    subEnd.setHours(0, 0, 0, 0);
-
-    const deliveryDates = new Set<string>();
-    let currentDeliveryDate = new Date(subStart);
-    let deliveredCount = 0;
-    const totalDeliveries =
-      selectedSubscription.duration || selectedSubscription.totalDeliveries || 0;
-
-    while (currentDeliveryDate <= subEnd && deliveredCount < totalDeliveries) {
-      const dateString = toDateKey(currentDeliveryDate);
-      const isSkipped = isDateSkipped(currentDeliveryDate, selectedSubscription);
-
-      if (isWeekendExcludedForDate(currentDeliveryDate, selectedSubscription)) {
-        currentDeliveryDate.setDate(currentDeliveryDate.getDate() + 1);
-        continue;
-      }
-
-      if (!isSkipped) {
-        deliveryDates.add(dateString);
-        deliveredCount++;
-      } else {
-        const extendedEndDate = new Date(subEnd);
-        extendedEndDate.setDate(extendedEndDate.getDate() + 1);
-
-        while (isWeekendExcludedForDate(extendedEndDate, selectedSubscription)) {
-          extendedEndDate.setDate(extendedEndDate.getDate() + 1);
-        }
-
-        subEnd.setTime(extendedEndDate.getTime());
-      }
-
-      currentDeliveryDate.setDate(currentDeliveryDate.getDate() + 1);
-    }
+    const schedule = buildSubscriptionSchedule(selectedSubscription);
+    const deliveryDates = schedule.deliveryDates;
 
     const meta: Record<
       string,
@@ -222,7 +263,7 @@ export default function OrdersScreen() {
       const dateString = toDateKey(date);
 
       const hasDelivery = deliveryDates.has(dateString);
-      const isSkipped = isDateSkipped(date, selectedSubscription);
+      const isSkipped = schedule.skippedDateSet.has(dateString);
 
       let status: CalendarDay["deliveryStatus"] = "upcoming";
       if (isSkipped) status = "skipped";
@@ -538,18 +579,19 @@ export default function OrdersScreen() {
     const dateString = toDateKey(selectedDateCopy);
 
     // Check if this date should have a delivery for the selected subscription
-    const subStart = new Date(selectedSubscription.startDate);
-    const subEnd = new Date(selectedSubscription.endDate);
-    subStart.setHours(0, 0, 0, 0);
-    subEnd.setHours(0, 0, 0, 0);
+    const schedule =
+      selectedSubscription.id === selectedPlanId && selectedSubscriptionSchedule
+        ? selectedSubscriptionSchedule
+        : buildSubscriptionSchedule(selectedSubscription);
 
     const isInSubscriptionPeriod =
-      selectedDateCopy >= subStart && selectedDateCopy <= subEnd;
+      selectedDateCopy >= schedule.subStart &&
+      selectedDateCopy <= schedule.effectiveEnd;
     const isWeekendExcluded = isWeekendExcludedForDate(
       selectedDateCopy,
       selectedSubscription
     );
-    const isSkipped = isDateSkipped(selectedDateCopy, selectedSubscription);
+    const isSkipped = schedule.skippedDateSet.has(dateString);
 
     if (!isInSubscriptionPeriod || isWeekendExcluded) {
       setSelectedDateDelivery(null);
@@ -572,10 +614,7 @@ export default function OrdersScreen() {
     }
 
     // Check if this date is an active plan date (should have delivery)
-    const isActivePlanDateResult = isActivePlanDate(
-      selectedDateCopy,
-      selectedSubscription
-    );
+    const isActivePlanDateResult = schedule.deliveryDates.has(dateString);
     if (!isActivePlanDateResult) {
       setSelectedDateDelivery(null);
       return;
@@ -655,48 +694,11 @@ export default function OrdersScreen() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Calculate delivery dates based on subscription start date and weekend exclusions
-    const subStart = new Date(selectedSubscription.startDate);
-    const subEnd = new Date(selectedSubscription.endDate);
-    subStart.setHours(0, 0, 0, 0);
-    subEnd.setHours(0, 0, 0, 0);
-
-    const deliveryDates = new Set<string>();
-    let currentDeliveryDate = new Date(subStart);
-    let deliveredCount = 0;
-    const totalDeliveries =
-      selectedSubscription.duration ||
-      selectedSubscription.totalDeliveries ||
-      0;
-
-    // Generate all delivery dates for this subscription
-    while (currentDeliveryDate <= subEnd && deliveredCount < totalDeliveries) {
-      const dateString = toDateKey(currentDeliveryDate);
-      const isSkipped = isDateSkipped(currentDeliveryDate, selectedSubscription);
-
-      if (isWeekendExcludedForDate(currentDeliveryDate, selectedSubscription)) {
-        currentDeliveryDate.setDate(currentDeliveryDate.getDate() + 1);
-        continue;
-      }
-
-      if (!isSkipped) {
-        deliveryDates.add(dateString);
-        deliveredCount++;
-      } else {
-        const extendedEndDate = new Date(subEnd);
-        extendedEndDate.setDate(extendedEndDate.getDate() + 1);
-
-        while (
-          isWeekendExcludedForDate(extendedEndDate, selectedSubscription)
-        ) {
-          extendedEndDate.setDate(extendedEndDate.getDate() + 1);
-        }
-
-        subEnd.setTime(extendedEndDate.getTime());
-      }
-
-      currentDeliveryDate.setDate(currentDeliveryDate.getDate() + 1);
-    }
+    const schedule =
+      selectedSubscription.id === selectedPlanId && selectedSubscriptionSchedule
+        ? selectedSubscriptionSchedule
+        : buildSubscriptionSchedule(selectedSubscription);
+    const deliveryDates = schedule.deliveryDates;
 
     // Only render the current month's dates.
     // Add leading placeholders so day 1 aligns under the correct weekday header.
@@ -719,7 +721,7 @@ export default function OrdersScreen() {
 
       const dateString = toDateKey(date);
       const hasDelivery = deliveryDates.has(dateString);
-      const isSkipped = isDateSkipped(date, selectedSubscription);
+      const isSkipped = schedule.skippedDateSet.has(dateString);
 
       let deliveryStatus: CalendarDay["deliveryStatus"] = "upcoming";
       if (isSkipped) {
@@ -900,18 +902,53 @@ export default function OrdersScreen() {
   ) => {
     await db.purchaseAddOnsForDate(subscription.id, dateString, selectedAddOns, user!.id);
     if (user?.phone) {
-      const addonNames = selectedAddOns.map((id) => {
-        const a = availableAddOns.find((ao) => ao.id === id);
-        return a?.name ?? id;
-      });
-      sendAddonPurchaseNotificationCallable({
-        phone: user.phone,
-        customerName: user.name ?? "Customer",
+      const addonNames = selectedAddOns
+        .map((id) => {
+          const a = availableAddOns.find((ao) => ao.id === id);
+          return (a?.name ?? id)?.toString().trim();
+        })
+        .filter((name): name is string => Boolean(name));
+      const [year, month, day] = dateString.split("-").map(Number);
+      const localDate = new Date(year, month - 1, day);
+      const whatsappPayload = {
+        phone: String(user.phone ?? "").trim(),
+        customerName: String(user.name ?? "Customer").trim() || "Customer",
         addonNames,
-        date: new Date(dateString).toLocaleDateString("en-IN", { day: "numeric", month: "long" }),
+        meal:
+          selectedDateDelivery?.mealName ||
+          mealsMap[subscription.mealId]?.name ||
+          "meal",
+        date: localDate.toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "long",
+        }),
+        deliveryTime: selectedDateDelivery?.deliveryTime || "As scheduled",
         totalAmount: String(total),
-        subscriptionId: subscription.id,
-      }).catch((e) => console.log("[WhatsApp addon] error:", e));
+        orderId: subscription.id,
+      };
+
+      if (
+        whatsappPayload.phone &&
+        whatsappPayload.customerName &&
+        whatsappPayload.addonNames.length > 0
+      ) {
+        try {
+          await sendAddonPurchaseNotificationCallable(whatsappPayload);
+        } catch (e) {
+          console.log("[WhatsApp addon] error:", e);
+          console.log("[WhatsApp addon] payload validation snapshot:", {
+            hasPhone: Boolean(whatsappPayload.phone),
+            hasCustomerName: Boolean(whatsappPayload.customerName),
+            addonCount: whatsappPayload.addonNames.length,
+          });
+        }
+      } else {
+        console.log("[WhatsApp addon] skipped: invalid payload fields", {
+          hasPhone: Boolean(whatsappPayload.phone),
+          hasCustomerName: Boolean(whatsappPayload.customerName),
+          addonCount: whatsappPayload.addonNames.length,
+        });
+      }
     }
     await loadUserSubscriptions();
     loadSelectedDateDelivery();
@@ -920,6 +957,10 @@ export default function OrdersScreen() {
       setShowPaymentModal(false);
       setShowAddOnModal(false);
       setSelectedAddOns([]);
+      Alert.alert(
+        "Add-on Purchased",
+        "Your add-on has been added successfully for the selected date."
+      );
     }, 1500);
   };
 
@@ -1041,16 +1082,13 @@ export default function OrdersScreen() {
     date: Date,
     subscription: Subscription
   ): boolean => {
-    const subStart = new Date(subscription.startDate);
-    const subEnd = new Date(subscription.endDate);
-    subStart.setHours(0, 0, 0, 0);
-    subEnd.setHours(0, 0, 0, 0);
-
     const checkDate = new Date(date);
     checkDate.setHours(0, 0, 0, 0);
+    const schedule = buildSubscriptionSchedule(subscription);
+    const checkDateKey = toDateKey(checkDate);
 
     // Must be within subscription period
-    if (checkDate < subStart || checkDate > subEnd) {
+    if (checkDate < schedule.subStart || checkDate > schedule.effectiveEnd) {
       return false;
     }
 
@@ -1059,39 +1097,7 @@ export default function OrdersScreen() {
       return false;
     }
 
-    // Calculate if this date should have a delivery based on the plan
-    let currentDeliveryDate = new Date(subStart);
-    let deliveredCount = 0;
-    const totalDeliveries =
-      subscription.duration || subscription.totalDeliveries || 0;
-
-    while (currentDeliveryDate <= subEnd && deliveredCount < totalDeliveries) {
-      const currentDateString = currentDeliveryDate.toISOString().split("T")[0];
-      const currentIsSkipped =
-        subscription.skippedDates?.includes(currentDateString) || false;
-
-      if (isWeekendExcludedForDate(currentDeliveryDate, subscription)) {
-        currentDeliveryDate.setDate(currentDeliveryDate.getDate() + 1);
-        continue;
-      }
-
-      // If this date matches our check date and it's not skipped, it's an active date
-      if (
-        currentDeliveryDate.getTime() === checkDate.getTime() &&
-        !currentIsSkipped
-      ) {
-        return true;
-      }
-
-      // Count non-skipped dates
-      if (!currentIsSkipped) {
-        deliveredCount++;
-      }
-
-      currentDeliveryDate.setDate(currentDeliveryDate.getDate() + 1);
-    }
-
-    return false;
+    return schedule.deliveryDates.has(checkDateKey);
   };
 
   const renderSelectedDateDelivery = () => {

@@ -13,6 +13,7 @@ import { useAsyncStorage } from "@/hooks/useStorage";
 import { Address } from "@/types";
 import { useActiveAddress } from "@/contexts/ActiveAddressContext";
 import { useLocation } from "@/contexts/LocationContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { router } from "expo-router";
 import { Colors } from "@/constants/colors";
 import ServiceAreaRequestModal from "@/components/ServiceAreaRequestModal";
@@ -38,7 +39,8 @@ const LocationService: React.FC<LocationServiceProps> = ({
   onLocationSet,
   disableAutoDetection = false,
 }) => {
-  const [addresses, setAddresses] = useAsyncStorage<Address[]>("addresses", []);
+  const { user } = useAuth();
+  const addresses = user?.addresses || [];
   const { getDisplayAddress, setCurrentLocationAddress } = useActiveAddress();
   const { checkLocationServiceability, locationState } = useLocation();
   const [currentLocation, setCurrentLocation] =
@@ -353,7 +355,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#FF3B30",
+    backgroundColor: "#48479B",
     marginLeft: 4,
   },
 });

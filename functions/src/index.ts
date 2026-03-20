@@ -449,6 +449,16 @@ export const verifyWhatsAppOTP = onCall({ invoker: "public" }, async (request) =
  * Template: Hi {{1}}, Your add-on {{2}} has been added to your {{3}} meal for {{4}}. Delivery Time: {{5}} Order ID: {{6}} Amount Paid: {{7}}
  */
 export const sendAddonPurchaseNotification = onCall(async (request) => {
+  // Accept both direct callable payload and nested { data: ... } payloads.
+  const payload =
+    request.data &&
+    typeof request.data === "object" &&
+    "data" in request.data &&
+    request.data.data &&
+    typeof request.data.data === "object"
+      ? (request.data.data as Record<string, any>)
+      : (request.data as Record<string, any> | undefined) || {};
+
   const {
     phone,
     customerName,
@@ -458,7 +468,7 @@ export const sendAddonPurchaseNotification = onCall(async (request) => {
     deliveryTime,
     orderId,
     totalAmount,
-  } = request.data;
+  } = payload;
 
   if (!phone || !customerName || !addonNames || !Array.isArray(addonNames)) {
     throw new HttpsError(
@@ -486,6 +496,10 @@ export const sendAddonPurchaseNotification = onCall(async (request) => {
     phone,
     TEMPLATES.ADDON_PURCHASED,
     parameters
+  );
+
+  console.log(
+    `Sent addon_purchased for order ${orderId}`, result
   );
 
   return {

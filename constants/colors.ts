@@ -1,7 +1,7 @@
 // Light theme colors
 export const LightColors = {
   primary: '#48479B',
-  secondary: '#E85D04', // warm orange for gradients (e.g. primary → secondary)
+  secondary: '#48479B', // warm orange for gradients (e.g. primary → secondary)
   accent: '#A3D397',
   background: '#FFFFFF',
   surface: '#FFFFFF',

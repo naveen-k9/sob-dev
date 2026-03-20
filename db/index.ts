@@ -192,11 +192,11 @@ class Database {
       | "longestStreak"
       | "totalReferrals"
       | "referralEarnings"
-    >
+    > & { id?: string }
   ): Promise<User> {
     const newUser: User = {
       ...userData,
-      id: Date.now().toString(),
+      id: userData.id || Date.now().toString(),
       createdAt: new Date(),
       referralCode: this.generateReferralCode(),
       currentStreak: 0,

@@ -14,14 +14,15 @@ import {
   sendWhatsAppOTPCallable,
   verifyWhatsAppOTPCallable,
 } from "@/services/firebaseFunctions";
+import { formatPhoneNumber } from "@/services/whatsappOTP";
 
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
 
-  const persistUserId = useCallback(async (id: string) => {
-    await AsyncStorage.setItem("currentUser", JSON.stringify({ id }));
+  const persistUserId = useCallback(async (id: string, phone?: string) => {
+    await AsyncStorage.setItem("currentUser", JSON.stringify({ id, phone }));
     await AsyncStorage.removeItem("guestMode");
   }, []);
 
@@ -36,6 +37,14 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         if (dbUser) {
           setUser(dbUser);
         } else {
+          if (parsedUser.phone) {
+            const byPhone = await db.getUserByPhone(parsedUser.phone);
+            if (byPhone) {
+              setUser(byPhone);
+              await persistUserId(byPhone.id);
+              return;
+            }
+          }
           const remote = await getUserDoc(parsedUser.id);
           if (remote) setUser(remote);
         }
@@ -47,7 +56,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [persistUserId]);
 
   const initializeAuth = useCallback(async () => {
     try {
@@ -78,14 +87,16 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           await signInWithCustomToken(customToken);
 
           // Create or update user in local DB
-          let user = await db.getUserByPhone(phone);
+          const normalizedPhone =
+            userData.phone || (phone.startsWith("+") ? phone : formatPhoneNumber(phone));
+          let user = await db.getUserByPhone(normalizedPhone);
 
           if (!user) {
             user = await db.createUser({
               id: userData.uid,
               name: userData.name || "",
               email: userData.email || "",
-              phone: userData.phone,
+              phone: normalizedPhone,
               role: userData.role || role,
               addresses: userData.addresses || [],
               walletBalance: 500,
@@ -93,14 +104,18 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
             });
           } else {
             // Update existing user
-            await db.updateUser(user.id, {
+            const updatedUser = await db.updateUser(user.id, {
               name: userData.name || user.name,
               email: userData.email || user.email,
               role: userData.role || user.role,
+              addresses: userData.addresses ?? user.addresses,
             });
+            if (updatedUser) {
+              user = updatedUser;
+            }
           }
 
-          await persistUserId(user.id);
+          await persistUserId(user.id, normalizedPhone);
           setUser(user);
           setIsGuest(false);
           return { success: true, user };
@@ -108,13 +123,16 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
         // Fallback to OTP verification (for testing)
         if (otp === "1234") {
-          let user = await db.getUserByPhone(phone);
+          const normalizedPhone = phone.startsWith("+")
+            ? phone
+            : formatPhoneNumber(phone);
+          let user = await db.getUserByPhone(normalizedPhone);
 
           if (!user) {
             user = await db.createUser({
               name: "",
               email: "",
-              phone,
+              phone: normalizedPhone,
               role,
               addresses: [],
               walletBalance: 500,
@@ -122,7 +140,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
             });
           }
 
-          await persistUserId(user.id);
+          await persistUserId(user.id, normalizedPhone);
           setUser(user);
           setIsGuest(false);
           return { success: true, user };
@@ -133,7 +151,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         return { success: false, error: "Login failed" };
       }
     },
-    []
+    [persistUserId]
   );
 
   /**
@@ -288,7 +306,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         return null;
       }
     },
-    [user]
+    [user, persistUserId]
   );
 
   const updateUserAddresses = useCallback(
@@ -417,6 +435,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     try {
       await AsyncStorage.removeItem("currentUser");
       await AsyncStorage.removeItem("guestMode");
+      await AsyncStorage.removeItem("activeAddressId");
       setUser(null);
       setIsGuest(false);
     } catch (error) {

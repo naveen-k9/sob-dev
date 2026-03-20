@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAsyncStorage } from '@/hooks/useStorage';
 import { Address } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ActiveAddressContextType {
   activeAddress: Address | null;
@@ -21,13 +21,20 @@ interface ActiveAddressProviderProps {
 export const ActiveAddressProvider: React.FC<ActiveAddressProviderProps> = ({ children }) => {
   const [activeAddress, setActiveAddressState] = useState<Address | null>(null);
   const [currentLocationAddress, setCurrentLocationAddressState] = useState<Address | null>(null);
-  const [addresses] = useAsyncStorage<Address[]>('addresses', []);
+  const { user } = useAuth();
+  const addresses = user?.addresses || [];
+  const activeAddressStorageKey = user ? `activeAddressId:${user.id}` : 'activeAddressId';
 
   // Load active address from storage on mount
   useEffect(() => {
     const loadActiveAddress = async () => {
       try {
-        const activeAddressId = await AsyncStorage.getItem('activeAddressId');
+        if (!user) {
+          setActiveAddressState(null);
+          setCurrentLocationAddressState(null);
+          return;
+        }
+        const activeAddressId = await AsyncStorage.getItem(activeAddressStorageKey);
         if (activeAddressId && addresses.length > 0) {
           const foundAddress = addresses.find(addr => addr.id === activeAddressId);
           if (foundAddress) {
@@ -40,15 +47,15 @@ export const ActiveAddressProvider: React.FC<ActiveAddressProviderProps> = ({ ch
     };
 
     loadActiveAddress();
-  }, [addresses]);
+  }, [addresses, activeAddressStorageKey, user]);
 
   const setActiveAddress = async (address: Address | null) => {
     setActiveAddressState(address);
     try {
       if (address) {
-        await AsyncStorage.setItem('activeAddressId', address.id);
+        await AsyncStorage.setItem(activeAddressStorageKey, address.id);
       } else {
-        await AsyncStorage.removeItem('activeAddressId');
+        await AsyncStorage.removeItem(activeAddressStorageKey);
       }
     } catch (error) {
       console.error('Error saving active address:', error);

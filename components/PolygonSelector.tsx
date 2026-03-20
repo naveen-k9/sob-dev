@@ -15,7 +15,7 @@ interface Region {
 }
 
 const COLORS = [
-  '#FF3B30', '#FF9500', '#FFCC00', '#34C759', 
+  '#48479B', '#FF9500', '#FFCC00', '#34C759', 
   '#007AFF', '#5856D6', '#AF52DE', '#FF2D92'
 ];
 
@@ -150,7 +150,7 @@ export default function PolygonSelector() {
                 style={styles.cancelButton}
                 onPress={cancelCurrentPolygon}
               >
-                <Ionicons name="close" size={16} color="#FF3B30" />
+                <Ionicons name="close" size={16} color="#48479B" />
               </TouchableOpacity>
             </View>
           )}

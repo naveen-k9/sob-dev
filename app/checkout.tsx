@@ -605,6 +605,7 @@ export default function CheckoutScreen() {
         const subscription = {
           userId: user?.id || "guest",
           mealId: updatedDetails.meal.id,
+          planName: updatedDetails.meal?.name || "Meal",
           planId: updatedDetails.plan.id,
           startDate: startDateVal,
           endDate: endDate,
@@ -823,6 +824,7 @@ export default function CheckoutScreen() {
         const subscription = {
           userId: user?.id || "guest",
           mealId: updatedDetails.meal.id,
+          planName: updatedDetails.meal?.name || "Meal",
           planId: updatedDetails.plan.id,
           startDate: startDateVal,
           endDate: endDate,
@@ -1014,6 +1016,7 @@ export default function CheckoutScreen() {
       const subscription = {
         userId: user?.id || "guest",
         mealId: subscriptionDetails.meal.id,
+        planName: subscriptionDetails.meal?.name || "Meal",
         planId: subscriptionDetails.plan.id,
         startDate: startDate,
         endDate: endDate,
@@ -2280,7 +2283,7 @@ const styles = StyleSheet.create({
   },
   serviceabilityNoteText: {
     fontSize: 13,
-    color: "#FF3B30",
+    color: "#48479B",
     textAlign: "center",
     fontWeight: "500",
     marginBottom: 4,

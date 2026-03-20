@@ -459,9 +459,9 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
           >
             <View style={styles.actionIconContainer}>
               {isLoadingLocation ? (
-                <ActivityIndicator size="small" color="#FF3B30" />
+                <ActivityIndicator size="small" color="#48479B" />
               ) : (
-                <Ionicons name="locate" size={20} color="#FF3B30" />
+                <Ionicons name="locate" size={20} color="#48479B" />
               )}
             </View>
             <Text style={styles.actionText}>
@@ -476,7 +476,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
             onPress={handleAddNewAddress}
           >
             <View style={styles.actionIconContainer}>
-              <Ionicons name="add" size={20} color="#FF3B30" />
+              <Ionicons name="add" size={20} color="#48479B" />
             </View>
             <Text style={styles.actionText}>Add New Address</Text>
             <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
@@ -609,7 +609,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
         {/* Center Pin Overlay */}
         <View style={styles.centerMarkerContainer}>
           <View style={styles.centerMarker}>
-            <Ionicons name="location" size={30} color="#FF3B30" />
+            <Ionicons name="location" size={30} color="#48479B" />
           </View>
         </View>
 
@@ -760,7 +760,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
                       name={getAddressIcon(type.toLowerCase())}
                       size={20}
                       color={
-                        selectedAddressType === type ? "#FF3B30" : "#8E8E93"
+                        selectedAddressType === type ? "#48479B" : "#8E8E93"
                       }
                     />
                     <Text
@@ -777,7 +777,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
                     <Ionicons
                       name="checkmark-circle"
                       size={20}
-                      color="#FF3B30"
+                      color="#48479B"
                     />
                   )}
                 </TouchableOpacity>
@@ -1225,7 +1225,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   labelOptionSelected: {
-    borderColor: "#FF3B30",
+    borderColor: "#48479B",
     backgroundColor: "#FFF5F4",
   },
   labelOptionContent: {
@@ -1239,14 +1239,14 @@ const styles = StyleSheet.create({
     color: "#8E8E93",
   },
   labelOptionTextSelected: {
-    color: "#FF3B30",
+    color: "#48479B",
   },
   customLabelContainer: {
     marginTop: 16,
   },
   customLabelInput: {
     borderWidth: 1,
-    borderColor: "#FF3B30",
+    borderColor: "#48479B",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -1262,7 +1262,7 @@ const styles = StyleSheet.create({
     borderTopColor: "#F2F2F7",
   },
   saveButton: {
-    backgroundColor: "#FF3B30",
+    backgroundColor: "#48479B",
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",

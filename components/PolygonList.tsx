@@ -74,7 +74,7 @@ const PolygonList: React.FC<PolygonListProps> = ({
                 style={[styles.actionButton, styles.deleteButton]}
                 onPress={() => handleDelete(polygon)}
               >
-                <Ionicons name="trash" size={16} color="#FF3B30" />
+                <Ionicons name="trash" size={16} color="#48479B" />
               </TouchableOpacity>
             </View>
           </View>
