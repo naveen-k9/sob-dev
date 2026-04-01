@@ -110,7 +110,7 @@ export default function AddressBookModal({
     >
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          <Text style={[styles.title, { color: colors.text }]}>Select Delivery Address</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Address Book</Text>
           <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: colors.surfaceSecondary }]}>
             <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
@@ -178,11 +178,11 @@ export default function AddressBookModal({
                       <Text style={[styles.addressDetails, { color: colors.mutedText }]}>
                         {address.state} - {address.pincode}
                       </Text>
-                      {!isServiceable && (
+                      {/* {!isServiceable && (
                         <Text style={[styles.notServiceableText, { color: colors.warning }]}>
                           Not in serviceable area
                         </Text>
-                      )}
+                      )} */}
                     </View>
                     {isSelected ? (
                       <Ionicons 

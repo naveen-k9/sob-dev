@@ -33,3 +33,5 @@ heroImage
 PolygonMap admin side
 hide screens
 now package into apk
+
+eas build --platform android --profile preview

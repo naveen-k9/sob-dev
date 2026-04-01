@@ -14,6 +14,7 @@ import {
   WalletTransaction,
 } from "@/types";
 import Constants from "expo-constants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const FIREBASE_API_KEY = (process.env.EXPO_PUBLIC_FIREBASE_API_KEY ||
   (Constants as any).expoConfig?.extra?.firebaseApiKey ||
@@ -31,6 +32,117 @@ if (!FIREBASE_API_KEY || !FIREBASE_PROJECT_ID) {
 
 const BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 const IDENTITY_BASE = `https://identitytoolkit.googleapis.com/v1`;
+const SECURE_TOKEN_URL = `https://securetoken.googleapis.com/v1/token?key=${FIREBASE_API_KEY}`;
+
+// ─── Auth token store ────────────────────────────────────────────────
+interface AuthTokens {
+  idToken: string;
+  refreshToken: string;
+  expiresAt: number; // epoch ms
+}
+
+let _authTokens: AuthTokens | null = null;
+const AUTH_TOKENS_KEY = "firebaseAuthTokens";
+let _authTokensLoadPromise: Promise<void> | null = null;
+
+async function persistAuthTokens(tokens: AuthTokens | null) {
+  try {
+    if (!tokens) {
+      await AsyncStorage.removeItem(AUTH_TOKENS_KEY);
+      return;
+    }
+    await AsyncStorage.setItem(AUTH_TOKENS_KEY, JSON.stringify(tokens));
+  } catch (e) {
+    // Non-fatal: app can still work in-memory during this session.
+    console.log("[firebase] Failed to persist auth tokens", e);
+  }
+}
+
+async function ensureAuthTokensLoaded() {
+  if (_authTokens || _authTokensLoadPromise) return _authTokensLoadPromise ?? Promise.resolve();
+  _authTokensLoadPromise = (async () => {
+    try {
+      const raw = await AsyncStorage.getItem(AUTH_TOKENS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<AuthTokens> | null;
+      if (
+        parsed &&
+        typeof parsed.idToken === "string" &&
+        typeof parsed.refreshToken === "string" &&
+        typeof parsed.expiresAt === "number"
+      ) {
+        _authTokens = {
+          idToken: parsed.idToken,
+          refreshToken: parsed.refreshToken,
+          expiresAt: parsed.expiresAt,
+        };
+      }
+    } catch (e) {
+      console.log("[firebase] Failed to load auth tokens", e);
+    }
+  })();
+  return _authTokensLoadPromise;
+}
+
+/** Persist tokens after sign-in. Called internally by signInWithCustomToken / signInWithEmailPassword. */
+function storeAuthTokens(idToken: string, refreshToken: string, expiresInSec = 3600) {
+  const next: AuthTokens = {
+    idToken,
+    refreshToken,
+    expiresAt: Date.now() + (expiresInSec - 60) * 1000, // refresh 60s early
+  };
+  _authTokens = next;
+  // Fire-and-forget persistence so WhatsApp login works after reload too.
+  persistAuthTokens(next).catch(() => {});
+}
+
+/** Clear stored tokens (call on logout). */
+export function clearAuthTokens() {
+  _authTokens = null;
+  persistAuthTokens(null).catch(() => {});
+}
+
+/** Refresh the idToken using the stored refresh token. */
+async function refreshIdToken(): Promise<string | null> {
+  if (!_authTokens?.refreshToken) return null;
+  try {
+    const res = await fetch(SECURE_TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(_authTokens.refreshToken)}`,
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      console.error("[firebase] Token refresh failed", json?.error);
+      _authTokens = null;
+      persistAuthTokens(null).catch(() => {});
+      return null;
+    }
+    storeAuthTokens(json.id_token, json.refresh_token, Number(json.expires_in) || 3600);
+    return json.id_token as string;
+  } catch (e) {
+    console.error("[firebase] Token refresh error", e);
+    return null;
+  }
+}
+
+/** Get a valid idToken, refreshing if expired. Returns null when not authenticated. */
+export async function getValidIdToken(): Promise<string | null> {
+  await ensureAuthTokensLoaded();
+  if (!_authTokens) return null;
+  if (Date.now() < _authTokens.expiresAt) return _authTokens.idToken;
+  return refreshIdToken();
+}
+
+/** Build headers for Firestore REST calls, including auth when available. */
+async function authHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const token = await getValidIdToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
 
 function parseValue(v: any): any {
   if (!v || typeof v !== "object") return v;
@@ -55,10 +167,27 @@ function parseValue(v: any): any {
   return v;
 }
 
+function extractDocId(doc: any): string | null {
+  const name = doc?.name;
+  if (typeof name !== "string" || !name) return null;
+  const parts = name.split("/");
+  const last = parts[parts.length - 1];
+  return last ? decodeURIComponent(last) : null;
+}
+
 function parseDocument<T>(doc: any): T | null {
   try {
     const fields = doc?.fields || {};
     const data = parseValue({ mapValue: { fields } });
+    // Firestore REST docs include `name` with the doc path; older docs may not store `id` in fields.
+    // If `id` is missing, hydrate it from the document name to avoid writes to users/undefined.
+    if (data && typeof data === "object") {
+      const obj = data as Record<string, any>;
+      if (obj.id == null || obj.id === "") {
+        const docId = extractDocId(doc);
+        if (docId) obj.id = docId;
+      }
+    }
     return data as T;
   } catch (e) {
     console.log("[firebase] parseDocument error", e);
@@ -100,11 +229,8 @@ async function createDocument(
     fields: toFirestoreValue(data).mapValue.fields,
   });
   console.log("[firebase] POST", url, { id });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body,
-  });
+  const headers = await authHeaders();
+  const res = await fetch(url, { method: "POST", headers, body });
   if (!res.ok) {
     const text = await res.text();
     console.log("[firebase] createDocument failed", collectionPath, id, text);
@@ -129,11 +255,8 @@ async function updateDocument(
     fields: toFirestoreValue(updates).mapValue.fields,
   });
   console.log("[firebase] PATCH", url, { id });
-  const res = await fetch(url, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body,
-  });
+  const headers = await authHeaders();
+  const res = await fetch(url, { method: "PATCH", headers, body });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Update ${collectionPath}/${id} failed: ${text}`);
@@ -148,9 +271,8 @@ async function deleteDocument(
     id
   )}?key=${encodeURIComponent(FIREBASE_API_KEY)}`;
   console.log("[firebase] DELETE", url, { id });
-  const res = await fetch(url, {
-    method: "DELETE",
-  });
+  const headers = await authHeaders();
+  const res = await fetch(url, { method: "DELETE", headers });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Delete ${collectionPath}/${id} failed: ${text}`);
@@ -162,7 +284,8 @@ async function fetchCollection<T>(collectionPath: string): Promise<T[]> {
     FIREBASE_API_KEY
   )}`;
   console.log("[firebase] GET", url);
-  const res = await fetch(url);
+  const headers = await authHeaders();
+  const res = await fetch(url, { headers });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Firestore error ${res.status}: ${text}`);
@@ -202,6 +325,9 @@ export async function signUpWithEmailPassword(params: {
   }
   const uid = json.localId as string;
   const idToken = json.idToken as string;
+  const refreshToken = json.refreshToken as string;
+  storeAuthTokens(idToken, refreshToken, Number(json.expiresIn) || 3600);
+
   const name = params.name ?? "";
   const role: UserRole = params.role ?? "customer";
 
@@ -254,12 +380,15 @@ export async function signInWithEmailPassword(
   if (!res.ok) {
     throw new Error(json?.error?.message || "SIGN_IN_FAILED");
   }
-  return { uid: json.localId as string, idToken: json.idToken as string };
+  const idToken = json.idToken as string;
+  const refreshToken = json.refreshToken as string;
+  storeAuthTokens(idToken, refreshToken, Number(json.expiresIn) || 3600);
+  return { uid: json.localId as string, idToken };
 }
 
 /**
- * Sign in with custom token (for WhatsApp OTP authentication)
- * Note: This requires server-side custom token generation
+ * Sign in with custom token (for WhatsApp OTP authentication).
+ * Stores tokens internally so subsequent Firestore REST calls are authenticated.
  */
 export async function signInWithCustomToken(
   customToken: string
@@ -277,7 +406,10 @@ export async function signInWithCustomToken(
   if (!res.ok) {
     throw new Error(json?.error?.message || "CUSTOM_TOKEN_SIGN_IN_FAILED");
   }
-  return { uid: json.localId as string, idToken: json.idToken as string };
+  const idToken = json.idToken as string;
+  const refreshToken = json.refreshToken as string;
+  storeAuthTokens(idToken, refreshToken, Number(json.expiresIn) || 3600);
+  return { uid: json.localId as string, idToken };
 }
 
 /**
@@ -522,6 +654,9 @@ export async function fetchUsers(): Promise<User[]> {
 }
 
 export async function createUser(user: User): Promise<void> {
+  if (!user?.id || typeof user.id !== "string") {
+    throw new Error("[firebase] createUser: user.id is required");
+  }
   await createDocument("users", user.id, user);
 }
 
@@ -530,7 +665,8 @@ export async function getUserDoc(id: string): Promise<User | null> {
     id
   )}?key=${encodeURIComponent(FIREBASE_API_KEY)}`;
   console.log("[firebase] GET user doc", id);
-  const res = await fetch(url, { method: "GET" });
+  const headers = await authHeaders();
+  const res = await fetch(url, { method: "GET", headers });
   if (!res.ok) return null;
   const json = await res.json();
   const parsed = parseDocument<User>(json);
@@ -541,6 +677,9 @@ export async function updateUser(
   id: string,
   updates: Partial<User>
 ): Promise<void> {
+  if (!id || typeof id !== "string") {
+    throw new Error("[firebase] updateUser: id is required");
+  }
   await updateDocument("users", id, updates as Record<string, any>);
 }
 

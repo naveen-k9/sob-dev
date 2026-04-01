@@ -53,8 +53,10 @@ export interface Address {
   isDefault: boolean;
   deliveryInstructions?: string;
 
-  phoneNumber: string;
-  addressText: string;
+  /** @deprecated Use `phone` instead. Kept for backward compatibility with existing data. */
+  phoneNumber?: string;
+  /** @deprecated Use `addressLine` instead. Kept for backward compatibility with existing data. */
+  addressText?: string;
   createdAt: Date;
   updatedAt?: Date;
   notes?: string;
@@ -168,6 +170,11 @@ export interface Subscription {
   totalDeliveries?: number;
   addressId?: string;
   addOns?: string[];
+  /**
+   * Optional weekday schedule per add-on (e.g. { addonId: ["mon","wed","fri"] }).
+   * If a given add-on id is missing or has an empty array, it is treated as "all delivery days".
+   */
+  addOnScheduleById?: Record<string, Array<"mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun">>;
   specialInstructions?: string;
   createdAt: Date;
   assignedKitchenId?: string;

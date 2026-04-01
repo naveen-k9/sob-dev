@@ -41,8 +41,8 @@ const LocationService: React.FC<LocationServiceProps> = ({
 }) => {
   const { user } = useAuth();
   const addresses = user?.addresses || [];
-  const { getDisplayAddress, setCurrentLocationAddress } = useActiveAddress();
-  const { checkLocationServiceability, locationState } = useLocation();
+  const { getDisplayAddress, setCurrentLocationAddress, activeAddress } = useActiveAddress();
+  const { checkLocationServiceability, locationState, hasDetectedThisSession, markLocationDetected } = useLocation();
   const [currentLocation, setCurrentLocation] =
     useState<CurrentLocationState | null>(null);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
@@ -53,12 +53,12 @@ const LocationService: React.FC<LocationServiceProps> = ({
   const [hasShownNonServiceableMessage, setHasShownNonServiceableMessage] =
     useAsyncStorage<boolean>("hasShownNonServiceableMessage", false);
 
-  // Auto-detect location on component mount (only if not disabled)
+  // Auto-detect location once per app session.
+  // Skip if: prop says disabled, already detected this session, or user has a saved active address.
   useEffect(() => {
-    if (!disableAutoDetection) {
-      detectCurrentLocation();
-    }
-  }, [disableAutoDetection]);
+    if (disableAutoDetection || hasDetectedThisSession || activeAddress) return;
+    detectCurrentLocation();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally run only on first mount
 
   // Check if current location matches any saved address
   useEffect(() => {
@@ -152,17 +152,14 @@ const LocationService: React.FC<LocationServiceProps> = ({
         createdAt: new Date(),
       };
 
-      // Set current location address in context
       setCurrentLocationAddress(currentLocationAddress);
+      markLocationDetected();
 
-      // Show non-serviceable modal if location is not serviceable
-      // Only show on first launch (persist state to avoid annoying users)
       if (!isServiceable && !hasShownNonServiceableMessage) {
         setShowNonServiceableModal(true);
         setHasShownNonServiceableMessage(true);
       }
 
-      // Notify parent component
       onLocationSet?.({
         latitude: coords.latitude,
         longitude: coords.longitude,
@@ -288,7 +285,7 @@ const LocationService: React.FC<LocationServiceProps> = ({
             <Ionicons name="chevron-down" size={16} color="#FFFFFF" />
           </View>
           <Text style={styles.locationAddress} numberOfLines={1}>
-            {displayAddress.addressText ||
+            {displayAddress.addressText || displayAddress.addressLine ||
               `${displayAddress.street}, ${displayAddress.city}`}
           </Text>
         </View>

@@ -325,7 +325,14 @@ export default function WeeklyMenuSlider({
       const meal = mealsMap[subscription.mealId];
       if (!meal) continue;
 
-      const subscriptionAddOns = subscription.addOns || [];
+      // Base add-ons should respect per-addon weekday schedules (if stored on subscription).
+      const scheduleById = (subscription as any).addOnScheduleById || {};
+      const baseAddOnIds = subscription.addOns || [];
+      const subscriptionAddOns = baseAddOnIds.filter((addOnId: string) => {
+        const days = scheduleById?.[addOnId];
+        if (!Array.isArray(days) || days.length === 0) return true; // default: all delivery days
+        return days.includes(dayKey);
+      });
       const additionalAddOnsForDate =
         subscription.additionalAddOns?.[dateStr] || [];
       const allAddOnIds = [...subscriptionAddOns, ...additionalAddOnsForDate];

@@ -25,6 +25,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import db from '@/db';
 import { ReferralReward, StreakReward, StreakMilestoneConfig } from '@/types';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getMyReferralRewardsCallable } from '@/services/firebaseFunctions';
 
 export default function ReferScreen() {
   const { user } = useAuth();
@@ -43,13 +44,13 @@ export default function ReferScreen() {
     if (!user) return;
 
     try {
-      const [referrals, streaks, milestones] = await Promise.all([
-        db.getReferralRewards(user.id),
+      const [referralsRes, streaks, milestones] = await Promise.all([
+        getMyReferralRewardsCallable(),
         db.getStreakRewards(user.id),
         db.getStreakMilestonesConfig(),
       ]);
 
-      setReferralRewards(referrals);
+      setReferralRewards((referralsRes.rewards as ReferralReward[]) || []);
       setStreakRewards(streaks);
       setStreakMilestones(milestones);
     } catch (error) {

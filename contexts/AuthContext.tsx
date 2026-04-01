@@ -7,12 +7,13 @@ import {
   signInWithEmailPassword,
   signUpWithEmailPassword,
   getUserDoc,
-  createUser as fbCreateUser,
   signInWithCustomToken,
+  clearAuthTokens,
 } from "@/services/firebase";
 import {
   sendWhatsAppOTPCallable,
   verifyWhatsAppOTPCallable,
+  ensureUserProfileCallable,
 } from "@/services/firebaseFunctions";
 import { formatPhoneNumber } from "@/services/whatsappOTP";
 
@@ -81,19 +82,42 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       userData?: any
     ) => {
       try {
-        // If we have a custom token and user data from verifyWhatsAppOTP, use it
         if (customToken && userData) {
-          // Sign in with the custom token
           await signInWithCustomToken(customToken);
 
-          // Create or update user in local DB
           const normalizedPhone =
             userData.phone || (phone.startsWith("+") ? phone : formatPhoneNumber(phone));
-          let user = await db.getUserByPhone(normalizedPhone);
+          const uid = userData.uid;
 
+          // Ensure the canonical user profile exists (referralCode, wallet defaults, streak fields).
+          await ensureUserProfileCallable({
+            phone: normalizedPhone,
+            role: userData.role || role,
+          });
+
+          // The backend already created users/{uid} in Firestore (awaited).
+          // Use targeted single-doc fetch first, then local cache fallback.
+          let user = await getUserDoc(uid);
           if (!user) {
+            user = await db.getUserByPhone(normalizedPhone);
+          }
+
+          if (user) {
+            // Doc exists in Firestore -- merge any updated fields
+            const updatedUser = await db.updateUser(user.id, {
+              name: userData.name || user.name,
+              email: userData.email || user.email,
+              phone: normalizedPhone,
+              role: userData.role || user.role,
+              addresses: userData.addresses ?? user.addresses,
+              isActive: true,
+            });
+            if (updatedUser) user = updatedUser;
+          } else {
+            // Firestore doc not yet visible (unlikely since backend awaits set).
+            // Create with the uid the backend chose so IDs stay in sync.
             user = await db.createUser({
-              id: userData.uid,
+              id: uid,
               name: userData.name || "",
               email: userData.email || "",
               phone: normalizedPhone,
@@ -102,17 +126,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
               walletBalance: 500,
               isActive: true,
             });
-          } else {
-            // Update existing user
-            const updatedUser = await db.updateUser(user.id, {
-              name: userData.name || user.name,
-              email: userData.email || user.email,
-              role: userData.role || user.role,
-              addresses: userData.addresses ?? user.addresses,
-            });
-            if (updatedUser) {
-              user = updatedUser;
-            }
           }
 
           await persistUserId(user.id, normalizedPhone);
@@ -172,7 +185,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   );
 
   /**
-   * Verify WhatsApp OTP and sign in with custom token (via Firebase callable)
+   * Verify WhatsApp OTP and sign in with custom token (via Firebase callable).
+   * Returns `isNewUser` so callers can decide whether to show onboarding.
    */
   const verifyWhatsAppOTP = useCallback(
     async (
@@ -180,7 +194,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       otp: string,
       role: UserRole = "customer",
       _referralCode?: string
-    ): Promise<{ success: boolean; user?: User; error?: string }> => {
+    ): Promise<{ success: boolean; user?: User; isNewUser?: boolean; error?: string }> => {
       try {
         const result = await verifyWhatsAppOTPCallable(phone, otp);
         if (!result.success || !result.verified) {
@@ -197,7 +211,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
             result.token,
             result.user
           );
-          return loginResult;
+          return { ...loginResult, isNewUser: result.isNewUser };
         }
         return {
           success: false,
@@ -218,6 +232,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     async (email: string, password: string) => {
       try {
         const { uid } = await signInWithEmailPassword(email, password);
+        await ensureUserProfileCallable({ role: "customer" });
         const remote = await getUserDoc(uid);
         let finalUser: User | null = remote;
         if (!finalUser) {
@@ -261,6 +276,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }) => {
       try {
         const { uid } = await signUpWithEmailPassword(params);
+        await ensureUserProfileCallable({ role: params.role ?? "customer" });
         const created = await getUserDoc(uid);
         if (created) {
           await persistUserId(created.id);
@@ -433,6 +449,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const logout = useCallback(async () => {
     try {
+      clearAuthTokens();
       await AsyncStorage.removeItem("currentUser");
       await AsyncStorage.removeItem("guestMode");
       await AsyncStorage.removeItem("activeAddressId");
@@ -440,7 +457,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       setIsGuest(false);
     } catch (error) {
       console.error("Error during logout:", error);
-      // Still clear state even if AsyncStorage fails
+      clearAuthTokens();
       setUser(null);
       setIsGuest(false);
     }

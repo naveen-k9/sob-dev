@@ -623,8 +623,18 @@ export default function OrdersScreen() {
     // Find the meal details from db (correct per meal id)
     const meal = mealsMap[selectedSubscription.mealId];
 
-    // Get base add-ons details
-    const subscriptionAddOns = selectedSubscription.addOns || [];
+    const dayKeyByJsDay = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+    const jsDay = new Date(`${dateString}T00:00:00`).getDay();
+    const dayKey = dayKeyByJsDay[jsDay];
+
+    // Get base add-ons details (respect weekday schedules per add-on)
+    const baseAddOnIds = selectedSubscription.addOns || [];
+    const scheduleById = (selectedSubscription as any).addOnScheduleById || {};
+    const subscriptionAddOns = baseAddOnIds.filter((addOnId: string) => {
+      const days = scheduleById?.[addOnId];
+      if (!Array.isArray(days) || days.length === 0) return true; // default: all delivery days
+      return days.includes(dayKey);
+    });
 
     // Get additional add-ons for this specific date
     const additionalAddOnsForDate =

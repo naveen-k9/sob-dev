@@ -1,7 +1,14 @@
 const GOOGLE_MAPS_API_KEY =
   process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
-  process.env.GOOGLE_MAPS_API_KEY ||
-  "AIzaSyBaN44a3-lWDxZQsrawo7CftO1ebY-EqHY";
+  process.env.GOOGLE_MAPS_API_KEY;
+
+if (!GOOGLE_MAPS_API_KEY) {
+  // Don't hard-fail config evaluation (EAS/CI reads this file just to parse config).
+  // When building for stores, set this via EAS secrets/env so native Google Maps works.
+  console.warn(
+    "Google Maps API key missing. Set EXPO_PUBLIC_GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY to enable native maps configuration."
+  );
+}
 
 /** @type {import('expo/config').ExpoConfig} */
 module.exports = {
@@ -21,9 +28,13 @@ module.exports = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.sameoldbox.app",
-    config: {
-      googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    },
+    ...(GOOGLE_MAPS_API_KEY
+      ? {
+          config: {
+            googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+          },
+        }
+      : {}),
     infoPlist: {
       NSLocationAlwaysAndWhenInUseUsageDescription: "Allow $(PRODUCT_NAME) to use your location.",
       NSLocationAlwaysUsageDescription: "Allow $(PRODUCT_NAME) to use your location.",
@@ -56,11 +67,15 @@ module.exports = {
       "android.permission.VIBRATE",
     ],
     googleServicesFile: "./google-services.json",
-    config: {
-      googleMaps: {
-        apiKey: GOOGLE_MAPS_API_KEY,
-      },
-    },
+    ...(GOOGLE_MAPS_API_KEY
+      ? {
+          config: {
+            googleMaps: {
+              apiKey: GOOGLE_MAPS_API_KEY,
+            },
+          },
+        }
+      : {}),
   },
   web: {
     favicon: "./assets/images/favicon.png",

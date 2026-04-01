@@ -14,6 +14,7 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [serviceableLocations, setServiceableLocations] = useState<ServiceableLocation[]>([]);
+  const [hasDetectedThisSession, setHasDetectedThisSession] = useState(false);
 
   const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371; // Earth's radius in kilometers
@@ -165,27 +166,35 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
     setError(null);
   }, []);
 
+  const markLocationDetected = useCallback(() => {
+    setHasDetectedThisSession(true);
+  }, []);
+
   return useMemo(() => ({
     locationState,
     serviceableLocations,
     isLoading,
     error,
+    hasDetectedThisSession,
     loadServiceableLocations,
     getCurrentLocation,
     checkLocationServiceability,
     selectLocation,
     requestLocationPermission,
     clearError,
+    markLocationDetected,
   }), [
     locationState,
     serviceableLocations,
     isLoading,
     error,
+    hasDetectedThisSession,
     loadServiceableLocations,
     getCurrentLocation,
     checkLocationServiceability,
     selectLocation,
     requestLocationPermission,
     clearError,
+    markLocationDetected,
   ]);
 });

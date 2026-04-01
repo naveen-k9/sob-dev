@@ -67,6 +67,39 @@ const TEMPLATE_LANGUAGE: Record<string, string> = {
 };
 const DEFAULT_TEMPLATE_LANGUAGE = "en_US";
 
+// --- User bootstrap / referral helpers ---
+
+const REFERRAL_CODE_LENGTH = 6;
+const REFERRAL_BONUS = 200;
+
+function randomReferralCode(): string {
+  return Math.random()
+    .toString(36)
+    .substring(2, 2 + REFERRAL_CODE_LENGTH)
+    .toUpperCase();
+}
+
+async function generateUniqueReferralCode(
+  tx: FirebaseFirestore.Transaction,
+  uid: string
+): Promise<string> {
+  // Try a few random codes; collisions are rare but possible.
+  for (let i = 0; i < 10; i++) {
+    const code = randomReferralCode();
+    const refCodeRef = db.collection("referralCodes").doc(code);
+    const snap = await tx.get(refCodeRef);
+    if (!snap.exists) {
+      tx.set(refCodeRef, {
+        uid,
+        code,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      return code;
+    }
+  }
+  throw new HttpsError("internal", "Failed to generate unique referral code");
+}
+
 /**
  * Helper: Get WhatsApp client
  */
@@ -379,24 +412,77 @@ export const verifyWhatsAppOTP = onCall({ invoker: "public" }, async (request) =
     const timestamp = admin.firestore.FieldValue.serverTimestamp();
 
     if (userDoc.exists) {
-      // Existing user - get role from database
       userData = userDoc.data();
-      userRef.update({ lastLogin: timestamp }); // Don't await
+      userRef.update({ lastLogin: timestamp }).catch(() => {});
     } else {
-      // New user - create with default 'customer' role
       isNewUser = true;
       userData = {
+        id: uid,
         uid,
         phone,
-        role: "customer", // Always default to customer for new users
+        role: "customer",
         name: "",
         email: "",
         addresses: [],
+        walletBalance: 500,
+        // referralCode is assigned in a transaction below to ensure uniqueness.
+        isActive: true,
+        isGuest: false,
+        currentStreak: 0,
+        longestStreak: 0,
+        totalReferrals: 0,
+        referralEarnings: 0,
         createdAt: timestamp,
         lastLogin: timestamp,
       };
-      userRef.set(userData); // Don't await
     }
+
+    // Ensure user doc exists and has a unique referralCode + mapping doc.
+    // This is safe to run for both new and existing users.
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(userRef);
+      const exists = snap.exists;
+      const data = exists ? (snap.data() as any) : null;
+
+      if (!exists) {
+        const referralCode = await generateUniqueReferralCode(tx, uid);
+        tx.set(
+          userRef,
+          {
+            ...userData,
+            referralCode,
+          },
+          { merge: false }
+        );
+        userData.referralCode = referralCode;
+        return;
+      }
+
+      // Existing user: ensure referralCode exists and mapping matches.
+      const existingCode = data?.referralCode;
+      if (typeof existingCode === "string" && existingCode.trim()) {
+        const code = existingCode.trim().toUpperCase();
+        const refCodeRef = db.collection("referralCodes").doc(code);
+        const codeSnap = await tx.get(refCodeRef);
+        if (!codeSnap.exists) {
+          tx.set(refCodeRef, {
+            uid,
+            code,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        } else if (codeSnap.data()?.uid !== uid) {
+          const newCode = await generateUniqueReferralCode(tx, uid);
+          tx.update(userRef, { referralCode: newCode });
+          userData.referralCode = newCode;
+        } else {
+          userData.referralCode = code;
+        }
+      } else {
+        const newCode = await generateUniqueReferralCode(tx, uid);
+        tx.update(userRef, { referralCode: newCode });
+        userData.referralCode = newCode;
+      }
+    });
 
     // Create Firebase Auth user and custom token in parallel
     const authPromises = [];
@@ -428,7 +514,7 @@ export const verifyWhatsAppOTP = onCall({ invoker: "public" }, async (request) =
       verified: true,
       token: customToken,
       uid,
-      isNewUser, // Flag to determine if basic-info screen should be shown
+      isNewUser,
       user: {
         uid,
         phone: userData.phone || phone,
@@ -436,12 +522,250 @@ export const verifyWhatsAppOTP = onCall({ invoker: "public" }, async (request) =
         email: userData.email || "",
         role: userData.role || "customer",
         addresses: userData.addresses || [],
+        walletBalance: userData.walletBalance ?? 500,
+        referralCode: userData.referralCode || "",
+        isActive: userData.isActive ?? true,
       },
     };
   } catch (error: any) {
     console.error("Verify OTP error:", error.message);
     throw new HttpsError("internal", error.message);
   }
+});
+
+/**
+ * Callable: Ensure a user profile exists and is initialized.
+ * Must be called AFTER the client signs in (email or custom token).
+ */
+export const ensureUserProfile = onCall(async (request) => {
+  const idToken = request.data?.idToken as string | undefined;
+  if (!idToken) throw new HttpsError("unauthenticated", "idToken required");
+  const decoded = await admin.auth().verifyIdToken(idToken).catch(() => null);
+  if (!decoded?.uid) throw new HttpsError("unauthenticated", "Invalid token");
+
+  const uid = decoded.uid;
+  const phone = (request.data?.phone as string | undefined) || "";
+  const role = (request.data?.role as string | undefined) || "customer";
+  const timestamp = admin.firestore.FieldValue.serverTimestamp();
+
+  const userRef = db.collection("users").doc(uid);
+
+  let userData: any = null;
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    if (!snap.exists) {
+      const referralCode = await generateUniqueReferralCode(tx, uid);
+      userData = {
+        id: uid,
+        uid,
+        phone,
+        role,
+        name: "",
+        email: "",
+        addresses: [],
+        walletBalance: 500,
+        referralCode,
+        referredBy: null,
+        isActive: true,
+        isGuest: false,
+        currentStreak: 0,
+        longestStreak: 0,
+        totalReferrals: 0,
+        referralEarnings: 0,
+        createdAt: timestamp,
+        lastLogin: timestamp,
+      };
+      tx.set(userRef, userData, { merge: false });
+      return;
+    }
+
+    const data = snap.data() as any;
+    // Merge minimal missing fields without overwriting existing user-provided values.
+    const updates: Record<string, any> = {
+      lastLogin: timestamp,
+    };
+    if (phone && !data.phone) updates.phone = phone;
+    if (!data.id) updates.id = uid;
+    if (!data.uid) updates.uid = uid;
+    if (!data.role) updates.role = role;
+    if (data.walletBalance == null) updates.walletBalance = 500;
+    if (!Array.isArray(data.addresses)) updates.addresses = [];
+    if (data.isActive == null) updates.isActive = true;
+    if (data.isGuest == null) updates.isGuest = false;
+    if (data.currentStreak == null) updates.currentStreak = 0;
+    if (data.longestStreak == null) updates.longestStreak = 0;
+    if (data.totalReferrals == null) updates.totalReferrals = 0;
+    if (data.referralEarnings == null) updates.referralEarnings = 0;
+
+    // Ensure referralCode + mapping.
+    const existingCode =
+      typeof data.referralCode === "string" ? data.referralCode.trim().toUpperCase() : "";
+    if (existingCode) {
+      const refCodeRef = db.collection("referralCodes").doc(existingCode);
+      const codeSnap = await tx.get(refCodeRef);
+      if (!codeSnap.exists) {
+        tx.set(refCodeRef, {
+          uid,
+          code: existingCode,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } else if (codeSnap.data()?.uid !== uid) {
+        const newCode = await generateUniqueReferralCode(tx, uid);
+        updates.referralCode = newCode;
+      }
+    } else {
+      const newCode = await generateUniqueReferralCode(tx, uid);
+      updates.referralCode = newCode;
+    }
+
+    tx.set(userRef, updates, { merge: true });
+    userData = { ...data, ...updates };
+  });
+
+  return {
+    success: true,
+    user: {
+      uid,
+      id: userData?.id ?? uid,
+      phone: userData?.phone ?? phone,
+      role: userData?.role ?? role,
+      name: userData?.name ?? "",
+      email: userData?.email ?? "",
+      addresses: userData?.addresses ?? [],
+      walletBalance: userData?.walletBalance ?? 500,
+      referralCode: userData?.referralCode ?? "",
+      referredBy: userData?.referredBy ?? null,
+      currentStreak: userData?.currentStreak ?? 0,
+      longestStreak: userData?.longestStreak ?? 0,
+      totalReferrals: userData?.totalReferrals ?? 0,
+      referralEarnings: userData?.referralEarnings ?? 0,
+      isActive: userData?.isActive ?? true,
+    },
+  };
+});
+
+/**
+ * Callable: Apply referral code and credit both wallets.
+ * Server-side because client rules typically forbid updating wallet/referral fields.
+ */
+export const applyReferralCode = onCall(async (request) => {
+  const idToken = request.data?.idToken as string | undefined;
+  if (!idToken) throw new HttpsError("unauthenticated", "idToken required");
+  const decoded = await admin.auth().verifyIdToken(idToken).catch(() => null);
+  if (!decoded?.uid) throw new HttpsError("unauthenticated", "Invalid token");
+
+  const uid = decoded.uid;
+  const codeRaw = (request.data?.code as string | undefined) || "";
+  const code = codeRaw.trim().toUpperCase();
+  if (!code) {
+    throw new HttpsError("invalid-argument", "Referral code is required");
+  }
+
+  const userRef = db.collection("users").doc(uid);
+  const codeRef = db.collection("referralCodes").doc(code);
+  const timestamp = admin.firestore.FieldValue.serverTimestamp();
+
+  const txnUserRef = db.collection("walletTransactions").doc();
+  const txnReferrerRef = db.collection("walletTransactions").doc();
+  const rewardRef = db.collection("referralRewards").doc();
+
+  let referrerUid: string | null = null;
+
+  await db.runTransaction(async (tx) => {
+    const [userSnap, codeSnap] = await Promise.all([tx.get(userRef), tx.get(codeRef)]);
+    if (!userSnap.exists) throw new HttpsError("failed-precondition", "User profile not found");
+    if (!codeSnap.exists) throw new HttpsError("not-found", "Invalid referral code");
+
+    referrerUid = (codeSnap.data() as any)?.uid || null;
+    if (!referrerUid) throw new HttpsError("not-found", "Invalid referral code");
+    if (referrerUid === uid)
+      throw new HttpsError("failed-precondition", "You cannot use your own code");
+
+    const userData = userSnap.data() as any;
+    if (userData?.referredBy) {
+      throw new HttpsError("failed-precondition", "Referral already applied");
+    }
+
+    const referrerRef = db.collection("users").doc(referrerUid);
+    const referrerSnap = await tx.get(referrerRef);
+    if (!referrerSnap.exists) {
+      throw new HttpsError("failed-precondition", "Referrer not found");
+    }
+
+    const referrerData = referrerSnap.data() as any;
+    const userWallet = Number(userData.walletBalance ?? 0) || 0;
+    const referrerWallet = Number(referrerData.walletBalance ?? 0) || 0;
+    const refTotal = Number(referrerData.totalReferrals ?? 0) || 0;
+    const refEarn = Number(referrerData.referralEarnings ?? 0) || 0;
+
+    tx.update(userRef, {
+      referredBy: code,
+      walletBalance: userWallet + REFERRAL_BONUS,
+    });
+
+    tx.update(referrerRef, {
+      walletBalance: referrerWallet + REFERRAL_BONUS,
+      totalReferrals: refTotal + 1,
+      referralEarnings: refEarn + REFERRAL_BONUS,
+    });
+
+    tx.set(txnUserRef, {
+      id: txnUserRef.id,
+      userId: uid,
+      type: "credit",
+      amount: REFERRAL_BONUS,
+      description: "Referral bonus (welcome)",
+      referenceId: `ref-${referrerUid}-${uid}`,
+      createdAt: timestamp,
+    });
+
+    tx.set(txnReferrerRef, {
+      id: txnReferrerRef.id,
+      userId: referrerUid,
+      type: "credit",
+      amount: REFERRAL_BONUS,
+      description: "Referral bonus for inviting a friend",
+      referenceId: `ref-${uid}`,
+      createdAt: timestamp,
+    });
+
+    tx.set(rewardRef, {
+      id: rewardRef.id,
+      userId: referrerUid,
+      referredUserId: uid,
+      referralCode: code,
+      amount: REFERRAL_BONUS,
+      status: "credited",
+      createdAt: timestamp,
+      creditedAt: timestamp,
+    });
+  });
+
+  return {
+    success: true,
+    message: "Referral applied. Bonus credited to both wallets.",
+    referrerUid,
+    bonus: REFERRAL_BONUS,
+  };
+});
+
+/**
+ * Callable: Get referral rewards for the signed-in user.
+ */
+export const getMyReferralRewards = onCall(async (request) => {
+  const idToken = request.data?.idToken as string | undefined;
+  if (!idToken) throw new HttpsError("unauthenticated", "idToken required");
+  const decoded = await admin.auth().verifyIdToken(idToken).catch(() => null);
+  if (!decoded?.uid) throw new HttpsError("unauthenticated", "Invalid token");
+  const uid = decoded.uid;
+  const snap = await db
+    .collection("referralRewards")
+    .where("userId", "==", uid)
+    .orderBy("createdAt", "desc")
+    .limit(50)
+    .get();
+  const rewards = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return { success: true, rewards };
 });
 
 /**

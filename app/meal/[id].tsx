@@ -492,6 +492,8 @@ export default function MealDetailScreen() {
       meal,
       plan: selectedPlan,
       addOns: selectedAddOns,
+      selectedAddOnDays,
+      productDays,
       timeSlot: selectedTimeSlot ?? undefined,
       weekType,
       startDate,

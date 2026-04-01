@@ -6,6 +6,7 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getFunctions, httpsCallable, type Functions } from "firebase/functions";
 import Constants from "expo-constants";
+import { getValidIdToken } from "@/services/firebase";
 
 const PROJECT_ID =
   process.env.EXPO_PUBLIC_PROJECT_ID ||
@@ -65,6 +66,20 @@ export async function callFirebaseCallable<T = unknown, R = unknown>(
   return result.data;
 }
 
+async function callPublicCallableWithIdToken<T extends Record<string, any> | undefined, R>(
+  name: string,
+  data?: T
+): Promise<R> {
+  const functions = getPublicCallableFunctions();
+  const token = await getValidIdToken();
+  if (!token) {
+    throw new Error("Not authenticated");
+  }
+  const callable = httpsCallable<any, R>(functions, name);
+  const result = await callable({ ...(data || {}), idToken: token });
+  return result.data;
+}
+
 // --- Auth (WhatsApp OTP) ---
 
 export interface SendWhatsAppOTPResult {
@@ -114,6 +129,53 @@ export async function verifyWhatsAppOTPCallable(
   >(functions, "verifyWhatsAppOTP");
   const result = await callable({ phone, otp });
   return result.data;
+}
+
+// --- User bootstrap / referral ---
+
+export interface EnsureUserProfileResult {
+  success: boolean;
+  user?: any;
+  error?: string;
+}
+
+export async function ensureUserProfileCallable(params: {
+  phone?: string;
+  role?: string;
+}): Promise<EnsureUserProfileResult> {
+  return callPublicCallableWithIdToken<typeof params, EnsureUserProfileResult>(
+    "ensureUserProfile",
+    params
+  );
+}
+
+export interface ApplyReferralCodeResult {
+  success: boolean;
+  message?: string;
+  referrerUid?: string | null;
+  bonus?: number;
+  error?: string;
+}
+
+export async function applyReferralCodeCallable(params: {
+  code: string;
+}): Promise<ApplyReferralCodeResult> {
+  return callPublicCallableWithIdToken<typeof params, ApplyReferralCodeResult>(
+    "applyReferralCode",
+    params
+  );
+}
+
+export interface GetMyReferralRewardsResult {
+  success: boolean;
+  rewards?: any[];
+  error?: string;
+}
+
+export async function getMyReferralRewardsCallable(): Promise<GetMyReferralRewardsResult> {
+  return callPublicCallableWithIdToken<undefined, GetMyReferralRewardsResult>(
+    "getMyReferralRewards"
+  );
 }
 
 // --- Add-on purchase notification ---

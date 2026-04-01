@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,18 +6,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Dimensions,
   KeyboardAvoidingView,
   Platform,
   StatusBar,
 } from "react-native";
-import { Stack, router, useLocalSearchParams, useRouter } from "expo-router";
-// import { LinearGradient } from "expo-linear-gradient";
+import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserRole } from "@/types";
 import {
-  sendWhatsAppOTP,
-  verifyWhatsAppOTP,
   isValidIndianPhoneNumber,
   formatPhoneNumber,
 } from "@/services/whatsappOTP";
@@ -25,7 +21,7 @@ import { Colors } from "@/constants/colors";
 import { SvgXml } from "react-native-svg";
 import Toast from "@/components/Toast";
 
-const { height } = Dimensions.get("window");
+const RESEND_COOLDOWN_SECONDS = 30;
 
 export default function LoginScreen() {
   const [phone, setPhone] = useState("");
@@ -33,17 +29,49 @@ export default function LoginScreen() {
   const [otpBoxes, setOtpBoxes] = useState(["", "", "", "", "", ""]);
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [loading, setLoading] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
   const [toast, setToast] = useState<{
     visible: boolean;
     message: string;
     description?: string;
     type: "success" | "error" | "info" | "warning";
   }>({ visible: false, message: "", type: "info" });
-  const { login, continueAsGuest } = useAuth();
+  const { sendWhatsAppOTPForAuth, verifyWhatsAppOTP, continueAsGuest } = useAuth();
   const params = useLocalSearchParams();
   const role = (params.role as UserRole) || "customer";
-  const routerInstance = useRouter();
-  const otpInputRefs = React.useRef<Array<TextInput | null>>([]);
+  const otpInputRefs = useRef<Array<TextInput | null>>([]);
+  const verifyingRef = useRef(false);
+
+  useEffect(() => {
+    if (resendTimer <= 0) return;
+    const interval = setInterval(() => {
+      setResendTimer((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
+  const navigateByRole = useCallback(
+    (userRole: string | undefined, isNewUser: boolean | undefined) => {
+      if (isNewUser) {
+        router.replace("/auth/basic-info");
+        return;
+      }
+      switch (userRole) {
+        case "admin":
+          router.replace("/admin/dashboard");
+          break;
+        case "kitchen":
+          router.replace("/kitchen/dashboard");
+          break;
+        case "delivery":
+          router.replace("/delivery/dashboard");
+          break;
+        default:
+          router.replace("/(tabs)");
+      }
+    },
+    []
+  );
 
   const handleSendOTP = async () => {
     if (!isValidIndianPhoneNumber(phone)) {
@@ -59,10 +87,11 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const formattedPhone = formatPhoneNumber(phone);
-      const result = await sendWhatsAppOTP(formattedPhone);
+      const result = await sendWhatsAppOTPForAuth(formattedPhone);
 
       if (result.success) {
         setStep("otp");
+        setResendTimer(RESEND_COOLDOWN_SECONDS);
         setToast({
           visible: true,
           message: "OTP Sent!",
@@ -92,13 +121,88 @@ export default function LoginScreen() {
     }
   };
 
+  const handleResendOTP = async () => {
+    if (resendTimer > 0 || loading) return;
+    setLoading(true);
+    try {
+      const formattedPhone = formatPhoneNumber(phone);
+      const result = await sendWhatsAppOTPForAuth(formattedPhone);
+      if (result.success) {
+        setResendTimer(RESEND_COOLDOWN_SECONDS);
+        setOtp("");
+        setOtpBoxes(["", "", "", "", "", ""]);
+        setToast({
+          visible: true,
+          message: "OTP Resent!",
+          description: `A new code has been sent to your WhatsApp number ending in ${phone.slice(-4)}.`,
+          type: "success",
+        });
+      } else {
+        setToast({
+          visible: true,
+          message: "Error",
+          description: result.error || "Failed to resend OTP.",
+          type: "error",
+        });
+      }
+    } catch (error: any) {
+      setToast({
+        visible: true,
+        message: "Error",
+        description: "Something went wrong. Please try again.",
+        type: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = useCallback(
+    async (otpValue?: string) => {
+      const code = otpValue ?? otp;
+      if (code.length !== 6 || verifyingRef.current) return;
+
+      verifyingRef.current = true;
+      setLoading(true);
+      try {
+        const formattedPhone = formatPhoneNumber(phone);
+        const result = await verifyWhatsAppOTP(formattedPhone, code, role);
+
+        if (result.success && result.user) {
+          navigateByRole(result.user.role, result.isNewUser);
+        } else {
+          setToast({
+            visible: true,
+            message: "Invalid OTP",
+            description:
+              result.error ||
+              "The OTP you entered is incorrect. Please try again.",
+            type: "error",
+          });
+          setOtp("");
+          setOtpBoxes(["", "", "", "", "", ""]);
+        }
+      } catch (error: any) {
+        setToast({
+          visible: true,
+          message: "Error",
+          description: "Something went wrong. Please try again.",
+          type: "error",
+        });
+        console.error("Verify OTP error:", error);
+      } finally {
+        setLoading(false);
+        verifyingRef.current = false;
+      }
+    },
+    [otp, phone, role, verifyWhatsAppOTP, navigateByRole]
+  );
+
   const handleOTPChange = (value: string, index: number) => {
     if (value.length > 1) {
-      // Handle paste - extract only digits
       const digits = value.replace(/\D/g, "").slice(0, 6);
       const newOtpBoxes = ["", "", "", "", "", ""];
 
-      // Fill boxes with pasted digits
       digits.split("").forEach((char, i) => {
         if (i < 6) {
           newOtpBoxes[i] = char;
@@ -108,11 +212,14 @@ export default function LoginScreen() {
       setOtpBoxes(newOtpBoxes);
       setOtp(digits);
 
-      // Focus the last filled box
       const lastFilledIndex = Math.min(digits.length - 1, 5);
       setTimeout(() => {
         otpInputRefs.current[lastFilledIndex]?.focus();
       }, 0);
+
+      if (digits.length === 6) {
+        setTimeout(() => handleVerifyOTP(digits), 100);
+      }
       return;
     }
 
@@ -124,9 +231,12 @@ export default function LoginScreen() {
       const newOtp = newOtpBoxes.join("");
       setOtp(newOtp);
 
-      // Move to next input if value entered
       if (value && index < 5) {
         otpInputRefs.current[index + 1]?.focus();
+      }
+
+      if (newOtp.length === 6) {
+        setTimeout(() => handleVerifyOTP(newOtp), 100);
       }
     }
   };
@@ -135,96 +245,6 @@ export default function LoginScreen() {
     if (e.nativeEvent.key === "Backspace" && !otpBoxes[index] && index > 0) {
       otpInputRefs.current[index - 1]?.focus();
     }
-  };
-
-  const handleVerifyOTP = async () => {
-    if (otp.length !== 6) {
-      setToast({
-        visible: true,
-        message: "Invalid OTP",
-        description: "Please enter the complete 6-digit OTP",
-        type: "error",
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const formattedPhone = formatPhoneNumber(phone);
-      const result = await verifyWhatsAppOTP(formattedPhone, otp);
-
-      if (result.success && result.verified) {
-        // OTP verified successfully, user is created/updated and token is returned
-        console.log("OTP Verified! User data:", result.user);
-        console.log("Auth token received:", result.token ? "Yes" : "No");
-        console.log("Is new user:", result.isNewUser);
-
-        // Sign in with the custom token
-        if (result.token) {
-          const loginResult = await login(
-            formattedPhone,
-            otp,
-            (result.user?.role as UserRole) || "customer",
-            result.token,
-            result.user
-          );
-
-          console.log("Login result:", loginResult);
-
-          if (loginResult.success && loginResult.user) {
-            // Show basic-info screen only for new users
-            if (result.isNewUser) {
-              router.replace("/auth/basic-info");
-            } else {
-              // Navigate based on user role
-              router.replace("/(tabs)");
-            }
-          } else {
-            setToast({
-              visible: true,
-              message: "Login Error",
-              description:
-                loginResult.error ||
-                "Failed to complete login. Please try again.",
-              type: "error",
-            });
-          }
-        } else {
-          setToast({
-            visible: true,
-            message: "Authentication Error",
-            description: "Failed to receive authentication token.",
-            type: "error",
-          });
-        }
-      } else {
-        setToast({
-          visible: true,
-          message: "Invalid OTP",
-          description:
-            result.error ||
-            "The OTP you entered is incorrect. Please try again.",
-          type: "error",
-        });
-        setOtp(""); // Clear OTP input
-        setOtpBoxes(["", "", "", "", "", ""]);
-      }
-    } catch (error: any) {
-      setToast({
-        visible: true,
-        message: "Error",
-        description: "Something went wrong. Please try again.",
-        type: "error",
-      });
-      console.error("Verify OTP error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGuestMode = async () => {
-    await continueAsGuest();
-    router.replace("/(tabs)");
   };
 
   const handleSkip = async () => {
@@ -377,20 +397,38 @@ export default function LoginScreen() {
                     )}
                   </TouchableOpacity>
 
-                  {/* Change Number Link */}
-                  <TouchableOpacity
-                    onPress={() => {
-                      setStep("phone");
-                      setOtp("");
-                      setOtpBoxes(["", "", "", "", "", ""]);
-                    }}
-                    disabled={loading}
-                    style={styles.changeNumberContainer}
-                  >
-                    <Text style={styles.changeNumberText}>
-                      Change phone number
-                    </Text>
-                  </TouchableOpacity>
+                  {/* Resend / Change Number */}
+                  <View style={styles.otpActionsContainer}>
+                    <TouchableOpacity
+                      onPress={handleResendOTP}
+                      disabled={loading || resendTimer > 0}
+                    >
+                      <Text
+                        style={[
+                          styles.resendText,
+                          resendTimer > 0 && styles.resendTextDisabled,
+                        ]}
+                      >
+                        {resendTimer > 0
+                          ? `Resend OTP in ${resendTimer}s`
+                          : "Resend OTP"}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        setStep("phone");
+                        setOtp("");
+                        setOtpBoxes(["", "", "", "", "", ""]);
+                        setResendTimer(0);
+                      }}
+                      disabled={loading}
+                    >
+                      <Text style={styles.changeNumberText}>
+                        Change phone number
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </>
               )}
             </View>
@@ -607,13 +645,22 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
     backgroundColor: "#F9FAFB",
   },
-  changeNumberContainer: {
+  otpActionsContainer: {
     alignItems: "center",
+    gap: 16,
     marginTop: 8,
   },
-  changeNumberText: {
+  resendText: {
     color: Colors.primary,
     fontSize: 15,
     fontWeight: "600",
+  },
+  resendTextDisabled: {
+    color: "#9CA3AF",
+  },
+  changeNumberText: {
+    color: "#6B7280",
+    fontSize: 14,
+    fontWeight: "500",
   },
 });

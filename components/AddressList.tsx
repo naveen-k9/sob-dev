@@ -96,13 +96,13 @@ const AddressList: React.FC<AddressListProps> = ({
                     styles.addressPhone,
                     isActive && styles.activeSubText
                   ]}>
-                    {address.phoneNumber}
+                    {address.phone || address.phoneNumber}
                   </Text>
                   <Text style={[
                     styles.addressText,
                     isActive && styles.activeSubText
                   ]} numberOfLines={2}>
-                    {address.addressText}
+                    {address.addressText || address.addressLine}
                   </Text>
                   <Text style={[
                     styles.addressDate,

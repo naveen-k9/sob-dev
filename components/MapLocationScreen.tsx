@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,10 +9,11 @@ import {
   TextInput,
   Animated,
   Keyboard,
+  Easing,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import MapView, { Marker, Region } from "react-native-maps";
+import MapView, { Region } from "react-native-maps";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import { useLocation } from "@/contexts/LocationContext";
@@ -27,6 +28,13 @@ interface MapLocationScreenProps {
   }) => void;
 }
 
+const DEFAULT_REGION: Region = {
+  latitude: 17.385,
+  longitude: 78.4867,
+  latitudeDelta: 0.05,
+  longitudeDelta: 0.05,
+};
+
 const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
   onBack,
   onLocationConfirm,
@@ -40,11 +48,10 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
   const initialLng = hasParamsCoords ? parseFloat(params.longitude as string) : null;
   const mode = params.mode as string;
 
-  // No default coordinates – map starts empty and locates device
-  const [mapRegion, setMapRegion] = useState<Region | null>(
+  const [mapRegion, setMapRegion] = useState<Region>(
     hasParamsCoords && initialLat !== null && initialLng !== null
       ? { latitude: initialLat, longitude: initialLng, latitudeDelta: 0.005, longitudeDelta: 0.005 }
-      : null
+      : DEFAULT_REGION
   );
   const [selectedLocation, setSelectedLocation] = useState<{ latitude: number; longitude: number } | null>(
     hasParamsCoords && initialLat !== null && initialLng !== null
@@ -60,9 +67,67 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingLocation, setIsLoadingLocation] = useState(!hasParamsCoords);
+  const [isMapDragging, setIsMapDragging] = useState(false);
 
   const mapRef = useRef<MapView | null>(null);
   const searchBarAnimation = useRef(new Animated.Value(0)).current;
+  const loadingOverlayOpacity = useRef(new Animated.Value(hasParamsCoords ? 0 : 1)).current;
+  const pinTranslateY = useRef(new Animated.Value(0)).current;
+  const pinScale = useRef(new Animated.Value(1)).current;
+  const shadowScale = useRef(new Animated.Value(1)).current;
+  const locateBtnSpin = useRef(new Animated.Value(0)).current;
+  const addressShimmer = useRef(new Animated.Value(0)).current;
+
+  // Shimmer loop for address loading
+  useEffect(() => {
+    if (isLoadingAddress) {
+      const loop = Animated.loop(
+        Animated.timing(addressShimmer, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver: false })
+      );
+      loop.start();
+      return () => loop.stop();
+    }
+    addressShimmer.setValue(0);
+  }, [isLoadingAddress]);
+
+  // Fade loading overlay in/out
+  useEffect(() => {
+    Animated.timing(loadingOverlayOpacity, {
+      toValue: isLoadingLocation ? 1 : 0,
+      duration: 350,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, [isLoadingLocation]);
+
+  // Spin locate button icon while fetching
+  useEffect(() => {
+    if (isLoadingLocation) {
+      const loop = Animated.loop(
+        Animated.timing(locateBtnSpin, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver: true })
+      );
+      loop.start();
+      return () => { loop.stop(); locateBtnSpin.setValue(0); };
+    }
+    locateBtnSpin.setValue(0);
+  }, [isLoadingLocation]);
+
+  // Animate pin: lift on drag, drop+bounce on settle
+  useEffect(() => {
+    if (isMapDragging) {
+      Animated.parallel([
+        Animated.spring(pinTranslateY, { toValue: -14, useNativeDriver: true, speed: 28, bounciness: 0 }),
+        Animated.spring(pinScale, { toValue: 1.15, useNativeDriver: true, speed: 28, bounciness: 0 }),
+        Animated.spring(shadowScale, { toValue: 1.4, useNativeDriver: true, speed: 28, bounciness: 0 }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.spring(pinTranslateY, { toValue: 0, useNativeDriver: true, speed: 14, bounciness: 10 }),
+        Animated.spring(pinScale, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 10 }),
+        Animated.spring(shadowScale, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 6 }),
+      ]).start();
+    }
+  }, [isMapDragging]);
 
   // Get current location if no coordinates provided
   useEffect(() => {
@@ -87,13 +152,11 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
         });
 
         const { latitude, longitude } = location.coords;
-
         const region = { latitude, longitude, latitudeDelta: 0.005, longitudeDelta: 0.005 };
         setMapRegion(region);
         setSelectedLocation({ latitude, longitude });
 
-        mapRef.current?.animateToRegion(region, 500);
-        
+        mapRef.current?.animateToRegion(region, 800);
         reverseGeocode(latitude, longitude);
       } catch (error) {
         console.error('[MapLocationScreen] Error getting location:', error);
@@ -109,7 +172,6 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
   }, [hasParamsCoords]);
 
   useEffect(() => {
-    // Animate search bar
     Animated.timing(searchBarAnimation, {
       toValue: showSearchBar ? 1 : 0,
       duration: 300,
@@ -117,13 +179,12 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
     }).start();
   }, [showSearchBar]);
 
-  const reverseGeocode = async (latitude: number, longitude: number) => {
+  const reverseGeocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const reverseGeocode = useCallback(async (latitude: number, longitude: number) => {
     try {
       setIsLoadingAddress(true);
-      const result = await Location.reverseGeocodeAsync({
-        latitude,
-        longitude,
-      });
+      const result = await Location.reverseGeocodeAsync({ latitude, longitude });
 
       if (result.length > 0) {
         const address = result[0];
@@ -147,14 +208,24 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
     } finally {
       setIsLoadingAddress(false);
     }
-  };
+  }, []);
 
-  const handleMapPress = (event: any) => {
-    const { latitude, longitude } = event.nativeEvent.coordinate;
+  const handleRegionChange = useCallback(() => {
+    setIsMapDragging(true);
+    setIsLoadingAddress(true);
+  }, []);
+
+  const handleRegionChangeComplete = useCallback((region: Region) => {
+    setIsMapDragging(false);
+    setMapRegion(region);
+    const { latitude, longitude } = region;
     setSelectedLocation({ latitude, longitude });
-    setMapRegion((prev) => prev ? { ...prev, latitude, longitude } : { latitude, longitude, latitudeDelta: 0.005, longitudeDelta: 0.005 });
-    reverseGeocode(latitude, longitude);
-  };
+
+    if (reverseGeocodeTimer.current) clearTimeout(reverseGeocodeTimer.current);
+    reverseGeocodeTimer.current = setTimeout(() => {
+      reverseGeocode(latitude, longitude);
+    }, 300);
+  }, [reverseGeocode]);
 
   const handleSearchAddress = async (query: string) => {
     if (!query.trim()) {
@@ -240,8 +311,10 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
   const handleBackPress = () => {
     if (onBack) {
       onBack();
-    } else {
+    } else if (router.canGoBack()) {
       router.back();
+    } else {
+      router.replace("/(tabs)");
     }
   };
 
@@ -310,7 +383,7 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
       </View>
 
       {/* Permission denied state */}
-      {locationPermissionDenied && !mapRegion && (
+      {locationPermissionDenied && !selectedLocation && (
         <View style={styles.permissionDenied}>
           <Ionicons name="location-outline" size={48} color="#9CA3AF" />
           <Text style={styles.permissionTitle}>Location Access Required</Text>
@@ -324,12 +397,16 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
       )}
 
       {/* Loading overlay when fetching location */}
-      {isLoadingLocation && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#48479B" />
-          <Text style={styles.loadingText}>Finding your location…</Text>
+      <Animated.View
+        style={[styles.loadingOverlay, { opacity: loadingOverlayOpacity }]}
+        pointerEvents={isLoadingLocation ? "auto" : "none"}
+      >
+        <View style={styles.loadingPulse}>
+          <Ionicons name="navigate-circle-outline" size={52} color="#48479B" />
         </View>
-      )}
+        <ActivityIndicator size="small" color="#48479B" style={{ marginTop: 16 }} />
+        <Text style={styles.loadingText}>Finding your location…</Text>
+      </Animated.View>
 
       {/* Search Bar */}
       <Animated.View
@@ -383,39 +460,29 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
       </Animated.View>
 
       {/* Map */}
-      {mapRegion && (
-      <>
       <View style={styles.mapContainer}>
         <MapView
           ref={mapRef}
           style={styles.map}
-          region={mapRegion}
-          onPress={handleMapPress}
-          onRegionChangeComplete={(r) => setMapRegion(r)}
+          initialRegion={mapRegion}
+          onRegionChange={handleRegionChange}
+          onRegionChangeComplete={handleRegionChangeComplete}
           showsUserLocation={true}
           showsMyLocationButton={false}
-        >
-          {selectedLocation && (
-          <Marker
-            coordinate={selectedLocation}
-            title="Selected Location"
-            description={currentAddress}
-            draggable
-            onDragEnd={(e) => {
-              const { latitude, longitude } = e.nativeEvent.coordinate;
-              setSelectedLocation({ latitude, longitude });
-              setMapRegion((prev) => prev ? { ...prev, latitude, longitude } : { latitude, longitude, latitudeDelta: 0.005, longitudeDelta: 0.005 });
-              reverseGeocode(latitude, longitude);
-            }}
-          />
-          )}
-        </MapView>
+        />
 
         {/* Center Pin Overlay */}
-        <View style={styles.centerMarkerContainer}>
-          <View style={styles.centerMarker}>
-            <Ionicons name="location" size={30} color="#48479B" />
-          </View>
+        <View style={styles.centerMarkerContainer} pointerEvents="none">
+          <Animated.View style={[
+            styles.pinShadow,
+            { transform: [{ scaleX: shadowScale }, { scaleY: Animated.multiply(shadowScale, 0.4) }] },
+          ]} />
+          <Animated.View style={[
+            styles.centerMarker,
+            { transform: [{ translateY: pinTranslateY }, { scale: pinScale }] },
+          ]}>
+            <Ionicons name="pin-outline" size={36} color="#48479B" />
+          </Animated.View>
         </View>
 
         {/* My Location Button */}
@@ -423,12 +490,19 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
           style={styles.myLocationButton}
           onPress={handleMyLocation}
           disabled={isLoadingLocation}
+          activeOpacity={0.7}
         >
-          <Ionicons 
-            name="locate" 
-            size={24} 
-            color={isLoadingLocation ? "#999" : "#007AFF"} 
-          />
+          {isLoadingLocation ? (
+            <ActivityIndicator size="small" color="#48479B" />
+          ) : (
+            <Animated.View style={{
+              transform: [{
+                rotate: locateBtnSpin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }),
+              }],
+            }}>
+              <Ionicons name="locate" size={24} color="#48479B" />
+            </Animated.View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -447,9 +521,20 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
         </View>
 
         <View style={styles.addressDetails}>
-          <Text style={styles.addressTitle} numberOfLines={2}>
-            {isLoadingAddress ? "Getting address…" : (currentAddress || "Move the pin to your location")}
-          </Text>
+          {isLoadingAddress ? (
+            <View style={styles.addressShimmerWrap}>
+              <Animated.View style={[styles.addressShimmerBar, { width: '75%' }, {
+                opacity: addressShimmer.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.25, 0.6, 0.25] }),
+              }]} />
+              <Animated.View style={[styles.addressShimmerBar, { width: '50%', marginTop: 8 }, {
+                opacity: addressShimmer.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.2, 0.5, 0.2] }),
+              }]} />
+            </View>
+          ) : (
+            <Text style={styles.addressTitle} numberOfLines={2}>
+              {currentAddress || "Move the map to select location"}
+            </Text>
+          )}
         </View>
 
         {/* Confirm Button */}
@@ -457,6 +542,7 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
           style={[styles.confirmButton, (!selectedLocation || isLoadingAddress) && styles.confirmButtonDisabled]}
           onPress={handleConfirmLocation}
           disabled={!selectedLocation || isLoadingAddress}
+          activeOpacity={0.8}
         >
           {isLoadingAddress ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
@@ -465,8 +551,6 @@ const MapLocationScreen: React.FC<MapLocationScreenProps> = ({
           )}
         </TouchableOpacity>
       </View>
-      </>
-      )}
     </SafeAreaView>
 
     <ServiceAreaRequestModal
@@ -580,23 +664,24 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: "50%",
     left: "50%",
-    marginLeft: -15,
-    marginTop: -30,
+    marginLeft: -18,
+    marginTop: -36,
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  centerMarker: {
     alignItems: "center",
     justifyContent: "center",
   },
-  centerMarker: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 8,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
+  pinShadow: {
+    position: "absolute",
+    bottom: -4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "rgba(0,0,0,0.15)",
   },
   myLocationButton: {
     position: "absolute",
@@ -609,13 +694,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
   },
   addressInfoContainer: {
     backgroundColor: "#FFFFFF",
@@ -716,16 +800,33 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    backgroundColor: "rgba(255, 255, 255, 0.96)",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 1000,
   },
+  loadingPulse: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: "#F0EFFE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#48479B",
+    marginTop: 14,
+    fontSize: 15,
+    color: "#6B7280",
     fontWeight: "500",
+    letterSpacing: 0.2,
+  },
+  addressShimmerWrap: {
+    paddingVertical: 4,
+  },
+  addressShimmerBar: {
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#E5E7EB",
   },
 });
 

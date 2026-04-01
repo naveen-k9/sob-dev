@@ -604,7 +604,7 @@ export default function DeliveryDashboard() {
                           {order.status.toUpperCase()}
                         </Text>
                       </View>
-                      <Text style={styles.orderValue}>₹{order.orderValue}</Text>
+                      {/* <Text style={styles.orderValue}>₹{order.orderValue}</Text> */}
                     </View>
                   </View>
 

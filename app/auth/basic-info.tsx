@@ -12,15 +12,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, router } from 'expo-router';
-import { ArrowLeft, User, Mail, MapPin, Home, Briefcase, Plus } from 'lucide-react-native';
+import { ArrowLeft, User, Mail, MapPin, Calendar } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { Address } from '@/types';
+import { Colors } from '@/constants/colors';
 
 interface BasicInfoForm {
   name: string;
   email: string;
   dob?: string;
-  addresses: Partial<Address>[];
 }
 
 export default function BasicInfoScreen() {
@@ -29,96 +28,27 @@ export default function BasicInfoScreen() {
   const [formData, setFormData] = useState<BasicInfoForm>({
     name: user?.name || '',
     email: user?.email || '',
-    dob: user?.dob ? (user.dob instanceof Date ? user.dob.toISOString().slice(0,10) : String(user.dob)) : undefined,
-    addresses: user?.addresses?.length ? user.addresses : [{
-      type: 'home',
-      label: 'Home',
-      street: '',
-      city: '',
-      state: '',
-      pincode: '',
-      landmark: '',
-      isDefault: true,
-    }],
+    dob: user?.dob ? (user.dob instanceof Date ? user.dob.toISOString().slice(0, 10) : String(user.dob)) : undefined,
   });
 
-  const handleSave = async () => {
-    if (!formData.name.trim()) {
-      Alert.alert('Error', 'Please enter your name');
-      return;
-    }
-
-    if (formData.email && !isValidEmail(formData.email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
-      return;
-    }
-
-    // Validate DOB if provided
-    if (formData.dob) {
-      const parsed = parseDateInput(formData.dob);
-      if (!parsed || !isReasonableAge(parsed)) {
-        Alert.alert('Error', 'Please enter a valid Date of Birth (YYYY-MM-DD). Age must be between 13 and 120 years.');
-        return;
-      }
-    }
-
-    setLoading(true);
-    try {
-      const validAddresses = formData.addresses.filter(addr => 
-        addr.street && addr.city && addr.state && addr.pincode
-      ).map((addr, index) => ({
-        ...addr,
-        id: addr.id || `addr_${Date.now()}_${index}`,
-        userId: user?.id || '',
-        coordinates: addr.coordinates || { latitude: 0, longitude: 0 },
-        deliveryInstructions: addr.deliveryInstructions || '',
-      })) as Address[];
-
-      await updateUser({
-        name: formData.name,
-        email: formData.email,
-        dob: formData.dob ? new Date(formData.dob) : undefined,
-        addresses: validAddresses,
-      });
-
-      Alert.alert('Success', 'Profile updated successfully!', [
-        { text: 'OK', onPress: () => router.replace('/(tabs)') }
-      ]);
-    } catch {
-      Alert.alert('Error', 'Failed to update profile. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Parse date strings in common formats. Prefer YYYY-MM-DD.
   const parseDateInput = (value: string): Date | null => {
     if (!value) return null;
-    // Normalize separators
     const v = value.trim();
-    // Try ISO YYYY-MM-DD
     const iso = /^\d{4}-\d{2}-\d{2}$/;
-    const dmy1 = /^\d{2}\/\d{2}\/\d{4}$/; // DD/MM/YYYY
-    const dmy2 = /^\d{2}-\d{2}-\d{4}$/; // DD-MM-YYYY
+    const dmy1 = /^\d{2}\/\d{2}\/\d{4}$/;
+    const dmy2 = /^\d{2}-\d{2}-\d{4}$/;
     try {
       if (iso.test(v)) {
         const dt = new Date(v + 'T00:00:00');
-        if (isNaN(dt.getTime())) return null;
-        return dt;
+        return isNaN(dt.getTime()) ? null : dt;
       }
       if (dmy1.test(v) || dmy2.test(v)) {
         const parts = v.includes('/') ? v.split('/') : v.split('-');
-        const day = Number(parts[0]);
-        const month = Number(parts[1]) - 1;
-        const year = Number(parts[2]);
-        const dt = new Date(year, month, day);
-        if (isNaN(dt.getTime())) return null;
-        return dt;
+        const dt = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+        return isNaN(dt.getTime()) ? null : dt;
       }
-      // Last resort: try Date constructor
       const fallback = new Date(v);
-      if (isNaN(fallback.getTime())) return null;
-      return fallback;
+      return isNaN(fallback.getTime()) ? null : fallback;
     } catch {
       return null;
     }
@@ -132,85 +62,82 @@ export default function BasicInfoScreen() {
     return age >= 13 && age <= 120;
   };
 
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const handleSave = async () => {
+    if (!formData.name.trim()) {
+      Alert.alert('Error', 'Please enter your name');
+      return;
+    }
+    if (formData.email && !isValidEmail(formData.email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+    if (formData.dob) {
+      const parsed = parseDateInput(formData.dob);
+      if (!parsed || !isReasonableAge(parsed)) {
+        Alert.alert('Error', 'Please enter a valid Date of Birth (YYYY-MM-DD). Age must be between 13 and 120 years.');
+        return;
+      }
+    }
+
+    setLoading(true);
+    try {
+      await updateUser({
+        name: formData.name,
+        email: formData.email,
+        dob: formData.dob ? new Date(formData.dob) : undefined,
+      });
+
+      router.replace('/location/select');
+    } catch {
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSkip = () => {
     Alert.alert(
       'Skip Profile Setup',
       'You can complete your profile later from the settings page.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Skip', onPress: () => router.replace('/(tabs)') }
+        { text: 'Skip', onPress: () => router.replace('/(tabs)') },
       ]
     );
   };
 
-  const isValidEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const updateAddress = (index: number, field: keyof Address, value: string) => {
-    const updatedAddresses = [...formData.addresses];
-    updatedAddresses[index] = {
-      ...updatedAddresses[index],
-      [field]: value,
-    };
-    setFormData({ ...formData, addresses: updatedAddresses });
-  };
-
-  const addNewAddress = () => {
-    const newAddress: Partial<Address> = {
-      type: 'other',
-      label: 'Address ' + (formData.addresses.length + 1),
-      street: '',
-      city: '',
-      state: '',
-      pincode: '',
-      landmark: '',
-      isDefault: false,
-    };
-    setFormData({
-      ...formData,
-      addresses: [...formData.addresses, newAddress],
-    });
-  };
-
-  const removeAddress = (index: number) => {
-    if (formData.addresses.length > 1) {
-      const updatedAddresses = formData.addresses.filter((_, i) => i !== index);
-      setFormData({ ...formData, addresses: updatedAddresses });
-    }
-  };
-
-  const getAddressIcon = (type: string) => {
-    switch (type) {
-      case 'home': return <Home size={20} color="#48479B" />;
-      case 'work': return <Briefcase size={20} color="#48479B" />;
-      default: return <MapPin size={20} color="#48479B" />;
-    }
+  const safeBack = () => {
+    // When this screen is opened via router.replace (common in onboarding),
+    // there may be no back stack, so router.back() would dispatch GO_BACK with no handler.
+    const canGoBack = typeof (router as any).canGoBack === "function" ? (router as any).canGoBack() : false;
+    if (canGoBack) router.back();
+    else router.replace("/(tabs)");
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen 
-        options={{ 
+      <Stack.Screen
+        options={{
           headerShown: true,
           title: 'Complete Your Profile',
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity onPress={safeBack}>
               <ArrowLeft size={24} color="#333" />
             </TouchableOpacity>
           ),
-        }} 
+        }}
       />
-      
-      <KeyboardAvoidingView 
+
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.content}
       >
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.form}>
             <View style={styles.iconContainer}>
-              <User size={48} color="#48479B" />
+              <User size={48} color={Colors.primary} />
             </View>
 
             <Text style={styles.title}>Let&apos;s get to know you better</Text>
@@ -218,7 +145,6 @@ export default function BasicInfoScreen() {
               Help us personalize your experience by completing your profile
             </Text>
 
-            {/* Name Field */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Full Name *</Text>
               <View style={styles.inputContainer}>
@@ -233,7 +159,6 @@ export default function BasicInfoScreen() {
               </View>
             </View>
 
-            {/* Email Field */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Email Address</Text>
               <View style={styles.inputContainer}>
@@ -249,92 +174,25 @@ export default function BasicInfoScreen() {
               </View>
             </View>
 
-                {/* Date of Birth Field */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Date of Birth</Text>
-                  <View style={styles.inputContainer}>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="YYYY-MM-DD"
-                      value={formData.dob}
-                      onChangeText={(text) => setFormData({ ...formData, dob: text })}
-                      // keyboardType={Platform.OS === 'web' ? 'text' : 'numbers-and-punctuation'}
-                      autoCapitalize="none"
-                    />
-                  </View>
-                </View>
-
-            {/* Addresses Section */}
-            <View style={styles.addressSection}>
-              <View style={styles.addressHeader}>
-                <Text style={styles.sectionTitle}>Delivery Addresses</Text>
-                <TouchableOpacity onPress={addNewAddress} style={styles.addButton}>
-                  <Plus size={16} color="#48479B" />
-                  <Text style={styles.addButtonText}>Add Address</Text>
-                </TouchableOpacity>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Date of Birth</Text>
+              <View style={styles.inputContainer}>
+                <Calendar size={20} color="#666" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="YYYY-MM-DD"
+                  value={formData.dob}
+                  onChangeText={(text) => setFormData({ ...formData, dob: text })}
+                  autoCapitalize="none"
+                />
               </View>
+            </View>
 
-              {formData.addresses.map((address, index) => (
-                <View key={index} style={styles.addressCard}>
-                  <View style={styles.addressCardHeader}>
-                    {getAddressIcon(address.type || 'other')}
-                    <TextInput
-                      style={styles.addressLabel}
-                      placeholder="Address label"
-                      value={address.label}
-                      onChangeText={(text) => updateAddress(index, 'label', text)}
-                    />
-                    {formData.addresses.length > 1 && (
-                      <TouchableOpacity 
-                        onPress={() => removeAddress(index)}
-                        style={styles.removeButton}
-                      >
-                        <Text style={styles.removeButtonText}>Remove</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  <TextInput
-                    style={styles.addressInput}
-                    placeholder="Street address"
-                    value={address.street}
-                    onChangeText={(text) => updateAddress(index, 'street', text)}
-                    multiline
-                  />
-
-                  <View style={styles.addressRow}>
-                    <TextInput
-                      style={[styles.addressInput, styles.halfWidth]}
-                      placeholder="City"
-                      value={address.city}
-                      onChangeText={(text) => updateAddress(index, 'city', text)}
-                    />
-                    <TextInput
-                      style={[styles.addressInput, styles.halfWidth]}
-                      placeholder="State"
-                      value={address.state}
-                      onChangeText={(text) => updateAddress(index, 'state', text)}
-                    />
-                  </View>
-
-                  <View style={styles.addressRow}>
-                    <TextInput
-                      style={[styles.addressInput, styles.halfWidth]}
-                      placeholder="Pincode"
-                      value={address.pincode}
-                      onChangeText={(text) => updateAddress(index, 'pincode', text)}
-                      keyboardType="number-pad"
-                      maxLength={6}
-                    />
-                    <TextInput
-                      style={[styles.addressInput, styles.halfWidth]}
-                      placeholder="Landmark (optional)"
-                      value={address.landmark}
-                      onChangeText={(text) => updateAddress(index, 'landmark', text)}
-                    />
-                  </View>
-                </View>
-              ))}
+            <View style={styles.addressHint}>
+              <MapPin size={20} color={Colors.primary} />
+              <Text style={styles.addressHintText}>
+                You'll be able to add your delivery address on the next screen using the map
+              </Text>
             </View>
           </View>
         </ScrollView>
@@ -346,7 +204,7 @@ export default function BasicInfoScreen() {
             disabled={loading}
           >
             <Text style={styles.primaryButtonText}>
-              {loading ? 'Saving...' : 'Save & Continue'}
+              {loading ? 'Saving...' : 'Save & Add Address'}
             </Text>
           </TouchableOpacity>
 
@@ -424,80 +282,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
-  addressSection: {
-    marginTop: 20,
-  },
-  addressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  addButton: {
+  addressHint: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#48479B',
-  },
-  addButtonText: {
-    color: '#48479B',
-    fontSize: 14,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  addressCard: {
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(72, 71, 155, 0.08)',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
+    marginTop: 12,
+    gap: 12,
   },
-  addressCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  addressLabel: {
+  addressHintText: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginLeft: 8,
-  },
-  removeButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  removeButtonText: {
-    color: '#48479B',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  addressInput: {
-    borderWidth: 1,
-    borderColor: '#DDD',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
     fontSize: 14,
-    backgroundColor: '#F8F9FA',
-    marginBottom: 8,
-  },
-  addressRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  halfWidth: {
-    width: '48%',
+    color: '#555',
+    lineHeight: 20,
   },
   footer: {
     paddingHorizontal: 24,
@@ -513,7 +311,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   primaryButton: {
-    backgroundColor: '#48479B',
+    backgroundColor: Colors.primary,
   },
   secondaryButton: {
     backgroundColor: 'transparent',

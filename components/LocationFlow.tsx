@@ -51,7 +51,13 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
 
   // Map state
-  const [mapRegion, setMapRegion] = useState<Region | null>(null);
+  const DEFAULT_REGION: Region = {
+    latitude: 17.385,
+    longitude: 78.4867,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
+  };
+  const [mapRegion, setMapRegion] = useState<Region>(DEFAULT_REGION);
   const [selectedLocation, setSelectedLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [currentAddress, setCurrentAddress] = useState("");
   const [isLoadingAddress, setIsLoadingAddress] = useState(false);
@@ -254,8 +260,9 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
   };
 
   // Step 2: Map handlers
-  const handleMapPress = (event: any) => {
-    const { latitude, longitude } = event.nativeEvent.coordinate;
+  const handleRegionChange = (region: Region) => {
+    setMapRegion(region);
+    const { latitude, longitude } = region;
     setSelectedLocation({ latitude, longitude });
     reverseGeocode(latitude, longitude);
   };
@@ -581,35 +588,20 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
       )}
 
       {/* Map */}
-      {mapRegion && (
-      <>
       <View style={styles.mapContainer}>
         <MapView
           ref={mapRef}
           style={styles.map}
-          region={mapRegion}
-          onPress={handleMapPress}
-          onRegionChangeComplete={(r) => setMapRegion(r)}
+          initialRegion={mapRegion}
+          onRegionChangeComplete={handleRegionChange}
           showsUserLocation={true}
           showsMyLocationButton={false}
-        >
-          {selectedLocation && (
-          <Marker
-            coordinate={selectedLocation}
-            draggable
-            onDragEnd={(e) => {
-              const { latitude, longitude } = e.nativeEvent.coordinate;
-              setSelectedLocation({ latitude, longitude });
-              reverseGeocode(latitude, longitude);
-            }}
-          />
-          )}
-        </MapView>
+        />
 
         {/* Center Pin Overlay */}
-        <View style={styles.centerMarkerContainer}>
+        <View style={styles.centerMarkerContainer} pointerEvents="none">
           <View style={styles.centerMarker}>
-            <Ionicons name="location" size={30} color="#48479B" />
+            <Ionicons name="pin-outline" size={36} color="#48479B" />
           </View>
         </View>
 
@@ -652,8 +644,6 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
           )}
         </TouchableOpacity>
       </View>
-      </>
-      )}
     </>
   );
 
@@ -672,7 +662,7 @@ const LocationFlow: React.FC<LocationFlowProps> = ({
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Map Preview */}
-        {mapRegion && selectedLocation && (
+        {selectedLocation && (
         <View style={styles.mapPreviewContainer}>
           <MapView
             style={styles.mapPreview}
@@ -1044,20 +1034,16 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: "50%",
     left: "50%",
-    marginLeft: -15,
-    marginTop: -30,
+    marginLeft: -18,
+    marginTop: -36,
+    width: 36,
+    height: 36,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-end",
   },
   centerMarker: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
+    alignItems: "center",
+    justifyContent: "center",
   },
   myLocationButton: {
     position: "absolute",
@@ -1080,6 +1066,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingHorizontal: 16,
     paddingBottom: 34,
+    width: "100%",
   },
   deliveryInfo: {
     marginBottom: 16,

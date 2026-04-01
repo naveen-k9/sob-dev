@@ -3,7 +3,6 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
-  useRef,
 } from "react";
 import {
   View,
@@ -39,7 +38,7 @@ import LocationService from "@/components/LocationService";
 import FormCard from "@/components/FormCard";
 import ThemeToggle from "@/components/ThemeToggle";
 import { PromotionalItem } from "@/constants/data";
-import { useAsyncStorage } from "@/hooks/useStorage";
+// useAsyncStorage removed — location session is tracked in LocationContext
 import {
   Banner,
   Offer,
@@ -367,13 +366,6 @@ function CustomerHomeScreen({
   const { locationState } = useLocation();
   const insets = useSafeAreaInsets();
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isScrolling, setIsScrolling] = useState(false); // Track active scrolling
-  const [hasLocationBeenDetected, setHasLocationBeenDetected] = useState(false); // Track if location was already detected
-  const [locationDetectionSession] = useAsyncStorage<boolean>(
-    "locationDetectionSession",
-    false
-  );
-  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const bannersQuery = useQuery({
     queryKey: ["banners"],
@@ -392,37 +384,6 @@ function CustomerHomeScreen({
     queryKey: ["activeOffers"],
     queryFn: () => db.getActiveOffers(),
   });
-
-  // Cleanup scroll timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Initialize location detection state from storage
-  useEffect(() => {
-    if (locationDetectionSession) {
-      setHasLocationBeenDetected(true);
-    }
-  }, [locationDetectionSession]);
-
-  // Function to handle location detection and update storage
-  const handleLocationSet = useCallback(async (location: any) => {
-    console.log("Location set:", location);
-    setHasLocationBeenDetected(true);
-    // Update storage to remember that location was detected in this session
-    try {
-      await import("@react-native-async-storage/async-storage").then(
-        ({ default: AsyncStorage }) =>
-          AsyncStorage.setItem("locationDetectionSession", "true")
-      );
-    } catch (error) {
-      console.log("Failed to save location detection session:", error);
-    }
-  }, []);
 
   const featuredMeals: Meal[] = useMemo(() => {
     const meals: Meal[] = mealsQuery.data ?? [];
@@ -481,10 +442,7 @@ function CustomerHomeScreen({
               },
             ]}
           >
-            <LocationService
-              onLocationSet={handleLocationSet}
-              disableAutoDetection={isScrolling || hasLocationBeenDetected} // Disable if scrolling OR already detected
-            />
+            <LocationService />
             <View style={styles.headerActions}>
               <ThemeToggle size={18} variant="pill" />
               <TouchableOpacity
@@ -515,27 +473,12 @@ function CustomerHomeScreen({
           const y = e.nativeEvent.contentOffset?.y ?? 0;
           const threshold = TOP_BG_HEIGHT * 0.6;
           const next: "light" | "dark" = y < threshold ? "light" : "dark";
-          const currentlyScrolled = y > TOP_BG_HEIGHT - 60; // Show sticky header when banner is mostly scrolled out
+          const currentlyScrolled = y > TOP_BG_HEIGHT - 60;
 
-          // Track scrolling state to prevent location detection during scroll
-          setIsScrolling(true);
-
-          // Clear existing timeout
-          if (scrollTimeoutRef.current) {
-            clearTimeout(scrollTimeoutRef.current);
-          }
-
-          // Set timeout to detect when scrolling stops
-          scrollTimeoutRef.current = setTimeout(() => {
-            setIsScrolling(false);
-          }, 300); // 300ms after scroll stops
-
-          // Update local scroll state
           if (currentlyScrolled !== isScrolled) {
             setIsScrolled(currentlyScrolled);
           }
 
-          // Update parent's StatusBar style
           if (next !== barStyle) {
             onScrollStatusChange(next, currentlyScrolled);
           }
@@ -561,12 +504,7 @@ function CustomerHomeScreen({
               },
             ]}
           >
-            <LocationService
-              onLocationSet={handleLocationSet}
-              disableAutoDetection={
-                isScrolled || isScrolling || hasLocationBeenDetected
-              } // Disable if scrolled, scrolling, OR alr
-            />
+            <LocationService />
             <View style={styles.headerActions}>
               {/* DARK/LIGHT MODE SWITCH */}
               <ThemeToggle size={18} variant="pill" />

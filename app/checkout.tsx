@@ -34,6 +34,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { addOns } from "@/constants/data";
 import { StatusBar } from "expo-status-bar";
 import { Filter } from "react-native-svg";
+import { applyReferralCodeCallable } from "@/services/firebaseFunctions";
 export default function CheckoutScreen() {
   const { user, isGuest, updateUser } = useAuth();
   const { locationState } = useLocation();
@@ -101,17 +102,33 @@ export default function CheckoutScreen() {
     async function loadSlots() {
       try {
         const slots = await db.getTimeSlots();
-        setAllTimeSlots((slots || []).filter((s: any) => s.isActive !== false));
-        // If no slot selected, pick first
-        if (!selectedTimeSlot && slots && slots.length > 0) {
-          setSelectedTimeSlot(slots[0]);
+        const activeSlots = (slots || []).filter((s: any) => s.isActive !== false);
+        setAllTimeSlots(activeSlots);
+
+        const allowedIds: string[] = Array.isArray(
+          subscriptionDetails?.meal?.availableTimeSlotIds
+        )
+          ? subscriptionDetails.meal.availableTimeSlotIds
+          : [];
+
+        const eligibleSlots =
+          allowedIds.length > 0
+            ? activeSlots.filter((s: any) => allowedIds.includes(s.id))
+            : activeSlots;
+
+        const isCurrentEligible =
+          !!selectedTimeSlot &&
+          eligibleSlots.some((s: any) => s.id === selectedTimeSlot.id);
+
+        if (!isCurrentEligible) {
+          setSelectedTimeSlot(eligibleSlots[0] ?? null);
         }
       } catch (e) {
         console.log("Error loading slots", e);
       }
     }
     loadSlots();
-  }, []);
+  }, [subscriptionDetails?.meal?.availableTimeSlotIds, selectedTimeSlot]);
 
   useEffect(() => {
     if (user?.addresses && user.addresses.length > 0) {
@@ -152,6 +169,11 @@ export default function CheckoutScreen() {
         promoDiscount: 0,
         trialDiscount: 0,
         addOnTotal: 0,
+        mealDays: 0,
+        mealUnitPrice: 0,
+        mealOriginalTotal: 0,
+        mealDiscountedTotal: 0,
+        addOnDaysById: {} as Record<string, number>,
         walletAppliedAmount: 0,
         finalAmount: 0,
         payableAmount: 0,
@@ -160,12 +182,49 @@ export default function CheckoutScreen() {
     }
     const planName: string = String(subscriptionDetails.plan?.name ?? "");
     const duration: number = Number(subscriptionDetails.plan?.duration ?? 0);
-    const originalPrice: number = Number(
-      subscriptionDetails.plan?.originalPrice ?? 0
-    );
-    const discountedPrice: number = Number(
-      subscriptionDetails.plan?.discountedPrice ?? 0
-    );
+    const planOriginalPrice: number = Number(subscriptionDetails.plan?.originalPrice ?? 0);
+    const planDiscountedPrice: number = Number(subscriptionDetails.plan?.discountedPrice ?? 0);
+
+    const weekType: "mon-fri" | "mon-sat" | "everyday" =
+      subscriptionDetails.weekType === "everyday" ||
+      subscriptionDetails.weekType === "mon-sat" ||
+      subscriptionDetails.weekType === "mon-fri"
+        ? subscriptionDetails.weekType
+        : "mon-fri";
+
+    const daysPerWeek =
+      subscriptionDetails.isTrialMode
+        ? 2
+        : weekType === "everyday"
+          ? 7
+          : weekType === "mon-fri"
+            ? 5
+            : 6;
+    const weeks = Math.max(1, Math.ceil((duration || 0) / daysPerWeek));
+
+    const mealUnitPrice: number = Number(subscriptionDetails.meal?.price ?? 0);
+    const productDays: string[] = Array.isArray(subscriptionDetails.productDays)
+      ? subscriptionDetails.productDays
+      : [];
+    const productDaysCount = productDays.length;
+    const mealDays =
+      subscriptionDetails.isTrialMode
+        ? 2
+        : productDaysCount > 0
+          ? Math.min(duration, weeks * productDaysCount)
+          : duration;
+
+    const mealOriginalTotal = Math.max(0, mealUnitPrice * mealDays);
+    const discountFactor =
+      planOriginalPrice > 0 && planDiscountedPrice > 0
+        ? planDiscountedPrice / planOriginalPrice
+        : typeof subscriptionDetails.plan?.discount === "number"
+          ? Math.max(0, Math.min(1, (100 - subscriptionDetails.plan.discount) / 100))
+          : 1;
+    const mealDiscountedTotal = Math.round(mealOriginalTotal * discountFactor);
+
+    const originalPrice: number = mealOriginalTotal;
+    const discountedPrice: number = mealDiscountedTotal;
     const baseDiscount: number = Math.max(0, originalPrice - discountedPrice);
     const deliveryFee: number = 0;
     const trialDiscount: number = subscriptionDetails.isTrialMode
@@ -173,13 +232,33 @@ export default function CheckoutScreen() {
       : 0;
 
     // Calculate addon total based on actual addon prices from data
-    const addOnTotal: number = (subscriptionDetails.addOns ?? []).reduce(
-      (total: number, addOnId: string) => {
-        const addOn = addOns.find((a) => a.id === addOnId);
-        return total + (addOn?.price ?? 0) * duration;
-      },
-      0
-    );
+    const addOnIds: string[] = Array.isArray(subscriptionDetails.addOns)
+      ? (subscriptionDetails.addOns as any[]).map((x) =>
+          typeof x === "string" ? x : String(x?.id ?? "")
+        ).filter(Boolean)
+      : [];
+    const selectedAddOnDays: Record<string, string[]> =
+      subscriptionDetails.selectedAddOnDays &&
+      typeof subscriptionDetails.selectedAddOnDays === "object"
+        ? subscriptionDetails.selectedAddOnDays
+        : {};
+
+    const addOnDaysById: Record<string, number> = {};
+    const addOnTotal: number = addOnIds.reduce((total: number, addOnId: string) => {
+      const addOn = addOns.find((a) => a.id === addOnId);
+      if (!addOn) return total;
+      const selectedDaysCount = Array.isArray(selectedAddOnDays[addOnId])
+        ? selectedAddOnDays[addOnId].length
+        : 0;
+      const addOnDays =
+        subscriptionDetails.isTrialMode
+          ? Math.min(2, duration || 2)
+          : selectedDaysCount > 0
+            ? Math.min(duration, weeks * selectedDaysCount)
+            : duration;
+      addOnDaysById[addOnId] = addOnDays;
+      return total + (addOn.price ?? 0) * addOnDays;
+    }, 0);
 
     const baseSubtotal: number =
       discountedPrice + addOnTotal - trialDiscount + deliveryFee;
@@ -230,6 +309,11 @@ export default function CheckoutScreen() {
       promoDiscount,
       trialDiscount,
       addOnTotal,
+      mealDays,
+      mealUnitPrice,
+      mealOriginalTotal,
+      mealDiscountedTotal,
+      addOnDaysById,
       walletAppliedAmount,
       finalAmount: payableAmount,
       payableAmount,
@@ -412,15 +496,14 @@ export default function CheckoutScreen() {
     }
     try {
       setReferralApplying(true);
-      const res = await db.applyReferralCode(
-        user.id,
-        referralCode.trim().toUpperCase()
-      );
+      const res = await applyReferralCodeCallable({
+        code: referralCode.trim().toUpperCase(),
+      });
       if (res.success) {
         setReferralApplied(true);
-        Alert.alert("Success", res.message);
+        Alert.alert("Success", res.message || "Referral applied.");
       } else {
-        Alert.alert("Failed", res.message);
+        Alert.alert("Failed", res.message || "Failed to apply referral code.");
       }
     } catch (e) {
       Alert.alert("Error", "Could not apply referral code. Please try again.");
@@ -601,9 +684,13 @@ export default function CheckoutScreen() {
           updatedDetails.weekType
         );
 
+        if (!user?.id) {
+          Alert.alert("Login required", "Please login to create a subscription.");
+          return;
+        }
         const renewSubscriptionId = updatedDetails.renewSubscriptionId as string | undefined;
         const subscription = {
-          userId: user?.id || "guest",
+          userId: user.id,
           mealId: updatedDetails.meal.id,
           planName: updatedDetails.meal?.name || "Meal",
           planId: updatedDetails.plan.id,
@@ -629,6 +716,7 @@ export default function CheckoutScreen() {
           totalDeliveries: updatedDetails.plan.duration,
           addressId: selectedAddress?.id || "default",
           addOns: updatedDetails.addOns ?? [],
+          addOnScheduleById: updatedDetails.selectedAddOnDays ?? {},
           additionalAddOns: {},
           specialInstructions: deliveryInstructions,
           mealType: updatedDetails.mealType,
@@ -661,6 +749,7 @@ export default function CheckoutScreen() {
               totalDeliveries: updatedDetails.plan.duration,
               addressId: selectedAddress?.id || "default",
               addOns: updatedDetails.addOns ?? [],
+              addOnScheduleById: updatedDetails.selectedAddOnDays ?? {},
               specialInstructions: deliveryInstructions,
               appliedOfferId: appliedOffer?.id ?? null,
               promoCode: appliedOffer?.promoCode ?? appliedOffer?.code ?? null,
@@ -820,9 +909,13 @@ export default function CheckoutScreen() {
           updatedDetails.weekType
         );
 
+        if (!user?.id) {
+          Alert.alert("Login required", "Please login to create a subscription.");
+          return;
+        }
         const renewSubscriptionIdRazorpay = updatedDetails.renewSubscriptionId as string | undefined;
         const subscription = {
-          userId: user?.id || "guest",
+          userId: user.id,
           mealId: updatedDetails.meal.id,
           planName: updatedDetails.meal?.name || "Meal",
           planId: updatedDetails.plan.id,
@@ -848,6 +941,7 @@ export default function CheckoutScreen() {
           totalDeliveries: updatedDetails.plan.duration,
           addressId: selectedAddress?.id || "default",
           addOns: updatedDetails.addOns ?? [],
+          addOnScheduleById: updatedDetails.selectedAddOnDays ?? {},
           additionalAddOns: {},
           specialInstructions: deliveryInstructions,
           mealType: updatedDetails.mealType,
@@ -881,6 +975,7 @@ export default function CheckoutScreen() {
               totalDeliveries: updatedDetails.plan.duration,
               addressId: selectedAddress?.id || "default",
               addOns: updatedDetails.addOns ?? [],
+              addOnScheduleById: updatedDetails.selectedAddOnDays ?? {},
               specialInstructions: deliveryInstructions,
               appliedOfferId: appliedOffer?.id ?? null,
               promoCode: appliedOffer?.promoCode ?? appliedOffer?.code ?? null,
@@ -1012,9 +1107,13 @@ export default function CheckoutScreen() {
         subscriptionDetails.weekType
       );
 
+      if (!user?.id) {
+        Alert.alert("Login required", "Please login to create a subscription.");
+        return;
+      }
       const renewSubscriptionIdRetry = subscriptionDetails.renewSubscriptionId as string | undefined;
       const subscription = {
-        userId: user?.id || "guest",
+        userId: user.id,
         mealId: subscriptionDetails.meal.id,
         planName: subscriptionDetails.meal?.name || "Meal",
         planId: subscriptionDetails.plan.id,
@@ -1040,6 +1139,7 @@ export default function CheckoutScreen() {
         totalDeliveries: subscriptionDetails.plan.duration,
         addressId: selectedAddress?.id || "default",
         addOns: subscriptionDetails.addOns ?? [],
+        addOnScheduleById: subscriptionDetails.selectedAddOnDays ?? {},
         additionalAddOns: {},
         specialInstructions: deliveryInstructions,
         mealType: subscriptionDetails.mealType,
@@ -1072,6 +1172,7 @@ export default function CheckoutScreen() {
             totalDeliveries: subscriptionDetails.plan.duration,
             addressId: selectedAddress?.id || "default",
             addOns: subscriptionDetails.addOns ?? [],
+            addOnScheduleById: subscriptionDetails.selectedAddOnDays ?? {},
             specialInstructions: deliveryInstructions,
             appliedOfferId: appliedOffer?.id ?? null,
             promoCode: appliedOffer?.promoCode ?? appliedOffer?.code ?? null,
@@ -1253,10 +1354,13 @@ export default function CheckoutScreen() {
                 <View style={styles.summaryCard}>
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>
-                      {subscriptionDetails.meal?.name}
+                      {subscriptionDetails.meal?.name}{" "}
+                      {orderSummary.mealDays > 0
+                        ? `(${orderSummary.mealDays} days)`
+                        : ""}
                     </Text>
                     <Text style={styles.summaryValue}>
-                      ₹{subscriptionDetails.meal?.price}
+                      ₹{orderSummary.mealOriginalTotal}
                     </Text>
                   </View>
                   <View style={styles.summaryRow}>
@@ -1295,12 +1399,21 @@ export default function CheckoutScreen() {
                           Add-ons
                         </Text>
                       </View>
-                      {(subscriptionDetails.addOns ?? []).map(
-                        (addOnId: string) => {
+                      {(
+                        Array.isArray(subscriptionDetails.addOns)
+                          ? (subscriptionDetails.addOns as any[])
+                              .map((x) =>
+                                typeof x === "string" ? x : String(x?.id ?? "")
+                              )
+                              .filter(Boolean)
+                          : []
+                      ).map((addOnId: string) => {
                           const addOn = addOns.find((a) => a.id === addOnId);
                           if (!addOn) return null;
-                          const addOnPrice =
-                            addOn.price * orderSummary.duration;
+                          const addOnDays =
+                            orderSummary.addOnDaysById?.[addOnId] ??
+                            orderSummary.duration;
+                          const addOnPrice = addOn.price * addOnDays;
                           return (
                             <View
                               key={addOnId}
@@ -1312,7 +1425,7 @@ export default function CheckoutScreen() {
                                   { fontSize: 14, color: "#666" },
                                 ]}
                               >
-                                • {addOn.name} x {orderSummary.duration} days
+                                • {addOn.name} x {addOnDays} days
                               </Text>
                               <Text
                                 style={[styles.summaryValue, { fontSize: 14 }]}
@@ -1321,8 +1434,7 @@ export default function CheckoutScreen() {
                               </Text>
                             </View>
                           );
-                        }
-                      )}
+                        })}
                       <View style={styles.summaryRow}>
                         <Text style={styles.summaryLabel}>Add-ons Total</Text>
                         <Text style={styles.summaryValue}>

@@ -9,13 +9,19 @@ export default function LocationSelectScreen() {
   const { setActiveAddress } = useActiveAddress();
   const [showLocationFlow, setShowLocationFlow] = useState(true);
 
+  const safeBack = () => {
+    const canGoBack = typeof (router as any).canGoBack === "function" ? (router as any).canGoBack() : false;
+    if (canGoBack) router.back();
+    else router.replace("/(tabs)");
+  };
+
   const handleLocationSelected = (address: Address) => {
     setActiveAddress(address);
-    router.back();
+    safeBack();
   };
 
   const handleClose = () => {
-    router.back();
+    safeBack();
   };
 
   return (
